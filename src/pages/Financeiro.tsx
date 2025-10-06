@@ -101,8 +101,8 @@ export default function Financeiro() {
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Financeiro</h1>
-          <p className="text-muted-foreground">Controle detalhado de receitas e despesas</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financeiro</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Controle detalhado de receitas e despesas</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
@@ -174,19 +174,19 @@ export default function Financeiro() {
           transition={{ delay: 0.1 }}
         >
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total de Entradas</p>
-                  <h3 className="text-2xl font-bold text-foreground">
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total de Entradas</p>
+                  <h3 className="text-xl sm:text-2xl font-bold text-foreground truncate">
                     R$ {totalEntradas.toFixed(2)}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
                     {transactions.filter(t => t.type === 'entrada').length} transações
                   </p>
                 </div>
-                <div className="bg-green-100 p-3 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
+                <div className="bg-green-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
+                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                 </div>
               </div>
             </CardContent>
@@ -199,19 +199,19 @@ export default function Financeiro() {
           transition={{ delay: 0.2 }}
         >
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total de Saídas</p>
-                  <h3 className="text-2xl font-bold text-foreground">
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total de Saídas</p>
+                  <h3 className="text-xl sm:text-2xl font-bold text-foreground truncate">
                     R$ {totalSaidas.toFixed(2)}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
                     {transactions.filter(t => t.type === 'saida').length} transações
                   </p>
                 </div>
-                <div className="bg-red-100 p-3 rounded-lg">
-                  <TrendingDown className="h-6 w-6 text-red-600" />
+                <div className="bg-red-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
+                  <TrendingDown className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
                 </div>
               </div>
             </CardContent>
@@ -224,19 +224,19 @@ export default function Financeiro() {
           transition={{ delay: 0.3 }}
         >
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Saldo Atual</p>
-                  <h3 className={`text-2xl font-bold ${saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Saldo Atual</p>
+                  <h3 className={`text-xl sm:text-2xl font-bold truncate ${saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     R$ {saldo.toFixed(2)}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
                     {saldo >= 0 ? 'Positivo' : 'Negativo'}
                   </p>
                 </div>
-                <div className="bg-primary/10 p-3 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-primary" />
+                <div className="bg-primary/10 p-2 sm:p-3 rounded-lg flex-shrink-0">
+                  <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
               </div>
             </CardContent>
@@ -256,13 +256,13 @@ export default function Financeiro() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="distribuicao" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
-                <TabsTrigger value="categorias">Categorias</TabsTrigger>
-                <TabsTrigger value="evolucao">Evolução</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 h-auto">
+                <TabsTrigger value="distribuicao" className="text-xs sm:text-sm">Distribuição</TabsTrigger>
+                <TabsTrigger value="categorias" className="text-xs sm:text-sm">Categorias</TabsTrigger>
+                <TabsTrigger value="evolucao" className="text-xs sm:text-sm">Evolução</TabsTrigger>
               </TabsList>
               
-              <TabsContent value="distribuicao">
+              <TabsContent value="distribuicao" className="mt-4">
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
@@ -284,28 +284,28 @@ export default function Financeiro() {
                 </ResponsiveContainer>
               </TabsContent>
 
-              <TabsContent value="categorias">
+              <TabsContent value="categorias" className="mt-4">
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={categoryChartData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
-                    <Legend />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
                     <Bar dataKey="Entradas" fill="#10b981" />
                     <Bar dataKey="Saídas" fill="#ef4444" />
                   </BarChart>
                 </ResponsiveContainer>
               </TabsContent>
 
-              <TabsContent value="evolucao">
+              <TabsContent value="evolucao" className="mt-4">
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={evolutionData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="mes" />
-                    <YAxis />
+                    <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip />
-                    <Legend />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
                     <Line type="monotone" dataKey="entrada" stroke="#10b981" strokeWidth={2} name="Entradas" />
                     <Line type="monotone" dataKey="saida" stroke="#ef4444" strokeWidth={2} name="Saídas" />
                   </LineChart>
@@ -359,23 +359,23 @@ export default function Financeiro() {
                 </p>
               ) : (
                 filteredTransactions.slice().reverse().map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">{transaction.description}</p>
-                        <span className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded">
+                  <div key={transaction.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-secondary/50 transition-colors gap-3">
+                    <div className="flex-1 min-w-0 w-full sm:w-auto">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-foreground text-sm sm:text-base truncate">{transaction.description}</p>
+                        <span className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded flex-shrink-0">
                           {transaction.category}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
-                        <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">
+                        <CalendarIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           {transaction.date.toLocaleDateString('pt-BR')}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`font-bold text-lg ${transaction.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className="text-right w-full sm:w-auto sm:flex-shrink-0">
+                      <p className={`font-bold text-base sm:text-lg ${transaction.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
                         {transaction.type === 'entrada' ? '+' : '-'} R$ {transaction.amount.toFixed(2)}
                       </p>
                       <p className="text-xs text-muted-foreground">

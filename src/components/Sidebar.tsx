@@ -31,11 +31,11 @@ export const Sidebar = () => {
 
   return (
     <>
-      {/* Mobile Toggle */}
+      {/* Mobile/Tablet Toggle */}
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-20 left-4 z-50 lg:hidden bg-card shadow-lg border border-border"
+        className="fixed top-28 left-4 z-50 xl:hidden bg-card shadow-lg border border-border"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -47,7 +47,7 @@ export const Sidebar = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/20 z-40 xl:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -57,7 +57,7 @@ export const Sidebar = () => {
         initial={false}
         animate={isMobile ? { x: isOpen ? 0 : '-100%' } : { x: 0 }}
         transition={{ duration: 0.2 }}
-        className="fixed top-[88px] left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto lg:static lg:top-0"
+        className="fixed top-[88px] left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto xl:static xl:top-0"
       >
         <nav className="p-4 space-y-2">
           {navItems.map((item) => (

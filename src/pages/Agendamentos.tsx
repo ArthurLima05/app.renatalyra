@@ -55,11 +55,11 @@ export default function Agendamentos() {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="flex items-center justify-between"
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Agendamentos</h1>
-          <p className="text-muted-foreground">Gerencie todas as consultas</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Agendamentos</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Gerencie todas as consultas</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
@@ -139,18 +139,18 @@ export default function Agendamentos() {
               transition={{ delay: index * 0.05 }}
             >
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className="bg-primary/10 p-3 rounded-lg">
-                        <CalendarIcon className="h-6 w-6 text-primary" />
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4 flex-1">
+                      <div className="bg-primary/10 p-2 sm:p-3 rounded-lg flex-shrink-0">
+                        <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">{appointment.patientName}</h3>
-                        <p className="text-muted-foreground text-sm">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-base sm:text-lg truncate">{appointment.patientName}</h3>
+                        <p className="text-muted-foreground text-xs sm:text-sm truncate">
                           {professional?.name} - {professional?.specialty}
                         </p>
-                        <p className="text-sm mt-1">
+                        <p className="text-xs sm:text-sm mt-1">
                           {appointment.date.toLocaleDateString('pt-BR')} às {appointment.time}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
@@ -158,13 +158,13 @@ export default function Agendamentos() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col sm:flex-row lg:flex-col gap-2 items-start sm:items-center lg:items-end">
                       {getStatusBadge(appointment.status)}
                       <Select
                         value={appointment.status}
                         onValueChange={(value) => updateAppointmentStatus(appointment.id, value as AppointmentStatus)}
                       >
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="w-full sm:w-40">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
