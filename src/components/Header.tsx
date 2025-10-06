@@ -25,12 +25,12 @@ export const Header = () => {
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="flex-1 text-center px-2 sm:px-4"
+          className="flex-1 text-center px-2 sm:px-4 flex flex-col items-center justify-center"
         >
-          <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold text-foreground">
+          <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-semibold text-foreground leading-tight">
             Plataforma Central de Gestão
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
+          <p className="text-xs text-muted-foreground hidden sm:block mt-0.5">
             Clínica Renata Lyra
           </p>
         </motion.div>
