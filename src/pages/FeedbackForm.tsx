@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Star, CheckCircle2 } from 'lucide-react';
 import { PatientOrigin } from '@/types';
-import logoClinica from '@/assets/logo-clinica.png';
+import logoClinica from '@/assets/logo-clinica.jpg';
 
 export default function FeedbackForm() {
   const navigate = useNavigate();
