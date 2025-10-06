@@ -13,6 +13,7 @@ import {
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -26,6 +27,7 @@ export const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { notifications } = useClinic();
   const unreadCount = notifications.filter(n => !n.read).length;
+  const isMobile = useIsMobile();
 
   return (
     <>
@@ -53,9 +55,9 @@ export const Sidebar = () => {
       {/* Sidebar */}
       <motion.aside
         initial={false}
-        animate={{ x: isOpen ? 0 : '-100%' }}
+        animate={isMobile ? { x: isOpen ? 0 : '-100%' } : { x: 0 }}
         transition={{ duration: 0.2 }}
-        className="fixed top-20 left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto lg:static lg:top-0 lg:translate-x-0"
+        className="fixed top-[88px] left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto lg:static lg:top-0"
       >
         <nav className="p-4 space-y-2">
           {navItems.map((item) => (
