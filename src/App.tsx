@@ -9,7 +9,6 @@ import Dashboard from "./pages/Dashboard";
 import Agendamentos from "./pages/Agendamentos";
 import Financeiro from "./pages/Financeiro";
 import Feedbacks from "./pages/Feedbacks";
-import Profissionais from "./pages/Profissionais";
 import Notificacoes from "./pages/Notificacoes";
 import FeedbackForm from "./pages/FeedbackForm";
 import NotFound from "./pages/NotFound";
@@ -30,7 +29,6 @@ const App = () => (
               <Route path="/agendamentos" element={<Agendamentos />} />
               <Route path="/financeiro" element={<Financeiro />} />
               <Route path="/feedbacks" element={<Feedbacks />} />
-              <Route path="/profissionais" element={<Profissionais />} />
               <Route path="/notificacoes" element={<Notificacoes />} />
             </Route>
             <Route path="*" element={<NotFound />} />

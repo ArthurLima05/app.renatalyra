@@ -19,7 +19,6 @@ const navItems = [
   { to: '/agendamentos', icon: Calendar, label: 'Agendamentos' },
   { to: '/financeiro', icon: DollarSign, label: 'Financeiro' },
   { to: '/feedbacks', icon: MessageSquare, label: 'Feedbacks' },
-  { to: '/profissionais', icon: Users, label: 'Profissionais' },
   { to: '/notificacoes', icon: Bell, label: 'Notificações' },
 ];
 
@@ -53,11 +52,13 @@ export const Sidebar = () => {
 
       {/* Sidebar */}
       <motion.aside
-        initial={{ x: -280 }}
-        animate={{ x: isOpen ? 0 : -280 }}
+        initial={false}
+        animate={{ x: 0 }}
         className={`
-          fixed top-20 left-0 bottom-0 w-64 bg-card border-r border-border z-40
-          lg:sticky lg:translate-x-0 overflow-y-auto
+          fixed top-20 left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto
+          lg:relative lg:top-0
+          ${!isOpen ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}
+          transition-transform duration-300 ease-in-out
         `}
       >
         <nav className="p-4 space-y-2">
