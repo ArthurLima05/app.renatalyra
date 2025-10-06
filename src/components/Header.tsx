@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import logoClinica from '@/assets/logo-clinica.jpg';
 import logoTechClin from '@/assets/logo-techclin.png';
+import logoMobile from '@/assets/logo-mobile.png';
 
 export const Header = () => {
   return (
@@ -12,12 +13,17 @@ export const Header = () => {
       <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
         <motion.div
           whileHover={{ scale: 1.05 }}
-          className="flex-shrink-0 w-32 sm:w-40 md:w-48"
+          className="flex-shrink-0 w-20 sm:w-32 md:w-40 lg:w-48"
         >
+          <img
+            src={logoMobile}
+            alt="Logo"
+            className="w-full h-auto object-contain sm:hidden"
+          />
           <img
             src={logoClinica}
             alt="Clínica Renata Lyra"
-            className="w-full h-auto object-contain"
+            className="w-full h-auto object-contain hidden sm:block"
           />
         </motion.div>
         
@@ -37,9 +43,9 @@ export const Header = () => {
 
         <motion.div
           whileHover={{ scale: 1.05 }}
-          className="flex-shrink-0 flex flex-col items-end gap-1"
+          className="flex-shrink-0 flex-col items-end gap-1 hidden sm:flex"
         >
-          <span className="text-xs text-muted-foreground hidden sm:inline">
+          <span className="text-xs text-muted-foreground">
             Desenvolvido por
           </span>
           <img

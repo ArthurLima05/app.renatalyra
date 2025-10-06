@@ -54,12 +54,8 @@ export const Sidebar = () => {
       <motion.aside
         initial={false}
         animate={{ x: isOpen ? 0 : '-100%' }}
-        className={`
-          fixed top-20 left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto
-          lg:static lg:translate-x-0
-          transition-transform duration-300 ease-in-out
-        `}
-        style={{ transform: isOpen ? 'translateX(0)' : 'translateX(-100%)' }}
+        transition={{ duration: 0.2 }}
+        className="fixed top-20 left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto lg:static lg:top-0 lg:translate-x-0"
       >
         <nav className="p-4 space-y-2">
           {navItems.map((item) => (
