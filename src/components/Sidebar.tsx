@@ -54,12 +54,12 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         <div className="p-4 border-b border-border">
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className="w-full"
+            className="flex justify-center"
           >
             <img
               src={logoMobile}
               alt="Logo"
-              className="w-full h-auto object-contain xl:hidden"
+              className="h-12 w-auto object-contain xl:hidden"
             />
             <img
               src={logoClinica}
