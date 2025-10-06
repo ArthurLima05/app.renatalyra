@@ -57,14 +57,9 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
             className="flex justify-center"
           >
             <img
-              src={logoMobile}
-              alt="Logo"
-              className="h-12 w-auto object-contain xl:hidden"
-            />
-            <img
               src={logoClinica}
               alt="Clínica Renata Lyra"
-              className="w-full h-auto object-contain hidden xl:block"
+              className="h-16 w-auto object-contain xl:h-auto xl:w-full"
             />
           </motion.div>
         </div>
