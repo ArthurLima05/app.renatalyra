@@ -1,31 +1,29 @@
 import { motion } from 'framer-motion';
-import logoClinica from '@/assets/logo-clinica.jpg';
 import logoTechClin from '@/assets/logo-techclin.png';
-import logoMobile from '@/assets/logo-mobile.png';
+import { Button } from './ui/button';
+import { Menu, X } from 'lucide-react';
 
-export const Header = () => {
+interface HeaderProps {
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
   return (
     <motion.header
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="sticky top-0 z-50 bg-card border-b border-border shadow-sm"
+      className="bg-card border-b border-border shadow-sm"
     >
       <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          className="flex-shrink-0 w-20 sm:w-32 md:w-40 lg:w-48"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="xl:hidden"
+          onClick={toggleSidebar}
         >
-          <img
-            src={logoMobile}
-            alt="Logo"
-            className="w-full h-auto object-contain sm:hidden"
-          />
-          <img
-            src={logoClinica}
-            alt="Clínica Renata Lyra"
-            className="w-full h-auto object-contain hidden sm:block"
-          />
-        </motion.div>
+          {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
         
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}

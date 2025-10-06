@@ -7,13 +7,11 @@ import {
   MessageSquare,
   Users,
   Bell,
-  Menu,
-  X,
 } from 'lucide-react';
-import { useState } from 'react';
-import { Button } from './ui/button';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import logoClinica from '@/assets/logo-clinica.jpg';
+import logoMobile from '@/assets/logo-mobile.png';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -23,26 +21,20 @@ const navItems = [
   { to: '/notificacoes', icon: Bell, label: 'Notificações' },
 ];
 
-export const Sidebar = () => {
-  const [isOpen, setIsOpen] = useState(false);
+interface SidebarProps {
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+}
+
+export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { notifications } = useClinic();
   const unreadCount = notifications.filter(n => !n.read).length;
   const isMobile = useIsMobile();
 
   return (
     <>
-      {/* Mobile/Tablet Toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-28 left-4 z-50 xl:hidden bg-card shadow-lg border border-border"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </Button>
-
       {/* Overlay */}
-      {isOpen && (
+      {isOpen && isMobile && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -57,8 +49,26 @@ export const Sidebar = () => {
         initial={false}
         animate={isMobile ? { x: isOpen ? 0 : '-100%' } : { x: 0 }}
         transition={{ duration: 0.2 }}
-        className="fixed top-[88px] left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto xl:static xl:top-0"
+        className="fixed top-0 left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto xl:static"
       >
+        <div className="p-4 border-b border-border">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            className="w-full"
+          >
+            <img
+              src={logoMobile}
+              alt="Logo"
+              className="w-full h-auto object-contain xl:hidden"
+            />
+            <img
+              src={logoClinica}
+              alt="Clínica Renata Lyra"
+              className="w-full h-auto object-contain hidden xl:block"
+            />
+          </motion.div>
+        </div>
+        
         <nav className="p-4 space-y-2">
           {navItems.map((item) => (
             <NavLink
