@@ -2,6 +2,7 @@ export type AppointmentStatus = 'agendado' | 'confirmado' | 'realizado' | 'cance
 export type PatientOrigin = 'Google Ads' | 'Instagram' | 'Indicação' | 'Outro';
 export type TransactionType = 'entrada' | 'saida';
 export type NotificationType = 'cancelamento' | 'falta' | 'agendamento' | 'feedback';
+export type PaymentStatus = 'pago' | 'em_aberto';
 
 export interface Professional {
   id: string;
@@ -50,4 +51,27 @@ export interface Notification {
   message: string;
   date: Date;
   read: boolean;
+}
+
+export interface Patient {
+  id: string;
+  fullName: string;
+  phone: string;
+  email?: string;
+  origin: PatientOrigin;
+  notes?: string;
+  createdAt: Date;
+}
+
+export interface Session {
+  id: string;
+  patientId: string;
+  date: Date;
+  type: string;
+  status: AppointmentStatus;
+  notes?: string;
+  amount: number;
+  paymentStatus: PaymentStatus;
+  nextAppointment?: Date;
+  professionalId?: string;
 }

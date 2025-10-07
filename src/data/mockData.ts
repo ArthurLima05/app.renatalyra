@@ -1,4 +1,4 @@
-import { Professional, Appointment, Transaction, Feedback } from '@/types';
+import { Professional, Appointment, Transaction, Feedback, Patient, Session } from '@/types';
 
 export const mockProfessionals: Professional[] = [
   {
@@ -97,5 +97,100 @@ export const mockFeedbacks: Feedback[] = [
     origin: 'Google Ads',
     date: new Date(2025, 9, 7),
     professionalId: '2',
+  },
+];
+
+export const mockPatients: Patient[] = [
+  {
+    id: 'p1',
+    fullName: 'Maria Santos',
+    phone: '(11) 98765-1234',
+    email: 'maria.santos@email.com',
+    origin: 'Instagram',
+    notes: 'Paciente com histórico de tratamentos estéticos. Retorna regularmente.',
+    createdAt: new Date(2024, 5, 15),
+  },
+  {
+    id: 'p2',
+    fullName: 'João Oliveira',
+    phone: '(11) 97654-3210',
+    email: 'joao.oliveira@email.com',
+    origin: 'Google Ads',
+    notes: 'Primeira consulta. Interessado em procedimentos dermatológicos.',
+    createdAt: new Date(2024, 8, 20),
+  },
+  {
+    id: 'p3',
+    fullName: 'Ana Costa',
+    phone: '(11) 99876-5432',
+    origin: 'Indicação',
+    notes: 'Indicada por Maria Santos. Preferência por atendimentos pela manhã.',
+    createdAt: new Date(2024, 7, 10),
+  },
+  {
+    id: 'p4',
+    fullName: 'Pedro Lima',
+    phone: '(11) 96543-2109',
+    email: 'pedro.lima@email.com',
+    origin: 'Google Ads',
+    createdAt: new Date(2024, 9, 1),
+  },
+];
+
+export const mockSessions: Session[] = [
+  {
+    id: 's1',
+    patientId: 'p1',
+    date: new Date(2025, 9, 8),
+    type: 'Limpeza de Pele',
+    status: 'realizado',
+    notes: 'Procedimento realizado com sucesso. Pele respondeu bem ao tratamento.',
+    amount: 350,
+    paymentStatus: 'pago',
+    nextAppointment: new Date(2025, 10, 8),
+    professionalId: '1',
+  },
+  {
+    id: 's2',
+    patientId: 'p1',
+    date: new Date(2025, 8, 10),
+    type: 'Preenchimento',
+    status: 'realizado',
+    notes: 'Aplicação de ácido hialurônico.',
+    amount: 800,
+    paymentStatus: 'pago',
+    professionalId: '1',
+  },
+  {
+    id: 's3',
+    patientId: 'p2',
+    date: new Date(2025, 9, 10),
+    type: 'Consulta Inicial',
+    status: 'agendado',
+    amount: 250,
+    paymentStatus: 'em_aberto',
+    professionalId: '2',
+  },
+  {
+    id: 's4',
+    patientId: 'p3',
+    date: new Date(2025, 9, 8),
+    type: 'Laser',
+    status: 'realizado',
+    notes: 'Sessão de laser facial. Paciente tolerou bem o procedimento.',
+    amount: 800,
+    paymentStatus: 'pago',
+    professionalId: '1',
+  },
+  {
+    id: 's5',
+    patientId: 'p3',
+    date: new Date(2025, 8, 15),
+    type: 'Botox',
+    status: 'realizado',
+    amount: 1200,
+    paymentStatus: 'em_aberto',
+    notes: 'Aplicação em região frontal e glabelar.',
+    professionalId: '1',
   },
 ];
