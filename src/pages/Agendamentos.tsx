@@ -1,41 +1,126 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useClinic } from '@/contexts/ClinicContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar as CalendarIcon } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppointmentStatus } from '@/types';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
+type DateFilter = 'dia' | 'semana' | 'mes';
 
 export default function Agendamentos() {
-  const { appointments, professionals, addAppointment, updateAppointmentStatus } = useClinic();
+  const navigate = useNavigate();
+  const { 
+    appointments, 
+    patients, 
+    addAppointment, 
+    updateAppointmentStatus,
+    getSuggestedSessionsByPatientId,
+    linkAppointmentToSession,
+    addSession
+  } = useClinic();
+  
   const [isOpen, setIsOpen] = useState(false);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('dia');
   const [formData, setFormData] = useState({
-    patientName: '',
-    professionalId: '',
+    patientId: '',
     date: '',
     time: '',
-    origin: 'Outro' as const,
+    linkType: 'avulsa' as 'avulsa' | 'sessao',
+    sessionId: '',
   });
+
+  const selectedPatient = patients.find(p => p.id === formData.patientId);
+  const suggestedSessions = selectedPatient ? getSuggestedSessionsByPatientId(selectedPatient.id) : [];
+
+  const filteredAppointments = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return appointments.filter(app => {
+      const appDate = new Date(app.date);
+      const appDay = new Date(appDate.getFullYear(), appDate.getMonth(), appDate.getDate());
+      
+      switch (dateFilter) {
+        case 'dia':
+          return appDay.getTime() === today.getTime();
+        case 'semana':
+          const weekStart = new Date(today);
+          weekStart.setDate(today.getDate() - today.getDay());
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekStart.getDate() + 6);
+          return appDay >= weekStart && appDay <= weekEnd;
+        case 'mes':
+          return appDate.getMonth() === now.getMonth() && appDate.getFullYear() === now.getFullYear();
+        default:
+          return true;
+      }
+    });
+  }, [appointments, dateFilter]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    addAppointment({
-      ...formData,
-      date: new Date(formData.date),
-      status: 'agendado',
-    });
+    
+    if (!selectedPatient) return;
+
+    const appointmentDate = new Date(formData.date);
+    
+    if (formData.linkType === 'sessao' && formData.sessionId) {
+      // Vincular a uma sessão sugerida
+      linkAppointmentToSession(formData.sessionId, appointmentDate, formData.time);
+      
+      addAppointment({
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.fullName,
+        professionalId: 'renata-lyra',
+        date: appointmentDate,
+        time: formData.time,
+        status: 'agendado',
+        origin: selectedPatient.origin,
+        sessionId: formData.sessionId,
+      });
+    } else {
+      // Consulta avulsa
+      const patientSessions = appointments.filter(a => a.patientId === selectedPatient.id);
+      const sessionType = patientSessions.length === 0 ? 'primeira_consulta' : 'consulta_avulsa';
+      
+      addAppointment({
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.fullName,
+        professionalId: 'renata-lyra',
+        date: appointmentDate,
+        time: formData.time,
+        status: 'agendado',
+        origin: selectedPatient.origin,
+      });
+
+      // Criar sessão automaticamente
+      addSession({
+        patientId: selectedPatient.id,
+        date: appointmentDate,
+        type: sessionType === 'primeira_consulta' ? 'Primeira Consulta' : 'Consulta',
+        sessionType,
+        status: 'agendado',
+        amount: 0,
+        paymentStatus: 'em_aberto',
+      });
+    }
+    
     setIsOpen(false);
     setFormData({
-      patientName: '',
-      professionalId: '',
+      patientId: '',
       date: '',
       time: '',
-      origin: 'Outro',
+      linkType: 'avulsa',
+      sessionId: '',
     });
   };
 
@@ -46,8 +131,17 @@ export default function Agendamentos() {
       realizado: 'secondary',
       cancelado: 'destructive',
       falta: 'destructive',
+      sugerido: 'outline',
     };
-    return <Badge variant={variants[status]}>{status}</Badge>;
+    const labels: Record<AppointmentStatus, string> = {
+      agendado: 'Agendado',
+      confirmado: 'Confirmado',
+      realizado: 'Realizado',
+      cancelado: 'Cancelado',
+      falta: 'Falta',
+      sugerido: 'Sugerido',
+    };
+    return <Badge variant={variants[status]}>{labels[status]}</Badge>;
   };
 
   return (
@@ -71,38 +165,79 @@ export default function Agendamentos() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Agendar Nova Consulta</DialogTitle>
+              <DialogDescription>
+                Selecione um paciente cadastrado para agendar a consulta
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="patientName">Nome do Paciente</Label>
-                <Input
-                  id="patientName"
-                  value={formData.patientName}
-                  onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="professionalId">Profissional</Label>
+                <Label htmlFor="patientId">Paciente *</Label>
                 <Select
-                  value={formData.professionalId}
-                  onValueChange={(value) => setFormData({ ...formData, professionalId: value })}
+                  value={formData.patientId}
+                  onValueChange={(value) => setFormData({ ...formData, patientId: value, sessionId: '' })}
+                  required
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o profissional" />
+                    <SelectValue placeholder="Selecione o paciente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {professionals.map((prof) => (
-                      <SelectItem key={prof.id} value={prof.id}>
-                        {prof.name} - {prof.specialty}
+                    {patients.map((patient) => (
+                      <SelectItem key={patient.id} value={patient.id}>
+                        {patient.fullName}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {suggestedSessions.length > 0 && (
+                <div>
+                  <Label>Tipo de Agendamento</Label>
+                  <RadioGroup
+                    value={formData.linkType}
+                    onValueChange={(value: 'avulsa' | 'sessao') => setFormData({ ...formData, linkType: value })}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="avulsa" id="avulsa" />
+                      <Label htmlFor="avulsa" className="font-normal cursor-pointer">
+                        Consulta Avulsa
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="sessao" id="sessao" />
+                      <Label htmlFor="sessao" className="font-normal cursor-pointer">
+                        Vincular a Sessão Sugerida
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              )}
+
+              {formData.linkType === 'sessao' && suggestedSessions.length > 0 && (
+                <div>
+                  <Label htmlFor="sessionId">Sessão Sugerida *</Label>
+                  <Select
+                    value={formData.sessionId}
+                    onValueChange={(value) => setFormData({ ...formData, sessionId: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a sessão" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suggestedSessions.map((session) => (
+                        <SelectItem key={session.id} value={session.id}>
+                          {session.type} - Sugerida para {session.nextAppointment?.toLocaleDateString('pt-BR') || 'data a definir'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="date">Data</Label>
+                  <Label htmlFor="date">Data *</Label>
                   <Input
                     id="date"
                     type="date"
@@ -112,7 +247,7 @@ export default function Agendamentos() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="time">Horário</Label>
+                  <Label htmlFor="time">Horário *</Label>
                   <Input
                     id="time"
                     type="time"
@@ -128,9 +263,17 @@ export default function Agendamentos() {
         </Dialog>
       </motion.div>
 
+      <Tabs value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
+        <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsTrigger value="dia">Hoje</TabsTrigger>
+          <TabsTrigger value="semana">Esta Semana</TabsTrigger>
+          <TabsTrigger value="mes">Este Mês</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className="grid gap-4">
-        {appointments.map((appointment, index) => {
-          const professional = professionals.find(p => p.id === appointment.professionalId);
+        {filteredAppointments.map((appointment, index) => {
+          const patient = patients.find(p => p.id === appointment.patientId);
           return (
             <motion.div
               key={appointment.id}
@@ -146,10 +289,12 @@ export default function Agendamentos() {
                         <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-base sm:text-lg truncate">{appointment.patientName}</h3>
-                        <p className="text-muted-foreground text-xs sm:text-sm truncate">
-                          {professional?.name} - {professional?.specialty}
-                        </p>
+                        <h3 
+                          className="font-semibold text-base sm:text-lg truncate cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => patient && navigate(`/pacientes/${patient.id}`)}
+                        >
+                          {appointment.patientName}
+                        </h3>
                         <p className="text-xs sm:text-sm mt-1">
                           {appointment.date.toLocaleDateString('pt-BR')} às {appointment.time}
                         </p>
@@ -182,6 +327,11 @@ export default function Agendamentos() {
             </motion.div>
           );
         })}
+        {filteredAppointments.length === 0 && (
+          <p className="text-center text-muted-foreground py-8">
+            Nenhum agendamento encontrado para este período.
+          </p>
+        )}
       </div>
     </div>
   );

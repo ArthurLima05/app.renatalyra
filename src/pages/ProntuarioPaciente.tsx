@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,7 +25,7 @@ const ProntuarioPaciente = () => {
     updatePatient,
     addSession,
     updateSession,
-    professionals,
+    addAppointment,
   } = useClinic();
 
   const patient = id ? getPatientById(id) : undefined;
@@ -35,16 +35,19 @@ const ProntuarioPaciente = () => {
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSessionOpen, setIsSessionOpen] = useState(false);
+  const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
   const [editData, setEditData] = useState(patient || { fullName: '', phone: '', email: '', notes: '' });
   const [sessionData, setSessionData] = useState({
     date: '',
     type: '',
-    status: 'agendado' as AppointmentStatus,
     notes: '',
     amount: '',
     paymentStatus: 'em_aberto' as PaymentStatus,
     nextAppointment: '',
-    professionalId: '',
+  });
+  const [appointmentData, setAppointmentData] = useState({
+    date: '',
+    time: '',
   });
   const [observations, setObservations] = useState(patient?.notes || '');
 
@@ -75,24 +78,57 @@ const ProntuarioPaciente = () => {
         patientId: id,
         date: new Date(sessionData.date),
         type: sessionData.type,
-        status: sessionData.status,
+        sessionType: 'retorno',
+        status: 'sugerido',
         notes: sessionData.notes,
         amount: parseFloat(sessionData.amount),
         paymentStatus: sessionData.paymentStatus,
         nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
-        professionalId: sessionData.professionalId || undefined,
       });
       setSessionData({
         date: '',
         type: '',
-        status: 'agendado',
         notes: '',
         amount: '',
         paymentStatus: 'em_aberto',
         nextAppointment: '',
-        professionalId: '',
       });
       setIsSessionOpen(false);
+    }
+  };
+
+  const handleAppointmentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (id && patient) {
+      const appointmentDate = new Date(appointmentData.date);
+      
+      addAppointment({
+        patientId: id,
+        patientName: patient.fullName,
+        professionalId: 'renata-lyra',
+        date: appointmentDate,
+        time: appointmentData.time,
+        status: 'agendado',
+        origin: patient.origin,
+      });
+
+      // Criar sessão automaticamente
+      addSession({
+        patientId: id,
+        date: appointmentDate,
+        type: 'Consulta',
+        sessionType: 'consulta_avulsa',
+        status: 'agendado',
+        amount: 0,
+        paymentStatus: 'em_aberto',
+      });
+
+      setAppointmentData({
+        date: '',
+        time: '',
+      });
+      setIsAppointmentOpen(false);
+      navigate('/agendamentos');
     }
   };
 
@@ -117,6 +153,7 @@ const ProntuarioPaciente = () => {
       realizado: 'outline',
       cancelado: 'destructive',
       falta: 'destructive',
+      sugerido: 'outline',
     };
     const labels: Record<AppointmentStatus, string> = {
       agendado: 'Agendado',
@@ -124,6 +161,7 @@ const ProntuarioPaciente = () => {
       realizado: 'Realizado',
       cancelado: 'Cancelado',
       falta: 'Falta',
+      sugerido: 'Sugerido',
     };
     return <Badge variant={variants[status]}>{labels[status]}</Badge>;
   };
@@ -209,10 +247,46 @@ const ProntuarioPaciente = () => {
                   </form>
                 </DialogContent>
               </Dialog>
-              <Button size="sm" className="gap-2">
-                <Calendar className="h-4 w-4" />
-                Agendar Consulta
-              </Button>
+              
+              <Dialog open={isAppointmentOpen} onOpenChange={setIsAppointmentOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Agendar Consulta
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Agendar Consulta</DialogTitle>
+                    <DialogDescription>
+                      Criar um novo agendamento para {patient.fullName}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleAppointmentSubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="appointmentDate">Data *</Label>
+                      <Input
+                        id="appointmentDate"
+                        type="date"
+                        value={appointmentData.date}
+                        onChange={(e) => setAppointmentData({ ...appointmentData, date: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="appointmentTime">Horário *</Label>
+                      <Input
+                        id="appointmentTime"
+                        type="time"
+                        value={appointmentData.time}
+                        onChange={(e) => setAppointmentData({ ...appointmentData, time: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">Agendar</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </CardHeader>
@@ -239,10 +313,13 @@ const ProntuarioPaciente = () => {
               <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Nova Sessão</DialogTitle>
+                  <DialogDescription>
+                    Adicionar uma nova sessão com data sugerida para retorno
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSessionSubmit} className="space-y-4">
                   <div>
-                    <Label>Data da Sessão *</Label>
+                    <Label>Data da Sessão Realizada *</Label>
                     <Input
                       type="date"
                       value={sessionData.date}
@@ -258,34 +335,6 @@ const ProntuarioPaciente = () => {
                       placeholder="Ex: Limpeza, Botox, Laser..."
                       required
                     />
-                  </div>
-                  <div>
-                    <Label>Profissional</Label>
-                    <Select value={sessionData.professionalId} onValueChange={(value) => setSessionData({ ...sessionData, professionalId: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o profissional" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {professionals.map(prof => (
-                          <SelectItem key={prof.id} value={prof.id}>{prof.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Status *</Label>
-                    <Select value={sessionData.status} onValueChange={(value: AppointmentStatus) => setSessionData({ ...sessionData, status: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="agendado">Agendado</SelectItem>
-                        <SelectItem value="confirmado">Confirmado</SelectItem>
-                        <SelectItem value="realizado">Realizado</SelectItem>
-                        <SelectItem value="cancelado">Cancelado</SelectItem>
-                        <SelectItem value="falta">Falta</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                   <div>
                     <Label>Valor da Sessão *</Label>
@@ -338,14 +387,20 @@ const ProntuarioPaciente = () => {
               <p className="text-muted-foreground text-sm">Nenhuma sessão registrada ainda.</p>
             ) : (
               sessions.map((session) => {
-                const professional = professionals.find(p => p.id === session.professionalId);
+                const sessionTypeLabels = {
+                  primeira_consulta: '🎯 Primeira Consulta',
+                  consulta_avulsa: '📋 Consulta Avulsa',
+                  retorno: '🔄 Retorno'
+                };
+                
                 return (
                   <Card key={session.id}>
                     <CardContent className="pt-6">
                       <div className="flex flex-col md:flex-row justify-between gap-4">
                         <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-semibold">{session.type}</h4>
+                            <Badge variant="secondary">{sessionTypeLabels[session.sessionType]}</Badge>
                             {getStatusBadge(session.status)}
                             {getPaymentBadge(session.paymentStatus)}
                           </div>
@@ -357,15 +412,10 @@ const ProntuarioPaciente = () => {
                               day: 'numeric'
                             })}
                           </p>
-                          {professional && (
-                            <p className="text-sm text-muted-foreground">
-                              Profissional: {professional.name}
-                            </p>
-                          )}
                           {session.notes && (
                             <p className="text-sm mt-2 p-2 bg-muted rounded">{session.notes}</p>
                           )}
-                          {session.nextAppointment && (
+                          {session.nextAppointment && session.status === 'sugerido' && (
                             <p className="text-sm text-primary font-medium">
                               Próxima consulta sugerida: {session.nextAppointment.toLocaleDateString('pt-BR')}
                             </p>
@@ -375,7 +425,7 @@ const ProntuarioPaciente = () => {
                           <p className="text-2xl font-bold">
                             R$ {session.amount.toFixed(2)}
                           </p>
-                          {session.paymentStatus === 'em_aberto' && (
+                          {session.paymentStatus === 'em_aberto' && session.amount > 0 && (
                             <Button 
                               size="sm" 
                               variant="outline"

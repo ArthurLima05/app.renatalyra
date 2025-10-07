@@ -24,6 +24,8 @@ interface ClinicContextType {
   getSessionsByPatientId: (patientId: string) => Session[];
   getTransactionsByPatientId: (patientId: string) => Transaction[];
   getFeedbacksByPatientId: (patientId: string) => Feedback[];
+  linkAppointmentToSession: (sessionId: string, appointmentDate: Date, appointmentTime: string) => void;
+  getSuggestedSessionsByPatientId: (patientId: string) => Session[];
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -132,8 +134,23 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addSession = (session: Omit<Session, 'id'>) => {
+    // Determinar tipo de sessão se não foi fornecido
+    const patientSessions = sessions.filter(s => s.patientId === session.patientId);
+    let sessionType = session.sessionType;
+    
+    if (!sessionType) {
+      if (patientSessions.length === 0) {
+        sessionType = 'primeira_consulta';
+      } else if (session.status === 'sugerido') {
+        sessionType = 'retorno';
+      } else {
+        sessionType = 'consulta_avulsa';
+      }
+    }
+
     const newSession: Session = {
       ...session,
+      sessionType,
       id: crypto.randomUUID(),
     };
     setSessions(prev => [...prev, newSession]);
@@ -189,6 +206,19 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return feedbacks.filter(f => f.patientName === patient.fullName);
   };
 
+  const linkAppointmentToSession = (sessionId: string, appointmentDate: Date, appointmentTime: string) => {
+    setSessions(prev =>
+      prev.map(s => s.id === sessionId ? {
+        ...s,
+        status: 'agendado',
+        date: appointmentDate,
+      } : s)
+    );
+  };
+
+  const getSuggestedSessionsByPatientId = (patientId: string) => 
+    sessions.filter(s => s.patientId === patientId && s.status === 'sugerido');
+
   return (
     <ClinicContext.Provider
       value={{
@@ -213,6 +243,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         getSessionsByPatientId,
         getTransactionsByPatientId,
         getFeedbacksByPatientId,
+        linkAppointmentToSession,
+        getSuggestedSessionsByPatientId,
       }}
     >
       {children}

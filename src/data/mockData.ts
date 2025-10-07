@@ -22,6 +22,7 @@ export const mockProfessionals: Professional[] = [
 export const mockAppointments: Appointment[] = [
   {
     id: '1',
+    patientId: 'p1',
     patientName: 'Maria Santos',
     professionalId: '1',
     date: new Date(2025, 9, 10),
@@ -32,6 +33,7 @@ export const mockAppointments: Appointment[] = [
   },
   {
     id: '2',
+    patientId: 'p2',
     patientName: 'João Oliveira',
     professionalId: '2',
     date: new Date(2025, 9, 10),
@@ -42,6 +44,7 @@ export const mockAppointments: Appointment[] = [
   },
   {
     id: '3',
+    patientId: 'p3',
     patientName: 'Ana Costa',
     professionalId: '1',
     date: new Date(2025, 9, 8),
@@ -143,6 +146,7 @@ export const mockSessions: Session[] = [
     patientId: 'p1',
     date: new Date(2025, 9, 8),
     type: 'Limpeza de Pele',
+    sessionType: 'retorno',
     status: 'realizado',
     notes: 'Procedimento realizado com sucesso. Pele respondeu bem ao tratamento.',
     amount: 350,
@@ -155,6 +159,7 @@ export const mockSessions: Session[] = [
     patientId: 'p1',
     date: new Date(2025, 8, 10),
     type: 'Preenchimento',
+    sessionType: 'primeira_consulta',
     status: 'realizado',
     notes: 'Aplicação de ácido hialurônico.',
     amount: 800,
@@ -166,6 +171,7 @@ export const mockSessions: Session[] = [
     patientId: 'p2',
     date: new Date(2025, 9, 10),
     type: 'Consulta Inicial',
+    sessionType: 'primeira_consulta',
     status: 'agendado',
     amount: 250,
     paymentStatus: 'em_aberto',
@@ -176,6 +182,7 @@ export const mockSessions: Session[] = [
     patientId: 'p3',
     date: new Date(2025, 9, 8),
     type: 'Laser',
+    sessionType: 'consulta_avulsa',
     status: 'realizado',
     notes: 'Sessão de laser facial. Paciente tolerou bem o procedimento.',
     amount: 800,
@@ -187,6 +194,7 @@ export const mockSessions: Session[] = [
     patientId: 'p3',
     date: new Date(2025, 8, 15),
     type: 'Botox',
+    sessionType: 'retorno',
     status: 'realizado',
     amount: 1200,
     paymentStatus: 'em_aberto',
