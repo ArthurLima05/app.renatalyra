@@ -7,11 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2 } from 'lucide-react';
 import { AppointmentStatus, PaymentStatus } from '@/types';
 
 const ProntuarioPaciente = () => {
@@ -25,6 +26,7 @@ const ProntuarioPaciente = () => {
     updatePatient,
     addSession,
     updateSession,
+    deleteSession,
     addAppointment,
   } = useClinic();
 
@@ -38,6 +40,7 @@ const ProntuarioPaciente = () => {
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
   const [editData, setEditData] = useState(patient || { fullName: '', phone: '', email: '', notes: '' });
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [sessionData, setSessionData] = useState({
     date: '',
     type: '',
@@ -123,6 +126,13 @@ const ProntuarioPaciente = () => {
       nextAppointment: session.nextAppointment ? session.nextAppointment.toISOString().split('T')[0] : '',
     });
     setIsSessionOpen(true);
+  };
+
+  const handleDeleteSession = async () => {
+    if (deletingSessionId) {
+      await deleteSession(deletingSessionId);
+      setDeletingSessionId(null);
+    }
   };
 
   const handleAppointmentSubmit = (e: React.FormEvent) => {
@@ -458,7 +468,7 @@ const ProntuarioPaciente = () => {
                             </p>
                           )}
                         </div>
-                        <div>
+                        <div className="flex gap-2">
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -466,6 +476,14 @@ const ProntuarioPaciente = () => {
                           >
                             <Edit className="h-4 w-4 mr-2" />
                             Editar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => setDeletingSessionId(session.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir
                           </Button>
                         </div>
                       </div>
@@ -476,6 +494,21 @@ const ProntuarioPaciente = () => {
             )}
           </div>
         </TabsContent>
+
+        <AlertDialog open={!!deletingSessionId} onOpenChange={(open) => !open && setDeletingSessionId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Sessão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir esta sessão? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteSession}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <TabsContent value="financial" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

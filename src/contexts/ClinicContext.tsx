@@ -22,6 +22,7 @@ interface ClinicContextType {
   updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
   addSession: (session: Omit<Session, 'id'>) => Promise<void>;
   updateSession: (id: string, session: Partial<Session>) => Promise<void>;
+  deleteSession: (id: string) => Promise<void>;
   getPatientById: (id: string) => Patient | undefined;
   getSessionsByPatientId: (patientId: string) => Session[];
   getTransactionsByPatientId: (patientId: string) => Transaction[];
@@ -481,6 +482,20 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: 'Sessão atualizada com sucesso' });
   };
 
+  const deleteSession = async (id: string) => {
+    const { error } = await supabase
+      .from('sessions')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Erro ao excluir sessão', description: error.message, variant: 'destructive' });
+      throw error;
+    }
+
+    toast({ title: 'Sessão excluída com sucesso' });
+  };
+
   const linkAppointmentToSession = async (sessionId: string, appointmentDate: Date, appointmentTime: string) => {
     const { error } = await supabase
       .from('sessions')
@@ -525,6 +540,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     updatePatient,
     addSession,
     updateSession,
+    deleteSession,
     getPatientById,
     getSessionsByPatientId,
     getTransactionsByPatientId,
