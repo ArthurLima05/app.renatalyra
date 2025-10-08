@@ -14,7 +14,316 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          origin: Database["public"]["Enums"]["patient_origin"]
+          patient_id: string
+          professional_id: string
+          session_id: string | null
+          status: Database["public"]["Enums"]["appointment_status"]
+          time: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          notes?: string | null
+          origin: Database["public"]["Enums"]["patient_origin"]
+          patient_id: string
+          professional_id: string
+          session_id?: string | null
+          status?: Database["public"]["Enums"]["appointment_status"]
+          time: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          origin?: Database["public"]["Enums"]["patient_origin"]
+          patient_id?: string
+          professional_id?: string
+          session_id?: string | null
+          status?: Database["public"]["Enums"]["appointment_status"]
+          time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedbacks: {
+        Row: {
+          comment: string
+          created_at: string
+          date: string
+          id: string
+          origin: Database["public"]["Enums"]["patient_origin"]
+          patient_id: string
+          professional_id: string | null
+          rating: number
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          date: string
+          id?: string
+          origin: Database["public"]["Enums"]["patient_origin"]
+          patient_id: string
+          professional_id?: string | null
+          rating: number
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          date?: string
+          id?: string
+          origin?: Database["public"]["Enums"]["patient_origin"]
+          patient_id?: string
+          professional_id?: string | null
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedbacks_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedbacks_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          message: string
+          read: boolean
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          message: string
+          read?: boolean
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          message?: string
+          read?: boolean
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+        }
+        Relationships: []
+      }
+      patients: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          origin: Database["public"]["Enums"]["patient_origin"]
+          phone: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          origin: Database["public"]["Enums"]["patient_origin"]
+          phone: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          origin?: Database["public"]["Enums"]["patient_origin"]
+          phone?: string
+        }
+        Relationships: []
+      }
+      professionals: {
+        Row: {
+          average_rating: number | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone: string
+          specialty: string
+        }
+        Insert: {
+          average_rating?: number | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone: string
+          specialty: string
+        }
+        Update: {
+          average_rating?: number | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          specialty?: string
+        }
+        Relationships: []
+      }
+      sessions: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          id: string
+          next_appointment: string | null
+          notes: string | null
+          patient_id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          professional_id: string | null
+          session_type: Database["public"]["Enums"]["session_type"]
+          status: Database["public"]["Enums"]["appointment_status"]
+          type: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          date: string
+          id?: string
+          next_appointment?: string | null
+          notes?: string | null
+          patient_id: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          professional_id?: string | null
+          session_type: Database["public"]["Enums"]["session_type"]
+          status?: Database["public"]["Enums"]["appointment_status"]
+          type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          id?: string
+          next_appointment?: string | null
+          notes?: string | null
+          patient_id?: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          professional_id?: string | null
+          session_type?: Database["public"]["Enums"]["session_type"]
+          status?: Database["public"]["Enums"]["appointment_status"]
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          date: string
+          description: string
+          id: string
+          patient_id: string | null
+          session_id: string | null
+          type: Database["public"]["Enums"]["transaction_type"]
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          date: string
+          description: string
+          id?: string
+          patient_id?: string | null
+          session_id?: string | null
+          type: Database["public"]["Enums"]["transaction_type"]
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          patient_id?: string | null
+          session_id?: string | null
+          type?: Database["public"]["Enums"]["transaction_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +332,18 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      appointment_status:
+        | "agendado"
+        | "confirmado"
+        | "realizado"
+        | "cancelado"
+        | "falta"
+        | "sugerido"
+      notification_type: "cancelamento" | "falta" | "agendamento" | "feedback"
+      patient_origin: "Google Ads" | "Instagram" | "Indicação" | "Outro"
+      payment_status: "pago" | "em_aberto"
+      session_type: "primeira_consulta" | "consulta_avulsa" | "retorno"
+      transaction_type: "entrada" | "saida"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +470,20 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      appointment_status: [
+        "agendado",
+        "confirmado",
+        "realizado",
+        "cancelado",
+        "falta",
+        "sugerido",
+      ],
+      notification_type: ["cancelamento", "falta", "agendamento", "feedback"],
+      patient_origin: ["Google Ads", "Instagram", "Indicação", "Outro"],
+      payment_status: ["pago", "em_aberto"],
+      session_type: ["primeira_consulta", "consulta_avulsa", "retorno"],
+      transaction_type: ["entrada", "saida"],
+    },
   },
 } as const
