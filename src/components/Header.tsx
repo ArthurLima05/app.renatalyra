@@ -1,7 +1,10 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import logoTechClin from '@/assets/logo-techclin.png';
 import { Button } from './ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogOut } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface HeaderProps {
   isSidebarOpen: boolean;
@@ -9,6 +12,18 @@ interface HeaderProps {
 }
 
 export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: 'Logout realizado',
+      description: 'Você saiu do sistema com sucesso',
+    });
+    navigate('/login');
+  };
+
   return (
     <motion.header
       initial={{ y: -20, opacity: 0 }}
@@ -39,19 +54,29 @@ export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
           </p>
         </motion.div>
 
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          className="flex-shrink-0 flex-col items-end gap-1 hidden sm:flex"
-        >
-          <span className="text-xs text-muted-foreground">
-            Desenvolvido por
-          </span>
-          <img
-            src={logoTechClin}
-            alt="TechClin"
-            className="h-8 sm:h-10 w-auto object-contain"
-          />
-        </motion.div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            title="Sair"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="flex-shrink-0 flex-col items-end gap-1 hidden sm:flex"
+          >
+            <span className="text-xs text-muted-foreground">
+              Desenvolvido por
+            </span>
+            <img
+              src={logoTechClin}
+              alt="TechClin"
+              className="h-8 sm:h-10 w-auto object-contain"
+            />
+          </motion.div>
+        </div>
       </div>
     </motion.header>
   );
