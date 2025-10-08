@@ -37,6 +37,7 @@ const ProntuarioPaciente = () => {
   const [isSessionOpen, setIsSessionOpen] = useState(false);
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
   const [editData, setEditData] = useState(patient || { fullName: '', phone: '', email: '', notes: '' });
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [sessionData, setSessionData] = useState({
     date: '',
     type: '',
@@ -74,17 +75,30 @@ const ProntuarioPaciente = () => {
   const handleSessionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (id) {
-      addSession({
-        patientId: id,
-        date: new Date(sessionData.date),
-        type: sessionData.type,
-        sessionType: 'retorno',
-        status: 'sugerido',
-        notes: sessionData.notes,
-        amount: parseFloat(sessionData.amount),
-        paymentStatus: sessionData.paymentStatus,
-        nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
-      });
+      if (editingSessionId) {
+        // Editar sessão existente
+        updateSession(editingSessionId, {
+          date: new Date(sessionData.date),
+          type: sessionData.type,
+          notes: sessionData.notes,
+          amount: parseFloat(sessionData.amount),
+          paymentStatus: sessionData.paymentStatus,
+          nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
+        });
+      } else {
+        // Adicionar nova sessão
+        addSession({
+          patientId: id,
+          date: new Date(sessionData.date),
+          type: sessionData.type,
+          sessionType: 'retorno',
+          status: 'sugerido',
+          notes: sessionData.notes,
+          amount: parseFloat(sessionData.amount),
+          paymentStatus: sessionData.paymentStatus,
+          nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
+        });
+      }
       setSessionData({
         date: '',
         type: '',
@@ -93,8 +107,22 @@ const ProntuarioPaciente = () => {
         paymentStatus: 'em_aberto',
         nextAppointment: '',
       });
+      setEditingSessionId(null);
       setIsSessionOpen(false);
     }
+  };
+
+  const handleEditSession = (session: any) => {
+    setEditingSessionId(session.id);
+    setSessionData({
+      date: session.date.toISOString().split('T')[0],
+      type: session.type,
+      notes: session.notes || '',
+      amount: session.amount.toString(),
+      paymentStatus: session.paymentStatus,
+      nextAppointment: session.nextAppointment ? session.nextAppointment.toISOString().split('T')[0] : '',
+    });
+    setIsSessionOpen(true);
   };
 
   const handleAppointmentSubmit = (e: React.FormEvent) => {
@@ -169,7 +197,7 @@ const ProntuarioPaciente = () => {
   const getPaymentBadge = (status: PaymentStatus) => {
     return (
       <Badge variant={status === 'pago' ? 'default' : 'destructive'}>
-        {status === 'pago' ? '✅ Pago' : '⚠️ Em aberto'}
+        {status === 'pago' ? 'Pago' : 'Em aberto'}
       </Badge>
     );
   };
@@ -305,16 +333,26 @@ const ProntuarioPaciente = () => {
             <h3 className="text-lg font-semibold">Histórico de Sessões</h3>
             <Dialog open={isSessionOpen} onOpenChange={setIsSessionOpen}>
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" onClick={() => {
+                  setEditingSessionId(null);
+                  setSessionData({
+                    date: '',
+                    type: '',
+                    notes: '',
+                    amount: '',
+                    paymentStatus: 'em_aberto',
+                    nextAppointment: '',
+                  });
+                }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Adicionar Sessão
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Nova Sessão</DialogTitle>
+                  <DialogTitle>{editingSessionId ? 'Editar Sessão' : 'Nova Sessão'}</DialogTitle>
                   <DialogDescription>
-                    Adicionar uma nova sessão com data sugerida para retorno
+                    {editingSessionId ? 'Editar os dados da sessão' : 'Adicionar uma nova sessão com data sugerida para retorno'}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSessionSubmit} className="space-y-4">
@@ -388,9 +426,9 @@ const ProntuarioPaciente = () => {
             ) : (
               sessions.map((session) => {
                 const sessionTypeLabels = {
-                  primeira_consulta: '🎯 Primeira Consulta',
-                  consulta_avulsa: '📋 Consulta Avulsa',
-                  retorno: '🔄 Retorno'
+                  primeira_consulta: 'Primeira Consulta',
+                  consulta_avulsa: 'Consulta Avulsa',
+                  retorno: 'Retorno'
                 };
                 
                 return (
@@ -402,7 +440,6 @@ const ProntuarioPaciente = () => {
                             <h4 className="font-semibold">{session.type}</h4>
                             <Badge variant="secondary">{sessionTypeLabels[session.sessionType]}</Badge>
                             {getStatusBadge(session.status)}
-                            {getPaymentBadge(session.paymentStatus)}
                           </div>
                           <p className="text-sm text-muted-foreground">
                             {session.date.toLocaleDateString('pt-BR', { 
@@ -421,24 +458,33 @@ const ProntuarioPaciente = () => {
                             </p>
                           )}
                         </div>
-                        <div className="text-right">
+                        <div className="text-right space-y-2">
                           <p className="text-2xl font-bold">
                             R$ {session.amount.toFixed(2)}
                           </p>
-                          {session.paymentStatus === 'em_aberto' && session.amount > 0 && (
+                          <div className="flex flex-col gap-2">
                             <Button 
                               size="sm" 
                               variant="outline"
-                              className="mt-2"
-                              onClick={() => {
-                                if (id) {
-                                  updateSession(session.id, { paymentStatus: 'pago' });
-                                }
-                              }}
+                              onClick={() => handleEditSession(session)}
                             >
-                              Registrar Pagamento
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
                             </Button>
-                          )}
+                            {session.paymentStatus === 'em_aberto' && session.amount > 0 && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  if (id) {
+                                    updateSession(session.id, { paymentStatus: 'pago' });
+                                  }
+                                }}
+                              >
+                                Registrar Pagamento
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -509,7 +555,7 @@ const ProntuarioPaciente = () => {
                       <div className="flex gap-1">
                         {[...Array(5)].map((_, i) => (
                           <span key={i} className="text-xl">
-                            {i < feedback.rating ? '⭐' : '☆'}
+                            {i < feedback.rating ? '★' : '☆'}
                           </span>
                         ))}
                       </div>
