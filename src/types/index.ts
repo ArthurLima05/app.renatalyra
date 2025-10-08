@@ -12,7 +12,6 @@ export interface Professional {
   email: string;
   phone: string;
   averageRating?: number;
-  createdAt?: Date;
 }
 
 export interface Appointment {
@@ -36,8 +35,6 @@ export interface Transaction {
   amount: number;
   date: Date;
   category: string;
-  patientId?: string;
-  sessionId?: string;
 }
 
 export interface Feedback {

@@ -177,7 +177,7 @@ const Pacientes = () => {
                   <CardTitle className="flex items-start justify-between">
                     <span className="text-lg">{patient.fullName}</span>
                     <Badge variant={financialStatus === 'pago' ? 'default' : 'destructive'}>
-                      {financialStatus === 'pago' ? 'Pago' : 'Em aberto'}
+                      {financialStatus === 'pago' ? '✅ Pago' : '⚠️ Em aberto'}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
