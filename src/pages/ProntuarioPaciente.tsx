@@ -458,33 +458,15 @@ const ProntuarioPaciente = () => {
                             </p>
                           )}
                         </div>
-                        <div className="text-right space-y-2">
-                          <p className="text-2xl font-bold">
-                            R$ {session.amount.toFixed(2)}
-                          </p>
-                          <div className="flex flex-col gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleEditSession(session)}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                            {session.paymentStatus === 'em_aberto' && session.amount > 0 && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  if (id) {
-                                    updateSession(session.id, { paymentStatus: 'pago' });
-                                  }
-                                }}
-                              >
-                                Registrar Pagamento
-                              </Button>
-                            )}
-                          </div>
+                        <div>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleEditSession(session)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -530,9 +512,22 @@ const ProntuarioPaciente = () => {
                           {session.date.toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right space-y-2">
                         <p className="text-xl font-bold">R$ {session.amount.toFixed(2)}</p>
                         {getPaymentBadge(session.paymentStatus)}
+                        {session.paymentStatus === 'em_aberto' && session.amount > 0 && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              if (id) {
+                                updateSession(session.id, { paymentStatus: 'pago' });
+                              }
+                            }}
+                          >
+                            Registrar Pagamento
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
