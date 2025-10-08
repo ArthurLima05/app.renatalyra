@@ -5,8 +5,9 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar as CalendarIcon, Search } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, Search, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,6 +25,7 @@ export default function Agendamentos() {
     patients, 
     addAppointment, 
     updateAppointmentStatus,
+    deleteAppointment,
     getSuggestedSessionsByPatientId,
     linkAppointmentToSession,
     addSession,
@@ -218,7 +220,30 @@ export default function Agendamentos() {
                         <p className="text-xs text-muted-foreground mt-1">Origem: {appointment.origin}</p>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">{getStatusBadge(appointment.status)}</div>
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                      {getStatusBadge(appointment.status)}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir o agendamento de {appointment.patientName}? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteAppointment(appointment.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

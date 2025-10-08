@@ -14,6 +14,7 @@ interface ClinicContextType {
   loading: boolean;
   addAppointment: (appointment: Omit<Appointment, 'id' | 'createdAt'>) => Promise<void>;
   updateAppointmentStatus: (id: string, status: AppointmentStatus) => Promise<void>;
+  deleteAppointment: (id: string) => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   addFeedback: (feedback: Omit<Feedback, 'id' | 'date'>) => Promise<void>;
   addProfessional: (professional: Omit<Professional, 'id'>) => Promise<void>;
@@ -54,40 +55,138 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     loadAllData();
 
-    // Configurar realtime para todas as tabelas
+    // Configurar realtime otimizado para atualizar apenas items modificados
     const professionalsChannel = supabase
       .channel('professionals-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'professionals' }, loadProfessionals)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'professionals' }, (payload) => {
+        const newPro = { ...payload.new, averageRating: payload.new.average_rating ? Number(payload.new.average_rating) : undefined, createdAt: new Date(payload.new.created_at) } as Professional;
+        setProfessionals(prev => [...prev, newPro]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'professionals' }, (payload) => {
+        const updated = { ...payload.new, averageRating: payload.new.average_rating ? Number(payload.new.average_rating) : undefined, createdAt: new Date(payload.new.created_at) } as Professional;
+        setProfessionals(prev => prev.map(p => p.id === updated.id ? updated : p));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'professionals' }, (payload) => {
+        setProfessionals(prev => prev.filter(p => p.id !== payload.old.id));
+      })
       .subscribe();
 
     const patientsChannel = supabase
       .channel('patients-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, loadPatients)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'patients' }, (payload) => {
+        const newPatient = { ...payload.new, fullName: payload.new.full_name, createdAt: new Date(payload.new.created_at) } as Patient;
+        setPatients(prev => [...prev, newPatient]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'patients' }, (payload) => {
+        const updated = { ...payload.new, fullName: payload.new.full_name, createdAt: new Date(payload.new.created_at) } as Patient;
+        setPatients(prev => prev.map(p => p.id === updated.id ? updated : p));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'patients' }, (payload) => {
+        setPatients(prev => prev.filter(p => p.id !== payload.old.id));
+      })
       .subscribe();
 
     const appointmentsChannel = supabase
       .channel('appointments-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, loadAppointments)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        loadAppointments(); // Mantém carregamento completo por causa do join com patients
+      })
       .subscribe();
 
     const sessionsChannel = supabase
       .channel('sessions-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, loadSessions)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sessions' }, (payload) => {
+        const newSession: Session = { 
+          id: payload.new.id,
+          patientId: payload.new.patient_id,
+          date: new Date(payload.new.date),
+          type: payload.new.type,
+          sessionType: payload.new.session_type,
+          status: payload.new.status,
+          amount: Number(payload.new.amount),
+          paymentStatus: payload.new.payment_status,
+          nextAppointment: payload.new.next_appointment ? new Date(payload.new.next_appointment) : undefined,
+          professionalId: payload.new.professional_id || undefined,
+          notes: payload.new.notes || undefined
+        };
+        setSessions(prev => [...prev, newSession]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions' }, (payload) => {
+        const updated: Session = { 
+          id: payload.new.id,
+          patientId: payload.new.patient_id,
+          date: new Date(payload.new.date),
+          type: payload.new.type,
+          sessionType: payload.new.session_type,
+          status: payload.new.status,
+          amount: Number(payload.new.amount),
+          paymentStatus: payload.new.payment_status,
+          nextAppointment: payload.new.next_appointment ? new Date(payload.new.next_appointment) : undefined,
+          professionalId: payload.new.professional_id || undefined,
+          notes: payload.new.notes || undefined
+        };
+        setSessions(prev => prev.map(s => s.id === updated.id ? updated : s));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'sessions' }, (payload) => {
+        setSessions(prev => prev.filter(s => s.id !== payload.old.id));
+      })
       .subscribe();
 
     const transactionsChannel = supabase
       .channel('transactions-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, loadTransactions)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transactions' }, (payload) => {
+        const newTrans = { 
+          ...payload.new, 
+          date: new Date(payload.new.date),
+          amount: Number(payload.new.amount),
+          patientId: payload.new.patient_id || undefined,
+          sessionId: payload.new.session_id || undefined
+        } as Transaction;
+        setTransactions(prev => [newTrans, ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'transactions' }, (payload) => {
+        const updated = { 
+          ...payload.new, 
+          date: new Date(payload.new.date),
+          amount: Number(payload.new.amount),
+          patientId: payload.new.patient_id || undefined,
+          sessionId: payload.new.session_id || undefined
+        } as Transaction;
+        setTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'transactions' }, (payload) => {
+        setTransactions(prev => prev.filter(t => t.id !== payload.old.id));
+      })
       .subscribe();
 
     const feedbacksChannel = supabase
       .channel('feedbacks-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'feedbacks' }, loadFeedbacks)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feedbacks' }, () => {
+        loadFeedbacks(); // Mantém carregamento completo por causa do join com patients
+      })
       .subscribe();
 
     const notificationsChannel = supabase
       .channel('notifications-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, loadNotifications)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        const newNotif = { 
+          ...payload.new, 
+          type: payload.new.type,
+          date: new Date(payload.new.date)
+        } as Notification;
+        setNotifications(prev => [newNotif, ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload) => {
+        const updated = { 
+          ...payload.new, 
+          type: payload.new.type,
+          date: new Date(payload.new.date)
+        } as Notification;
+        setNotifications(prev => prev.map(n => n.id === updated.id ? updated : n));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notifications' }, (payload) => {
+        setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
+      })
       .subscribe();
 
     return () => {
@@ -287,6 +386,20 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
       }
     }
+  };
+
+  const deleteAppointment = async (id: string) => {
+    const { error } = await supabase
+      .from('appointments')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Erro ao excluir agendamento', description: error.message, variant: 'destructive' });
+      throw error;
+    }
+
+    toast({ title: 'Agendamento excluído com sucesso' });
   };
 
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
@@ -532,6 +645,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     loading,
     addAppointment,
     updateAppointmentStatus,
+    deleteAppointment,
     addTransaction,
     addFeedback,
     addProfessional,
