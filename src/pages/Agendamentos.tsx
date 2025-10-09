@@ -39,12 +39,9 @@ export default function Agendamentos() {
     patientId: '',
     date: '',
     time: '',
-    linkType: 'avulsa' as 'avulsa' | 'sessao',
-    sessionId: '',
   });
 
   const selectedPatient = patients.find(p => p.id === formData.patientId);
-  const suggestedSessions = selectedPatient ? getSuggestedSessionsByPatientId(selectedPatient.id) : [];
 
   const filteredAppointments = useMemo(() => {
     const now = new Date();
@@ -83,46 +80,18 @@ export default function Agendamentos() {
     
     if (!renataLyra) return;
     
-    if (formData.linkType === 'sessao' && formData.sessionId) {
-      await linkAppointmentToSession(formData.sessionId, appointmentDate, formData.time);
-      
-      await addAppointment({
-        patientId: selectedPatient.id,
-        patientName: selectedPatient.fullName,
-        professionalId: renataLyra.id,
-        date: appointmentDate,
-        time: formData.time,
-        status: 'agendado',
-        origin: selectedPatient.origin,
-        sessionId: formData.sessionId,
-      });
-    } else {
-      const patientSessions = appointments.filter(a => a.patientId === selectedPatient.id);
-      const sessionType = patientSessions.length === 0 ? 'primeira_consulta' : 'consulta_avulsa';
-      
-      await addAppointment({
-        patientId: selectedPatient.id,
-        patientName: selectedPatient.fullName,
-        professionalId: renataLyra.id,
-        date: appointmentDate,
-        time: formData.time,
-        status: 'agendado',
-        origin: selectedPatient.origin,
-      });
-
-      await addSession({
-        patientId: selectedPatient.id,
-        date: appointmentDate,
-        type: sessionType === 'primeira_consulta' ? 'Primeira Consulta' : 'Consulta',
-        sessionType,
-        status: 'agendado',
-        amount: 0,
-        paymentStatus: 'em_aberto',
-      });
-    }
+    await addAppointment({
+      patientId: selectedPatient.id,
+      patientName: selectedPatient.fullName,
+      professionalId: renataLyra.id,
+      date: appointmentDate,
+      time: formData.time,
+      status: 'agendado',
+      origin: selectedPatient.origin,
+    });
     
     setIsOpen(false);
-    setFormData({ patientId: '', date: '', time: '', linkType: 'avulsa', sessionId: '' });
+    setFormData({ patientId: '', date: '', time: '' });
   };
 
   const getStatusBadge = (status: AppointmentStatus) => {
@@ -168,7 +137,7 @@ export default function Agendamentos() {
                         <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
                         <CommandGroup>
                           {patients.map((patient) => (
-                            <CommandItem key={patient.id} value={patient.fullName} onSelect={() => { setFormData({ ...formData, patientId: patient.id, sessionId: '' }); setSearchOpen(false); }}>
+                            <CommandItem key={patient.id} value={patient.fullName} onSelect={() => { setFormData({ ...formData, patientId: patient.id }); setSearchOpen(false); }}>
                               {patient.fullName}
                             </CommandItem>
                           ))}
@@ -178,15 +147,6 @@ export default function Agendamentos() {
                   </PopoverContent>
                 </Popover>
               </div>
-              {suggestedSessions.length > 0 && formData.patientId && (
-                <div>
-                  <Label>Tipo de Agendamento</Label>
-                  <RadioGroup value={formData.linkType} onValueChange={(value: 'avulsa' | 'sessao') => setFormData({ ...formData, linkType: value })}>
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="avulsa" id="avulsa" /><Label htmlFor="avulsa" className="font-normal cursor-pointer">Consulta Avulsa</Label></div>
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="sessao" id="sessao" /><Label htmlFor="sessao" className="font-normal cursor-pointer">Vincular a Sessão Sugerida</Label></div>
-                  </RadioGroup>
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-4">
                 <div><Label htmlFor="date">Data</Label><Input id="date" type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required /></div>
                 <div><Label htmlFor="time">Horário</Label><Input id="time" type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required /></div>
