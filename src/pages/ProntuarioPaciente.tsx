@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2 } from 'lucide-react';
-import { AppointmentStatus, PaymentStatus } from '@/types';
+import { AppointmentStatus, PaymentStatus, SessionType } from '@/types';
 
 const ProntuarioPaciente = () => {
   const { id } = useParams<{ id: string }>();
@@ -92,21 +92,25 @@ const ProntuarioPaciente = () => {
         });
       } else {
         // Determinar o tipo de sessão baseado na seleção do usuário
-        let sessionType: 'primeira_consulta' | 'retorno' | 'consulta_avulsa';
+        let sessionType: SessionType;
         if (sessionData.sessionTypeSelection === 'outra') {
-          sessionType = 'consulta_avulsa';
+          sessionType = 'consulta_avulsa'; // Para "Outra", usar consulta_avulsa
         } else {
           sessionType = sessionData.sessionTypeSelection as 'primeira_consulta' | 'retorno';
         }
         
         // Adicionar nova sessão
+        const finalNotes = sessionData.sessionTypeSelection === 'outra' && sessionData.customType
+          ? `Tipo de sessão: ${sessionData.customType}\n\n${sessionData.notes}`
+          : sessionData.notes;
+        
         addSession({
           patientId: id,
           date: new Date(sessionData.date),
-          type: sessionData.sessionTypeSelection === 'outra' ? sessionData.customType : sessionData.type,
+          type: sessionData.type,
           sessionType: sessionType,
           status: 'realizado',
-          notes: sessionData.notes,
+          notes: finalNotes,
           amount: parseFloat(sessionData.amount),
           paymentStatus: sessionData.paymentStatus,
           nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
@@ -398,27 +402,26 @@ const ProntuarioPaciente = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  {sessionData.sessionTypeSelection === 'outra' ? (
+                  {sessionData.sessionTypeSelection === 'outra' && (
                     <div>
-                      <Label>Especifique o Título do Atendimento *</Label>
+                      <Label>Especifique o Tipo de Sessão *</Label>
                       <Input
                         value={sessionData.customType}
                         onChange={(e) => setSessionData({ ...sessionData, customType: e.target.value })}
-                        placeholder="Ex: Limpeza, Botox, Laser..."
-                        required
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      <Label>Título do Atendimento *</Label>
-                      <Input
-                        value={sessionData.type}
-                        onChange={(e) => setSessionData({ ...sessionData, type: e.target.value })}
-                        placeholder="Ex: Limpeza, Botox, Laser..."
+                        placeholder="Ex: Avaliação, Emergência..."
                         required
                       />
                     </div>
                   )}
+                  <div>
+                    <Label>Título do Atendimento *</Label>
+                    <Input
+                      value={sessionData.type}
+                      onChange={(e) => setSessionData({ ...sessionData, type: e.target.value })}
+                      placeholder="Ex: Limpeza, Botox, Laser..."
+                      required
+                    />
+                  </div>
                   <div>
                     <Label>Valor da Sessão *</Label>
                     <Input
