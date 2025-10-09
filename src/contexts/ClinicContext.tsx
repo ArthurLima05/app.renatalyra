@@ -28,6 +28,7 @@ interface ClinicContextType {
   getSessionsByPatientId: (patientId: string) => Session[];
   getTransactionsByPatientId: (patientId: string) => Transaction[];
   getFeedbacksByPatientId: (patientId: string) => Feedback[];
+  getAppointmentsByPatientId: (patientId: string) => Appointment[];
   linkAppointmentToSession: (sessionId: string, appointmentDate: Date, appointmentTime: string) => Promise<void>;
   getSuggestedSessionsByPatientId: (patientId: string) => Session[];
 }
@@ -633,6 +634,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
   const getSuggestedSessionsByPatientId = (patientId: string) => 
     sessions.filter(s => s.patientId === patientId && s.status === 'sugerido');
+  const getAppointmentsByPatientId = (patientId: string) => 
+    appointments.filter(a => a.patientId === patientId).sort((a, b) => a.date.getTime() - b.date.getTime());
 
   const value: ClinicContextType = {
     professionals,
@@ -659,6 +662,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     getSessionsByPatientId,
     getTransactionsByPatientId,
     getFeedbacksByPatientId,
+    getAppointmentsByPatientId,
     linkAppointmentToSession,
     getSuggestedSessionsByPatientId,
   };
