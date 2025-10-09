@@ -44,6 +44,8 @@ const ProntuarioPaciente = () => {
   const [sessionData, setSessionData] = useState({
     date: '',
     type: '',
+    sessionTypeSelection: '' as 'primeira_consulta' | 'retorno' | 'outra' | '',
+    customType: '',
     notes: '',
     amount: '',
     paymentStatus: 'em_aberto' as PaymentStatus,
@@ -89,15 +91,19 @@ const ProntuarioPaciente = () => {
           nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
         });
       } else {
-        // Verificar se já existe uma sessão realizada para determinar o tipo
-        const hasCompletedSession = sessions.some(s => s.status === 'realizado');
-        const sessionType = hasCompletedSession ? 'retorno' : 'primeira_consulta';
+        // Determinar o tipo de sessão baseado na seleção do usuário
+        let sessionType: 'primeira_consulta' | 'retorno' | 'consulta_avulsa';
+        if (sessionData.sessionTypeSelection === 'outra') {
+          sessionType = 'consulta_avulsa';
+        } else {
+          sessionType = sessionData.sessionTypeSelection as 'primeira_consulta' | 'retorno';
+        }
         
         // Adicionar nova sessão
         addSession({
           patientId: id,
           date: new Date(sessionData.date),
-          type: sessionData.type,
+          type: sessionData.sessionTypeSelection === 'outra' ? sessionData.customType : sessionData.type,
           sessionType: sessionType,
           status: 'realizado',
           notes: sessionData.notes,
@@ -109,6 +115,8 @@ const ProntuarioPaciente = () => {
       setSessionData({
         date: '',
         type: '',
+        sessionTypeSelection: '',
+        customType: '',
         notes: '',
         amount: '',
         paymentStatus: 'em_aberto',
@@ -124,6 +132,8 @@ const ProntuarioPaciente = () => {
     setSessionData({
       date: session.date.toISOString().split('T')[0],
       type: session.type,
+      sessionTypeSelection: '',
+      customType: '',
       notes: session.notes || '',
       amount: session.amount.toString(),
       paymentStatus: session.paymentStatus,
@@ -152,17 +162,6 @@ const ProntuarioPaciente = () => {
         time: appointmentData.time,
         status: 'agendado',
         origin: patient.origin,
-      });
-
-      // Criar sessão automaticamente
-      addSession({
-        patientId: id,
-        date: appointmentDate,
-        type: 'Consulta',
-        sessionType: 'consulta_avulsa',
-        status: 'agendado',
-        amount: 0,
-        paymentStatus: 'em_aberto',
       });
 
       setAppointmentData({
@@ -352,6 +351,8 @@ const ProntuarioPaciente = () => {
                   setSessionData({
                     date: '',
                     type: '',
+                    sessionTypeSelection: '',
+                    customType: '',
                     notes: '',
                     amount: '',
                     paymentStatus: 'em_aberto',
@@ -380,14 +381,44 @@ const ProntuarioPaciente = () => {
                     />
                   </div>
                   <div>
-                    <Label>Tipo de Atendimento *</Label>
-                    <Input
-                      value={sessionData.type}
-                      onChange={(e) => setSessionData({ ...sessionData, type: e.target.value })}
-                      placeholder="Ex: Limpeza, Botox, Laser..."
-                      required
-                    />
+                    <Label>Tipo de Sessão *</Label>
+                    <Select 
+                      value={sessionData.sessionTypeSelection} 
+                      onValueChange={(value: 'primeira_consulta' | 'retorno' | 'outra') => 
+                        setSessionData({ ...sessionData, sessionTypeSelection: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="primeira_consulta">Primeira Consulta</SelectItem>
+                        <SelectItem value="retorno">Retorno</SelectItem>
+                        <SelectItem value="outra">Outra</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                  {sessionData.sessionTypeSelection === 'outra' ? (
+                    <div>
+                      <Label>Especifique o Tipo de Atendimento *</Label>
+                      <Input
+                        value={sessionData.customType}
+                        onChange={(e) => setSessionData({ ...sessionData, customType: e.target.value })}
+                        placeholder="Ex: Limpeza, Botox, Laser..."
+                        required
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <Label>Tipo de Atendimento *</Label>
+                      <Input
+                        value={sessionData.type}
+                        onChange={(e) => setSessionData({ ...sessionData, type: e.target.value })}
+                        placeholder="Ex: Limpeza, Botox, Laser..."
+                        required
+                      />
+                    </div>
+                  )}
                   <div>
                     <Label>Valor da Sessão *</Label>
                     <Input

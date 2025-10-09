@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado' | 'todos';
 
 export default function Dashboard() {
-  const { appointments, feedbacks } = useClinic();
+  const { appointments, feedbacks, sessions } = useClinic();
   const [datePeriod, setDatePeriod] = useState<DatePeriod>('todos');
   const [customStartDate, setCustomStartDate] = useState<Date>();
   const [customEndDate, setCustomEndDate] = useState<Date>();
@@ -53,9 +53,11 @@ export default function Dashboard() {
   const totalAppointments = filteredAppointments.filter(a => a.status === 'realizado').length;
   const confirmedAppointments = filteredAppointments.filter(a => a.status === 'confirmado' || a.status === 'realizado').length;
   const canceledOrMissed = filteredAppointments.filter(a => a.status === 'cancelado' || a.status === 'falta').length;
-  const returnRate = filteredAppointments.filter(a => a.status === 'realizado').length > 0 
-    ? Math.round((filteredAppointments.filter(a => a.status === 'realizado').length / totalAppointments) * 100)
-    : 0;
+  
+  // Calcular taxa de retorno baseado nas sessões
+  const totalSessions = sessions.length;
+  const returnSessions = sessions.filter(s => s.sessionType === 'retorno').length;
+  const returnRate = totalSessions > 0 ? Math.round((returnSessions / totalSessions) * 100) : 0;
 
   const originData = [
     { name: 'Google Ads', value: filteredAppointments.filter(a => a.origin === 'Google Ads').length },
