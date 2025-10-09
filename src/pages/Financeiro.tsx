@@ -13,7 +13,7 @@ import { TransactionType } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, eachMonthOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +27,8 @@ export default function Financeiro() {
   const [datePeriod, setDatePeriod] = useState<DatePeriod>('mes');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
+  const [dateOption, setDateOption] = useState<'hoje' | 'personalizado'>('hoje');
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
     type: 'entrada' as TransactionType,
     description: '',
@@ -98,15 +100,38 @@ export default function Financeiro() {
     Saídas: data.saida,
   }));
 
-  // Dados para gráfico de evolução (últimos 6 meses simulados)
-  const evolutionData = [
-    { mes: 'Jan', entrada: 45000, saida: 28000 },
-    { mes: 'Fev', entrada: 52000, saida: 31000 },
-    { mes: 'Mar', entrada: 48000, saida: 29000 },
-    { mes: 'Abr', entrada: 61000, saida: 35000 },
-    { mes: 'Mai', entrada: 55000, saida: 32000 },
-    { mes: 'Jun', entrada: totalEntradas, saida: totalSaidas },
-  ];
+  // Dados para gráfico de evolução (últimos 6 meses)
+  const evolutionData = (() => {
+    const now = new Date();
+    const last6Months = eachMonthOfInterval({
+      start: subMonths(now, 5),
+      end: now
+    });
+
+    return last6Months.map(month => {
+      const monthStart = startOfMonth(month);
+      const monthEnd = endOfMonth(month);
+      
+      const monthTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate >= monthStart && transactionDate <= monthEnd;
+      });
+
+      const entrada = monthTransactions
+        .filter(t => t.type === 'entrada')
+        .reduce((acc, t) => acc + t.amount, 0);
+      
+      const saida = monthTransactions
+        .filter(t => t.type === 'saida')
+        .reduce((acc, t) => acc + t.amount, 0);
+
+      return {
+        mes: format(month, 'MMM', { locale: ptBR }),
+        entrada,
+        saida
+      };
+    });
+  })();
 
   const chartData = [
     { name: 'Entradas', value: totalEntradas },
@@ -115,12 +140,15 @@ export default function Financeiro() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const selectedDate = dateOption === 'hoje' ? new Date() : (customDate || new Date());
     addTransaction({
       ...formData,
       amount: parseFloat(formData.amount),
-      date: new Date(),
+      date: selectedDate,
     });
     setIsOpen(false);
+    setDateOption('hoje');
+    setCustomDate(undefined);
     setFormData({
       type: 'entrada',
       description: '',
@@ -232,6 +260,40 @@ export default function Financeiro() {
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   required
                 />
+              </div>
+              <div>
+                <Label>Data</Label>
+                <div className="flex items-center gap-2">
+                  <Select value={dateOption} onValueChange={(value) => setDateOption(value as 'hoje' | 'personalizado')}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hoje">Hoje</SelectItem>
+                      <SelectItem value="personalizado">Data Personalizada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {dateOption === 'personalizado' && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-9">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customDate ? format(customDate, "dd/MM/yy", { locale: ptBR }) : "Selecionar"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={customDate}
+                          onSelect={setCustomDate}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
               </div>
               <Button type="submit" className="w-full">Adicionar</Button>
             </form>
