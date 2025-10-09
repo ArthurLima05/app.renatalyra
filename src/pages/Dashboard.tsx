@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Calendar, TrendingUp, UserCheck, Clock, Filter, CalendarIcon } from 'lucide-react';
+import { Calendar, TrendingUp, UserCheck, Clock, CalendarIcon } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState } from 'react';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -83,118 +84,65 @@ export default function Dashboard() {
           <p className="text-muted-foreground">Visão geral das métricas da clínica</p>
         </div>
         
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter className="h-4 w-4" />
-              {datePeriod === 'todos' && 'Todos os períodos'}
-              {datePeriod === 'hoje' && 'Hoje'}
-              {datePeriod === 'semana' && 'Esta Semana'}
-              {datePeriod === 'mes' && 'Este Mês'}
-              {datePeriod === 'ano' && 'Este Ano'}
-              {datePeriod === 'personalizado' && 'Personalizado'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-4" align="end">
-            <div className="space-y-2">
-              <Button
-                variant={datePeriod === 'todos' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDatePeriod('todos')}
-                className="w-full justify-start"
-              >
-                Todos os períodos
-              </Button>
-              <Button
-                variant={datePeriod === 'hoje' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDatePeriod('hoje')}
-                className="w-full justify-start"
-              >
-                Hoje
-              </Button>
-              <Button
-                variant={datePeriod === 'semana' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDatePeriod('semana')}
-                className="w-full justify-start"
-              >
-                Esta Semana
-              </Button>
-              <Button
-                variant={datePeriod === 'mes' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDatePeriod('mes')}
-                className="w-full justify-start"
-              >
-                Este Mês
-              </Button>
-              <Button
-                variant={datePeriod === 'ano' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDatePeriod('ano')}
-                className="w-full justify-start"
-              >
-                Este Ano
-              </Button>
-              <Button
-                variant={datePeriod === 'personalizado' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDatePeriod('personalizado')}
-                className="w-full justify-start"
-              >
-                Personalizado
-              </Button>
+        <div className="flex items-center gap-3">
+          <Select value={datePeriod} onValueChange={(value) => setDatePeriod(value as DatePeriod)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os períodos</SelectItem>
+              <SelectItem value="hoje">Hoje</SelectItem>
+              <SelectItem value="semana">Esta Semana</SelectItem>
+              <SelectItem value="mes">Este Mês</SelectItem>
+              <SelectItem value="ano">Este Ano</SelectItem>
+              <SelectItem value="personalizado">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {datePeriod === 'personalizado' && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customStartDate ? format(customStartDate, "dd/MM/yy", { locale: ptBR }) : "Início"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customStartDate}
+                    onSelect={setCustomStartDate}
+                    initialFocus
+                    locale={ptBR}
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
               
-              {datePeriod === 'personalizado' && (
-                <div className="space-y-3 pt-3 border-t">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Data Inicial</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {customStartDate ? format(customStartDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={customStartDate}
-                          onSelect={setCustomStartDate}
-                          initialFocus
-                          locale={ptBR}
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Data Final</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {customEndDate ? format(customEndDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={customEndDate}
-                          onSelect={setCustomEndDate}
-                          initialFocus
-                          locale={ptBR}
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              )}
+              <span className="text-sm text-muted-foreground">-</span>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEndDate ? format(customEndDate, "dd/MM/yy", { locale: ptBR }) : "Fim"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customEndDate}
+                    onSelect={setCustomEndDate}
+                    initialFocus
+                    locale={ptBR}
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
-          </PopoverContent>
-        </Popover>
+          )}
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -220,7 +168,6 @@ export default function Dashboard() {
           title="Confirmados"
           value={confirmedAppointments}
           icon={Clock}
-          trend="Este mês"
           delay={0.4}
         />
       </div>
