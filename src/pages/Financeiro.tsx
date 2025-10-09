@@ -11,12 +11,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, Legend, CartesianGrid } from 'recharts';
 import { TransactionType } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+
+type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
   const { transactions, addTransaction } = useClinic();
   const [isOpen, setIsOpen] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saida'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>('mes');
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
     type: 'entrada' as TransactionType,
     description: '',
@@ -24,24 +34,53 @@ export default function Financeiro() {
     category: '',
   });
 
-  const filteredTransactions = transactions.filter(t => {
+  const getDateRange = (): { start: Date; end: Date } => {
+    const now = new Date();
+    
+    switch (datePeriod) {
+      case 'hoje':
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case 'semana':
+        return { start: startOfWeek(now, { locale: ptBR }), end: endOfWeek(now, { locale: ptBR }) };
+      case 'mes':
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case 'ano':
+        return { start: startOfYear(now), end: endOfYear(now) };
+      case 'personalizado':
+        return {
+          start: customStartDate ? startOfDay(customStartDate) : startOfYear(now),
+          end: customEndDate ? endOfDay(customEndDate) : endOfDay(now),
+        };
+      default:
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+    }
+  };
+
+  const dateRange = getDateRange();
+
+  const filteredByDateTransactions = transactions.filter(t => {
+    const transactionDate = new Date(t.date);
+    return transactionDate >= dateRange.start && transactionDate <= dateRange.end;
+  });
+
+  const filteredTransactions = filteredByDateTransactions.filter(t => {
     if (filterType !== 'all' && t.type !== filterType) return false;
     if (filterCategory !== 'all' && t.category !== filterCategory) return false;
     return true;
   });
 
-  const totalEntradas = transactions
+  const totalEntradas = filteredByDateTransactions
     .filter(t => t.type === 'entrada')
     .reduce((acc, t) => acc + t.amount, 0);
 
-  const totalSaidas = transactions
+  const totalSaidas = filteredByDateTransactions
     .filter(t => t.type === 'saida')
     .reduce((acc, t) => acc + t.amount, 0);
 
   const saldo = totalEntradas - totalSaidas;
 
   // Agrupar por categoria
-  const categoriesData = transactions.reduce((acc, t) => {
+  const categoriesData = filteredByDateTransactions.reduce((acc, t) => {
     if (!acc[t.category]) {
       acc[t.category] = { entrada: 0, saida: 0 };
     }
@@ -98,13 +137,14 @@ export default function Financeiro() {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        className="flex flex-col gap-4"
       >
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financeiro</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Controle detalhado de receitas e despesas</p>
-        </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financeiro</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Controle detalhado de receitas e despesas</p>
+          </div>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
@@ -164,6 +204,115 @@ export default function Financeiro() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
+
+        {/* Filtros de Data */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Período:</span>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={datePeriod === 'hoje' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDatePeriod('hoje')}
+                >
+                  Hoje
+                </Button>
+                <Button
+                  variant={datePeriod === 'semana' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDatePeriod('semana')}
+                >
+                  Esta Semana
+                </Button>
+                <Button
+                  variant={datePeriod === 'mes' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDatePeriod('mes')}
+                >
+                  Este Mês
+                </Button>
+                <Button
+                  variant={datePeriod === 'ano' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDatePeriod('ano')}
+                >
+                  Este Ano
+                </Button>
+                <Button
+                  variant={datePeriod === 'personalizado' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDatePeriod('personalizado')}
+                >
+                  Personalizado
+                </Button>
+              </div>
+
+              {datePeriod === 'personalizado' && (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !customStartDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {customStartDate ? format(customStartDate, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customStartDate}
+                        onSelect={setCustomStartDate}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <span className="text-sm text-muted-foreground">até</span>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !customEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {customEndDate ? format(customEndDate, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customEndDate}
+                        onSelect={setCustomEndDate}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Cards de Resumo */}
@@ -181,8 +330,8 @@ export default function Financeiro() {
                   <h3 className="text-xl sm:text-2xl font-bold text-foreground truncate">
                     R$ {totalEntradas.toFixed(2)}
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {transactions.filter(t => t.type === 'entrada').length} transações
+                   <p className="text-xs text-muted-foreground mt-1">
+                    {filteredByDateTransactions.filter(t => t.type === 'entrada').length} transações
                   </p>
                 </div>
                 <div className="bg-green-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
@@ -206,8 +355,8 @@ export default function Financeiro() {
                   <h3 className="text-xl sm:text-2xl font-bold text-foreground truncate">
                     R$ {totalSaidas.toFixed(2)}
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {transactions.filter(t => t.type === 'saida').length} transações
+                   <p className="text-xs text-muted-foreground mt-1">
+                    {filteredByDateTransactions.filter(t => t.type === 'saida').length} transações
                   </p>
                 </div>
                 <div className="bg-red-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
