@@ -16,6 +16,7 @@ interface ClinicContextType {
   updateAppointmentStatus: (id: string, status: AppointmentStatus) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
   addFeedback: (feedback: Omit<Feedback, 'id' | 'date'>) => Promise<void>;
   addProfessional: (professional: Omit<Professional, 'id'>) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
@@ -417,6 +418,20 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const deleteTransaction = async (id: string) => {
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Erro ao excluir transação', description: error.message, variant: 'destructive' });
+      throw error;
+    }
+
+    toast({ title: 'Transação excluída com sucesso' });
+  };
+
   const addFeedback = async (feedback: Omit<Feedback, 'id' | 'date'>) => {
     // Buscar patient_id pelo nome
     const { data: patientData } = await supabase
@@ -647,6 +662,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     updateAppointmentStatus,
     deleteAppointment,
     addTransaction,
+    deleteTransaction,
     addFeedback,
     addProfessional,
     markNotificationRead,
