@@ -1,31 +1,72 @@
 import { motion } from 'framer-motion';
-import { Calendar, TrendingUp, UserCheck, Clock } from 'lucide-react';
+import { Calendar, TrendingUp, UserCheck, Clock, Filter, CalendarIcon } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { useState } from 'react';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+
+type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado' | 'todos';
 
 export default function Dashboard() {
   const { appointments, feedbacks } = useClinic();
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>('todos');
+  const [customStartDate, setCustomStartDate] = useState<Date>();
+  const [customEndDate, setCustomEndDate] = useState<Date>();
 
-  const totalAppointments = appointments.filter(a => a.status === 'realizado').length;
-  const confirmedAppointments = appointments.filter(a => a.status === 'confirmado' || a.status === 'realizado').length;
-  const canceledOrMissed = appointments.filter(a => a.status === 'cancelado' || a.status === 'falta').length;
-  const returnRate = appointments.filter(a => a.status === 'realizado').length > 0 
-    ? Math.round((appointments.filter(a => a.status === 'realizado').length / totalAppointments) * 100)
+  const getDateRange = () => {
+    const now = new Date();
+    switch (datePeriod) {
+      case 'hoje':
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case 'semana':
+        return { start: startOfWeek(now, { locale: ptBR }), end: endOfWeek(now, { locale: ptBR }) };
+      case 'mes':
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case 'ano':
+        return { start: startOfYear(now), end: endOfYear(now) };
+      case 'personalizado':
+        if (customStartDate && customEndDate) {
+          return { start: startOfDay(customStartDate), end: endOfDay(customEndDate) };
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  const dateRange = getDateRange();
+  const filteredAppointments = dateRange
+    ? appointments.filter(a => {
+        const appointmentDate = new Date(a.date);
+        return isWithinInterval(appointmentDate, { start: dateRange.start, end: dateRange.end });
+      })
+    : appointments;
+
+  const totalAppointments = filteredAppointments.filter(a => a.status === 'realizado').length;
+  const confirmedAppointments = filteredAppointments.filter(a => a.status === 'confirmado' || a.status === 'realizado').length;
+  const canceledOrMissed = filteredAppointments.filter(a => a.status === 'cancelado' || a.status === 'falta').length;
+  const returnRate = filteredAppointments.filter(a => a.status === 'realizado').length > 0 
+    ? Math.round((filteredAppointments.filter(a => a.status === 'realizado').length / totalAppointments) * 100)
     : 0;
 
   const originData = [
-    { name: 'Google Ads', value: appointments.filter(a => a.origin === 'Google Ads').length },
-    { name: 'Instagram', value: appointments.filter(a => a.origin === 'Instagram').length },
-    { name: 'Indicação', value: appointments.filter(a => a.origin === 'Indicação').length },
+    { name: 'Google Ads', value: filteredAppointments.filter(a => a.origin === 'Google Ads').length },
+    { name: 'Instagram', value: filteredAppointments.filter(a => a.origin === 'Instagram').length },
+    { name: 'Indicação', value: filteredAppointments.filter(a => a.origin === 'Indicação').length },
   ];
 
   const statusData = [
-    { status: 'Agendado', count: appointments.filter(a => a.status === 'agendado').length },
-    { status: 'Confirmado', count: appointments.filter(a => a.status === 'confirmado').length },
-    { status: 'Realizado', count: appointments.filter(a => a.status === 'realizado').length },
-    { status: 'Cancelado', count: appointments.filter(a => a.status === 'cancelado').length },
+    { status: 'Agendado', count: filteredAppointments.filter(a => a.status === 'agendado').length },
+    { status: 'Confirmado', count: filteredAppointments.filter(a => a.status === 'confirmado').length },
+    { status: 'Realizado', count: filteredAppointments.filter(a => a.status === 'realizado').length },
+    { status: 'Cancelado', count: filteredAppointments.filter(a => a.status === 'cancelado').length },
   ];
 
   const COLORS = ['#DBC192', '#9CA0A0', '#F5E6D3', '#C9A876'];
@@ -35,9 +76,125 @@ export default function Dashboard() {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
+        className="flex items-center justify-between"
       >
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Visão geral das métricas da clínica</p>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">Visão geral das métricas da clínica</p>
+        </div>
+        
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Filter className="h-4 w-4" />
+              {datePeriod === 'todos' && 'Todos os períodos'}
+              {datePeriod === 'hoje' && 'Hoje'}
+              {datePeriod === 'semana' && 'Esta Semana'}
+              {datePeriod === 'mes' && 'Este Mês'}
+              {datePeriod === 'ano' && 'Este Ano'}
+              {datePeriod === 'personalizado' && 'Personalizado'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-4" align="end">
+            <div className="space-y-2">
+              <Button
+                variant={datePeriod === 'todos' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDatePeriod('todos')}
+                className="w-full justify-start"
+              >
+                Todos os períodos
+              </Button>
+              <Button
+                variant={datePeriod === 'hoje' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDatePeriod('hoje')}
+                className="w-full justify-start"
+              >
+                Hoje
+              </Button>
+              <Button
+                variant={datePeriod === 'semana' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDatePeriod('semana')}
+                className="w-full justify-start"
+              >
+                Esta Semana
+              </Button>
+              <Button
+                variant={datePeriod === 'mes' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDatePeriod('mes')}
+                className="w-full justify-start"
+              >
+                Este Mês
+              </Button>
+              <Button
+                variant={datePeriod === 'ano' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDatePeriod('ano')}
+                className="w-full justify-start"
+              >
+                Este Ano
+              </Button>
+              <Button
+                variant={datePeriod === 'personalizado' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDatePeriod('personalizado')}
+                className="w-full justify-start"
+              >
+                Personalizado
+              </Button>
+              
+              {datePeriod === 'personalizado' && (
+                <div className="space-y-3 pt-3 border-t">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Data Inicial</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customStartDate ? format(customStartDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={customStartDate}
+                          onSelect={setCustomStartDate}
+                          initialFocus
+                          locale={ptBR}
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Data Final</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customEndDate ? format(customEndDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={customEndDate}
+                          onSelect={setCustomEndDate}
+                          initialFocus
+                          locale={ptBR}
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
