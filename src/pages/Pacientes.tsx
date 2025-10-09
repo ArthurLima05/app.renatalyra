@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Phone, Calendar, DollarSign } from 'lucide-react';
+import { Plus, Search, Phone, Calendar } from 'lucide-react';
 import { PatientOrigin } from '@/types';
 
 const Pacientes = () => {
@@ -55,11 +55,6 @@ const Pacientes = () => {
     return patientSessions.sort((a, b) => a.date.getTime() - b.date.getTime())[0];
   };
 
-  const getFinancialStatus = (patientId: string) => {
-    const patientSessions = sessions.filter(s => s.patientId === patientId);
-    const hasOpenPayment = patientSessions.some(s => s.paymentStatus === 'em_aberto');
-    return hasOpenPayment ? 'em_aberto' : 'pago';
-  };
 
   return (
     <motion.div
@@ -159,7 +154,6 @@ const Pacientes = () => {
         {filteredPatients.map((patient) => {
           const lastAppointment = getLastAppointment(patient.id);
           const nextAppointment = getNextAppointment(patient.id);
-          const financialStatus = getFinancialStatus(patient.id);
 
           return (
             <motion.div
@@ -174,11 +168,8 @@ const Pacientes = () => {
                 onClick={() => navigate(`/pacientes/${patient.id}`)}
               >
                 <CardHeader>
-                  <CardTitle className="flex items-start justify-between">
+                  <CardTitle>
                     <span className="text-lg">{patient.fullName}</span>
-                    <Badge variant={financialStatus === 'pago' ? 'default' : 'destructive'}>
-                      {financialStatus === 'pago' ? 'Pago' : 'Em aberto'}
-                    </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
