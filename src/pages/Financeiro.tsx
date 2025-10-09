@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -129,6 +129,34 @@ export default function Financeiro() {
     });
   };
 
+  const exportToCSV = () => {
+    const csvData = filteredByDateTransactions.map(t => ({
+      Data: format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
+      Tipo: t.type === 'entrada' ? 'Entrada' : 'Saída',
+      Descrição: t.description,
+      Categoria: t.category,
+      Valor: t.amount.toFixed(2)
+    }));
+
+    const headers = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor'];
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => 
+        Object.values(row).map(value => `"${value}"`).join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `financeiro_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const COLORS = ['#DBC192', '#9CA0A0'];
   const allCategories = Array.from(new Set(transactions.map(t => t.category)));
 
@@ -144,13 +172,18 @@ export default function Financeiro() {
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financeiro</h1>
             <p className="text-sm sm:text-base text-muted-foreground">Controle detalhado de receitas e despesas</p>
           </div>
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Lançamento
+          <div className="flex gap-2">
+            <Button onClick={exportToCSV} variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              Download
             </Button>
-          </DialogTrigger>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Novo Lançamento
+                </Button>
+              </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Adicionar Lançamento</DialogTitle>
@@ -203,7 +236,8 @@ export default function Financeiro() {
               <Button type="submit" className="w-full">Adicionar</Button>
             </form>
           </DialogContent>
-        </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         {/* Filtros de Data */}
