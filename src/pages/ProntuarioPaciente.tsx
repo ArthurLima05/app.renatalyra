@@ -89,13 +89,17 @@ const ProntuarioPaciente = () => {
           nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
         });
       } else {
+        // Verificar se já existe uma sessão realizada para determinar o tipo
+        const hasCompletedSession = sessions.some(s => s.status === 'realizado');
+        const sessionType = hasCompletedSession ? 'retorno' : 'primeira_consulta';
+        
         // Adicionar nova sessão
         addSession({
           patientId: id,
           date: new Date(sessionData.date),
           type: sessionData.type,
-          sessionType: 'retorno',
-          status: 'sugerido',
+          sessionType: sessionType,
+          status: 'realizado',
           notes: sessionData.notes,
           amount: parseFloat(sessionData.amount),
           paymentStatus: sessionData.paymentStatus,
@@ -199,9 +203,9 @@ const ProntuarioPaciente = () => {
       realizado: 'Realizado',
       cancelado: 'Cancelado',
       falta: 'Falta',
-      sugerido: 'Sugerido',
+      sugerido: '',
     };
-    return <Badge variant={variants[status]}>{labels[status]}</Badge>;
+    return status === 'sugerido' ? null : <Badge variant={variants[status]}>{labels[status]}</Badge>;
   };
 
   const getPaymentBadge = (status: PaymentStatus) => {
@@ -462,7 +466,7 @@ const ProntuarioPaciente = () => {
                           {session.notes && (
                             <p className="text-sm mt-2 p-2 bg-muted rounded">{session.notes}</p>
                           )}
-                          {session.nextAppointment && session.status === 'sugerido' && (
+                          {session.nextAppointment && (
                             <p className="text-sm text-primary font-medium">
                               Próxima consulta sugerida: {session.nextAppointment.toLocaleDateString('pt-BR')}
                             </p>
