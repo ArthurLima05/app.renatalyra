@@ -400,7 +400,7 @@ const ProntuarioPaciente = () => {
                   </div>
                   {sessionData.sessionTypeSelection === 'outra' ? (
                     <div>
-                      <Label>Especifique o Tipo de Atendimento *</Label>
+                      <Label>Especifique o Título do Atendimento *</Label>
                       <Input
                         value={sessionData.customType}
                         onChange={(e) => setSessionData({ ...sessionData, customType: e.target.value })}
@@ -410,7 +410,7 @@ const ProntuarioPaciente = () => {
                     </div>
                   ) : (
                     <div>
-                      <Label>Tipo de Atendimento *</Label>
+                      <Label>Título do Atendimento *</Label>
                       <Input
                         value={sessionData.type}
                         onChange={(e) => setSessionData({ ...sessionData, type: e.target.value })}
