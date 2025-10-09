@@ -8,7 +8,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 export default function Dashboard() {
   const { appointments, feedbacks } = useClinic();
 
-  const totalAppointments = appointments.length;
+  const totalAppointments = appointments.filter(a => a.status === 'realizado').length;
   const confirmedAppointments = appointments.filter(a => a.status === 'confirmado' || a.status === 'realizado').length;
   const canceledOrMissed = appointments.filter(a => a.status === 'cancelado' || a.status === 'falta').length;
   const returnRate = appointments.filter(a => a.status === 'realizado').length > 0 
