@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2 } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, Legend, CartesianGrid } from 'recharts';
 import { TransactionType } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, eachMonthOfInterval } from 'date-fns';
@@ -21,7 +22,7 @@ import { cn } from '@/lib/utils';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
-  const { transactions, addTransaction, deleteTransaction } = useClinic();
+  const { transactions, addTransaction, deleteTransaction, installments, updateInstallment } = useClinic();
   const [isOpen, setIsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
@@ -32,6 +33,8 @@ export default function Financeiro() {
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [dateOption, setDateOption] = useState<'hoje' | 'personalizado'>('hoje');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  const [installmentsCount, setInstallmentsCount] = useState<string>('1');
+  const [firstPaymentDate, setFirstPaymentDate] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
     type: 'entrada' as TransactionType,
     description: '',
@@ -144,14 +147,23 @@ export default function Financeiro() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedDate = dateOption === 'hoje' ? new Date() : (customDate || new Date());
-    addTransaction({
-      ...formData,
-      amount: parseFloat(formData.amount),
-      date: selectedDate,
-    });
+    const count = parseInt(installmentsCount);
+    
+    addTransaction(
+      {
+        ...formData,
+        amount: parseFloat(formData.amount),
+        date: selectedDate,
+      },
+      formData.type === 'entrada' && count > 1 ? count : undefined,
+      formData.type === 'entrada' && count > 1 ? firstPaymentDate : undefined
+    );
+    
     setIsOpen(false);
     setDateOption('hoje');
     setCustomDate(undefined);
+    setInstallmentsCount('1');
+    setFirstPaymentDate(undefined);
     setFormData({
       type: 'entrada',
       description: '',
@@ -306,6 +318,46 @@ export default function Financeiro() {
                   )}
                 </div>
               </div>
+              
+              {formData.type === 'entrada' && (
+                <>
+                  <div>
+                    <Label htmlFor="installments">Número de Parcelas</Label>
+                    <Input
+                      id="installments"
+                      type="number"
+                      min="1"
+                      value={installmentsCount}
+                      onChange={(e) => setInstallmentsCount(e.target.value)}
+                    />
+                  </div>
+                  
+                  {parseInt(installmentsCount) > 1 && (
+                    <div>
+                      <Label>Data da Primeira Parcela</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {firstPaymentDate ? format(firstPaymentDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={firstPaymentDate}
+                            onSelect={setFirstPaymentDate}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                            locale={ptBR}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
+                </>
+              )}
+              
               <Button type="submit" className="w-full">Adicionar</Button>
             </form>
           </DialogContent>
@@ -465,10 +517,11 @@ export default function Financeiro() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="distribuicao" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 h-auto">
+              <TabsList className="grid w-full grid-cols-4 h-auto">
                 <TabsTrigger value="distribuicao" className="text-xs sm:text-sm">Distribuição</TabsTrigger>
                 <TabsTrigger value="categorias" className="text-xs sm:text-sm">Categorias</TabsTrigger>
                 <TabsTrigger value="evolucao" className="text-xs sm:text-sm">Evolução</TabsTrigger>
+                <TabsTrigger value="previsoes" className="text-xs sm:text-sm">Previsões</TabsTrigger>
               </TabsList>
               
               <TabsContent value="distribuicao" className="mt-4">
@@ -519,6 +572,68 @@ export default function Financeiro() {
                     <Line type="monotone" dataKey="saida" stroke="#ef4444" strokeWidth={2} name="Saídas" />
                   </LineChart>
                 </ResponsiveContainer>
+              </TabsContent>
+
+              <TabsContent value="previsoes" className="mt-4">
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Pagamentos futuros previstos baseados em parcelas cadastradas
+                  </p>
+                  {installments.filter(i => !i.paid).length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      Nenhuma previsão de pagamento cadastrada
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Data Prevista</TableHead>
+                            <TableHead>Parcela</TableHead>
+                            <TableHead>Valor</TableHead>
+                            <TableHead className="text-right">Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {installments
+                            .filter(i => !i.paid)
+                            .sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime())
+                            .map((installment) => (
+                              <TableRow key={installment.id}>
+                                <TableCell>
+                                  {format(installment.predictedDate, 'dd/MM/yyyy', { locale: ptBR })}
+                                </TableCell>
+                                <TableCell>
+                                  {installment.installmentNumber}/{installment.totalInstallments}
+                                </TableCell>
+                                <TableCell>
+                                  R$ {installment.amount.toFixed(2)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => updateInstallment(installment.id, { paid: true, paidDate: new Date() })}
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                                    Marcar como Pago
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                      <div className="mt-4 p-4 bg-muted rounded-lg">
+                        <p className="text-sm font-medium">
+                          Total previsto: R$ {installments
+                            .filter(i => !i.paid)
+                            .reduce((acc, i) => acc + i.amount, 0)
+                            .toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </TabsContent>
             </Tabs>
           </CardContent>

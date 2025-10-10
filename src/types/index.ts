@@ -83,3 +83,15 @@ export interface Session {
   nextAppointment?: Date;
   professionalId?: string;
 }
+
+export interface Installment {
+  id: string;
+  transactionId?: string;
+  installmentNumber: number;
+  totalInstallments: number;
+  amount: number;
+  predictedDate: Date;
+  paid: boolean;
+  paidDate?: Date;
+  createdAt: Date;
+}

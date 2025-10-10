@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Appointment, Professional, Transaction, Feedback, Notification, Patient, Session, AppointmentStatus } from '@/types';
+import { Appointment, Professional, Transaction, Feedback, Notification, Patient, Session, AppointmentStatus, Installment } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -11,11 +11,12 @@ interface ClinicContextType {
   notifications: Notification[];
   patients: Patient[];
   sessions: Session[];
+  installments: Installment[];
   loading: boolean;
   addAppointment: (appointment: Omit<Appointment, 'id' | 'createdAt'>) => Promise<void>;
   updateAppointmentStatus: (id: string, status: AppointmentStatus) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  addTransaction: (transaction: Omit<Transaction, 'id'>, installments?: number, firstPaymentDate?: Date) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addFeedback: (feedback: Omit<Feedback, 'id' | 'date'>) => Promise<void>;
   addProfessional: (professional: Omit<Professional, 'id'>) => Promise<void>;
@@ -31,6 +32,7 @@ interface ClinicContextType {
   getFeedbacksByPatientId: (patientId: string) => Feedback[];
   linkAppointmentToSession: (sessionId: string, appointmentDate: Date, appointmentTime: string) => Promise<void>;
   getSuggestedSessionsByPatientId: (patientId: string) => Session[];
+  updateInstallment: (id: string, data: Partial<Installment>) => Promise<void>;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -49,6 +51,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [installments, setInstallments] = useState<Installment[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -190,6 +193,41 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
       .subscribe();
 
+    const installmentsChannel = supabase
+      .channel('installments-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'installments' }, (payload) => {
+        const newInstallment: Installment = {
+          id: payload.new.id,
+          transactionId: payload.new.transaction_id || undefined,
+          installmentNumber: payload.new.installment_number,
+          totalInstallments: payload.new.total_installments,
+          amount: Number(payload.new.amount),
+          predictedDate: new Date(payload.new.predicted_date),
+          paid: payload.new.paid,
+          paidDate: payload.new.paid_date ? new Date(payload.new.paid_date) : undefined,
+          createdAt: new Date(payload.new.created_at),
+        };
+        setInstallments(prev => [...prev, newInstallment]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'installments' }, (payload) => {
+        const updated: Installment = {
+          id: payload.new.id,
+          transactionId: payload.new.transaction_id || undefined,
+          installmentNumber: payload.new.installment_number,
+          totalInstallments: payload.new.total_installments,
+          amount: Number(payload.new.amount),
+          predictedDate: new Date(payload.new.predicted_date),
+          paid: payload.new.paid,
+          paidDate: payload.new.paid_date ? new Date(payload.new.paid_date) : undefined,
+          createdAt: new Date(payload.new.created_at),
+        };
+        setInstallments(prev => prev.map(i => i.id === updated.id ? updated : i));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'installments' }, (payload) => {
+        setInstallments(prev => prev.filter(i => i.id !== payload.old.id));
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(professionalsChannel);
       supabase.removeChannel(patientsChannel);
@@ -198,6 +236,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       supabase.removeChannel(transactionsChannel);
       supabase.removeChannel(feedbacksChannel);
       supabase.removeChannel(notificationsChannel);
+      supabase.removeChannel(installmentsChannel);
     };
   }, []);
 
@@ -211,6 +250,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loadTransactions(),
       loadFeedbacks(),
       loadNotifications(),
+      loadInstallments(),
     ]);
     setLoading(false);
   };
@@ -338,6 +378,25 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     })));
   };
 
+  const loadInstallments = async () => {
+    const { data, error } = await supabase.from('installments').select('*').order('predicted_date', { ascending: true });
+    if (error) {
+      console.error('Error loading installments:', error);
+      return;
+    }
+    setInstallments((data || []).map(i => ({
+      id: i.id,
+      transactionId: i.transaction_id || undefined,
+      installmentNumber: i.installment_number,
+      totalInstallments: i.total_installments,
+      amount: Number(i.amount),
+      predictedDate: new Date(i.predicted_date),
+      paid: i.paid,
+      paidDate: i.paid_date ? new Date(i.paid_date) : undefined,
+      createdAt: new Date(i.created_at),
+    })));
+  };
+
   const addAppointment = async (appointment: Omit<Appointment, 'id' | 'createdAt'>) => {
     const { data, error } = await supabase
       .from('appointments')
@@ -404,18 +463,45 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: 'Agendamento excluído com sucesso' });
   };
 
-  const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
-    const { error } = await supabase.from('transactions').insert({
+  const addTransaction = async (transaction: Omit<Transaction, 'id'>, installmentsCount?: number, firstPaymentDate?: Date) => {
+    const { data: transactionData, error } = await supabase.from('transactions').insert({
       type: transaction.type,
       description: transaction.description,
       amount: transaction.amount,
       date: transaction.date.toISOString(),
       category: transaction.category,
-    });
+    }).select().single();
 
     if (error) {
       toast({ title: 'Erro ao adicionar transação', description: error.message, variant: 'destructive' });
       throw error;
+    }
+
+    // Se tiver parcelas, criar installments
+    if (installmentsCount && installmentsCount > 1 && firstPaymentDate && transactionData) {
+      const installmentAmount = transaction.amount / installmentsCount;
+      const installmentsToCreate = [];
+
+      for (let i = 0; i < installmentsCount; i++) {
+        const predictedDate = new Date(firstPaymentDate);
+        predictedDate.setMonth(predictedDate.getMonth() + i);
+
+        installmentsToCreate.push({
+          transaction_id: transactionData.id,
+          installment_number: i + 1,
+          total_installments: installmentsCount,
+          amount: installmentAmount,
+          predicted_date: predictedDate.toISOString(),
+          paid: false,
+        });
+      }
+
+      const { error: installmentsError } = await supabase.from('installments').insert(installmentsToCreate);
+
+      if (installmentsError) {
+        console.error('Error creating installments:', installmentsError);
+        toast({ title: 'Erro ao criar parcelas', description: installmentsError.message, variant: 'destructive' });
+      }
     }
   };
 
@@ -625,6 +711,26 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: 'Sessão excluída com sucesso' });
   };
 
+  const updateInstallment = async (id: string, data: Partial<Installment>) => {
+    const updateData: any = {};
+    
+    if (data.paid !== undefined) updateData.paid = data.paid;
+    if (data.paidDate) updateData.paid_date = data.paidDate.toISOString();
+    if (data.predictedDate) updateData.predicted_date = data.predictedDate.toISOString();
+    
+    const { error } = await supabase
+      .from('installments')
+      .update(updateData)
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Erro ao atualizar parcela', description: error.message, variant: 'destructive' });
+      throw error;
+    }
+
+    toast({ title: 'Parcela atualizada com sucesso' });
+  };
+
   const linkAppointmentToSession = async (sessionId: string, appointmentDate: Date, appointmentTime: string) => {
     const { error } = await supabase
       .from('sessions')
@@ -655,6 +761,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     notifications,
     patients,
     sessions,
+    installments,
     loading,
     addAppointment,
     updateAppointmentStatus,
@@ -675,6 +782,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     getFeedbacksByPatientId,
     linkAppointmentToSession,
     getSuggestedSessionsByPatientId,
+    updateInstallment,
   };
 
   if (loading) {

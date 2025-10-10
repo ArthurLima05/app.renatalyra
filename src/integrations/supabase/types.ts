@@ -123,6 +123,50 @@ export type Database = {
           },
         ]
       }
+      installments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          installment_number: number
+          paid: boolean
+          paid_date: string | null
+          predicted_date: string
+          total_installments: number
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          installment_number: number
+          paid?: boolean
+          paid_date?: string | null
+          predicted_date: string
+          total_installments: number
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          installment_number?: number
+          paid?: boolean
+          paid_date?: string | null
+          predicted_date?: string
+          total_installments?: number
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
