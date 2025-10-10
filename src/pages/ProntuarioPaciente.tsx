@@ -12,12 +12,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, Link2, Check } from 'lucide-react';
 import { AppointmentStatus, PaymentStatus, SessionType } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const ProntuarioPaciente = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [copiedLink, setCopiedLink] = useState(false);
   const {
     getPatientById,
     getSessionsByPatientId,
@@ -183,6 +186,17 @@ const ProntuarioPaciente = () => {
     }
   };
 
+  const handleCopyFeedbackLink = () => {
+    if (!id) return;
+    
+    const feedbackUrl = `${window.location.origin}/feedback?patientId=${id}&origin=${encodeURIComponent(patient.origin)}`;
+    navigator.clipboard.writeText(feedbackUrl);
+    setCopiedLink(true);
+    toast({ title: 'Link copiado!', description: 'Link de feedback copiado para a área de transferência' });
+    
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   const totalPaid = sessions
     .filter(s => s.paymentStatus === 'pago')
     .reduce((sum, s) => sum + s.amount, 0);
@@ -252,7 +266,7 @@ const ProntuarioPaciente = () => {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" onClick={() => setEditData(patient)}>
@@ -332,6 +346,25 @@ const ProntuarioPaciente = () => {
                   </form>
                 </DialogContent>
               </Dialog>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleCopyFeedbackLink}
+                className="gap-2"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Copiado!
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="h-4 w-4" />
+                    Copiar Link Feedback
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </CardHeader>

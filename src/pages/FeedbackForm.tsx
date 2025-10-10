@@ -1,37 +1,123 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useClinic } from '@/contexts/ClinicContext';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Star, CheckCircle2 } from 'lucide-react';
 import { PatientOrigin } from '@/types';
 import logoClinica from '@/assets/logo-clinica.jpg';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export default function FeedbackForm() {
   const navigate = useNavigate();
-  const { addFeedback, professionals } = useClinic();
+  const [searchParams] = useSearchParams();
+  const { toast } = useToast();
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [patientName, setPatientName] = useState('');
+  const [professionals, setProfessionals] = useState<any[]>([]);
+  
+  const patientId = searchParams.get('patientId');
+  const originParam = searchParams.get('origin') as PatientOrigin | null;
+  
   const [formData, setFormData] = useState({
-    patientName: '',
     rating: 0,
     comment: '',
-    origin: 'Outro' as PatientOrigin,
+    origin: originParam || 'Outro' as PatientOrigin,
     professionalId: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const loadData = async () => {
+      // Carregar nome do paciente
+      if (patientId) {
+        const { data: patientData } = await supabase
+          .from('patients')
+          .select('full_name')
+          .eq('id', patientId)
+          .single();
+        
+        if (patientData) {
+          setPatientName(patientData.full_name);
+        }
+      }
+
+      // Carregar profissionais
+      const { data: profsData } = await supabase
+        .from('professionals')
+        .select('*');
+      
+      if (profsData) {
+        setProfessionals(profsData);
+      }
+      
+      setLoading(false);
+    };
+
+    loadData();
+  }, [patientId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addFeedback(formData);
+    
+    if (!patientId) {
+      toast({ title: 'Erro', description: 'Link inválido', variant: 'destructive' });
+      return;
+    }
+
+    const { error } = await supabase.from('feedbacks').insert({
+      patient_id: patientId,
+      rating: formData.rating,
+      comment: formData.comment,
+      origin: formData.origin,
+      date: new Date().toISOString(),
+      professional_id: formData.professionalId || null,
+    });
+
+    if (error) {
+      toast({ title: 'Erro ao enviar feedback', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    // Criar notificação se avaliação baixa
+    if (formData.rating <= 2) {
+      await supabase.from('notifications').insert({
+        type: 'feedback',
+        title: 'Avaliação baixa recebida',
+        message: `${patientName} deu nota ${formData.rating}`,
+      });
+    }
+
     setSubmitted(true);
     setTimeout(() => {
       navigate('/');
     }, 3000);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!patientId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-2">Link Inválido</h1>
+          <p className="text-muted-foreground">
+            Este link de feedback não é válido.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (
@@ -60,9 +146,9 @@ export default function FeedbackForm() {
       >
         <div className="text-center mb-8 mt-8">
           <img src={logoClinica} alt="Clínica Renata Lyra" className="h-20 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold">Sua Opinião é Importante</h1>
+          <h1 className="text-3xl font-bold">Olá, {patientName}!</h1>
           <p className="text-muted-foreground mt-2">
-            Ajude-nos a melhorar nossos serviços
+            Sua opinião é muito importante para nós
           </p>
         </div>
 
@@ -72,17 +158,6 @@ export default function FeedbackForm() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <Label htmlFor="patientName">Seu Nome</Label>
-                <Input
-                  id="patientName"
-                  value={formData.patientName}
-                  onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
-                  required
-                  placeholder="Digite seu nome"
-                />
-              </div>
-
               <div>
                 <Label htmlFor="professionalId">Profissional que te atendeu (opcional)</Label>
                 <Select

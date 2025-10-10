@@ -85,6 +85,7 @@ export const mockTransactions: Transaction[] = [
 export const mockFeedbacks: Feedback[] = [
   {
     id: '1',
+    patientId: '1',
     patientName: 'Maria Santos',
     rating: 5,
     comment: 'Excelente atendimento! Muito profissional e atenciosa.',
@@ -94,6 +95,7 @@ export const mockFeedbacks: Feedback[] = [
   },
   {
     id: '2',
+    patientId: '2',
     patientName: 'Pedro Lima',
     rating: 4,
     comment: 'Bom atendimento, ambiente agradável.',

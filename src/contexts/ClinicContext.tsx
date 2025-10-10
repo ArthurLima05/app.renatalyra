@@ -315,6 +315,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     setFeedbacks((data || []).map(f => ({
       id: f.id,
+      patientId: f.patient_id,
       patientName: f.patients?.full_name || '',
       rating: f.rating,
       comment: f.comment,
@@ -642,10 +643,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const getPatientById = (id: string) => patients.find(p => p.id === id);
   const getSessionsByPatientId = (patientId: string) => sessions.filter(s => s.patientId === patientId);
   const getTransactionsByPatientId = (patientId: string) => transactions.filter(t => t.patientId === patientId);
-  const getFeedbacksByPatientId = (patientId: string) => feedbacks.filter(f => {
-    const patient = patients.find(p => p.fullName === f.patientName);
-    return patient?.id === patientId;
-  });
+  const getFeedbacksByPatientId = (patientId: string) => feedbacks.filter(f => f.patientId === patientId);
   const getSuggestedSessionsByPatientId = (patientId: string) => 
     sessions.filter(s => s.patientId === patientId && s.status === 'sugerido');
 

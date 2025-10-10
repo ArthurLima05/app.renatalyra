@@ -42,6 +42,7 @@ export interface Transaction {
 
 export interface Feedback {
   id: string;
+  patientId: string;
   patientName: string;
   rating: number;
   comment: string;
