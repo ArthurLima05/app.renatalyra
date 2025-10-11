@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, Link2, Check } from 'lucide-react';
 import { AppointmentStatus, PaymentStatus, SessionType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +32,8 @@ const ProntuarioPaciente = () => {
     updateSession,
     deleteSession,
     addAppointment,
+    installments,
+    updateInstallment,
   } = useClinic();
 
   const patient = id ? getPatientById(id) : undefined;
@@ -675,6 +678,71 @@ const ProntuarioPaciente = () => {
               ))
             )}
           </div>
+
+          {(() => {
+            const patientInstallments = installments.filter(i => {
+              if (!i.sessionId) return false;
+              const session = sessions.find(s => s.id === i.sessionId);
+              return session && !i.paid;
+            }).sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime());
+
+            if (patientInstallments.length === 0) return null;
+
+            return (
+              <>
+                <h3 className="text-lg font-semibold mt-6">Previsões de Parcelas</h3>
+                <Card>
+                  <CardContent className="pt-6">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Sessão</TableHead>
+                          <TableHead>Parcela</TableHead>
+                          <TableHead>Valor</TableHead>
+                          <TableHead>Previsão</TableHead>
+                          <TableHead>Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {patientInstallments.map((installment) => {
+                          const session = sessions.find(s => s.id === installment.sessionId);
+                          return (
+                            <TableRow key={installment.id}>
+                              <TableCell className="font-medium">{session?.type || 'N/A'}</TableCell>
+                              <TableCell>
+                                {installment.installmentNumber}/{installment.totalInstallments}
+                              </TableCell>
+                              <TableCell>R$ {installment.amount.toFixed(2)}</TableCell>
+                              <TableCell>{installment.predictedDate.toLocaleDateString('pt-BR')}</TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    updateInstallment(installment.id, {
+                                      paid: true,
+                                      paidDate: new Date(),
+                                    });
+                                  }}
+                                >
+                                  Marcar como pago
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                    <div className="mt-4 p-4 bg-muted rounded-lg">
+                      <p className="text-sm font-medium">
+                        Total previsto: R$ {patientInstallments.reduce((sum, i) => sum + i.amount, 0).toFixed(2)}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="feedbacks" className="space-y-4">
