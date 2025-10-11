@@ -53,6 +53,8 @@ const ProntuarioPaciente = () => {
     amount: '',
     paymentStatus: 'em_aberto' as PaymentStatus,
     nextAppointment: '',
+    installmentsCount: '',
+    firstPaymentDate: '',
   });
   const [appointmentData, setAppointmentData] = useState({
     date: '',
@@ -117,6 +119,8 @@ const ProntuarioPaciente = () => {
           amount: parseFloat(sessionData.amount),
           paymentStatus: sessionData.paymentStatus,
           nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
+          installmentsCount: sessionData.installmentsCount ? parseInt(sessionData.installmentsCount) : undefined,
+          firstPaymentDate: sessionData.firstPaymentDate ? new Date(sessionData.firstPaymentDate) : undefined,
         });
       }
       setSessionData({
@@ -128,6 +132,8 @@ const ProntuarioPaciente = () => {
         amount: '',
         paymentStatus: 'em_aberto',
         nextAppointment: '',
+        installmentsCount: '',
+        firstPaymentDate: '',
       });
       setEditingSessionId(null);
       setIsSessionOpen(false);
@@ -478,6 +484,32 @@ const ProntuarioPaciente = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  {!editingSessionId && parseFloat(sessionData.amount) > 0 && (
+                    <>
+                      <div>
+                        <Label>Parcelar Pagamento?</Label>
+                        <Input
+                          type="number"
+                          min="2"
+                          max="12"
+                          value={sessionData.installmentsCount}
+                          onChange={(e) => setSessionData({ ...sessionData, installmentsCount: e.target.value })}
+                          placeholder="Número de parcelas (deixe vazio para à vista)"
+                        />
+                      </div>
+                      {sessionData.installmentsCount && parseInt(sessionData.installmentsCount) > 1 && (
+                        <div>
+                          <Label>Data da Primeira Parcela *</Label>
+                          <Input
+                            type="date"
+                            value={sessionData.firstPaymentDate}
+                            onChange={(e) => setSessionData({ ...sessionData, firstPaymentDate: e.target.value })}
+                            required
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div>
                     <Label>Comentários da Doutora</Label>
                     <Textarea

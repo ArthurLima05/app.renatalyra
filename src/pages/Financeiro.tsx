@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
+import { Session } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2, CheckCircle2 } from 'lucide-react';
