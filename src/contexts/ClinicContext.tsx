@@ -733,6 +733,25 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
+    // Se a parcela foi marcada como paga, criar uma transação de entrada
+    if (data.paid === true) {
+      const installment = installments.find(i => i.id === id);
+      if (installment && installment.sessionId) {
+        const session = sessions.find(s => s.id === installment.sessionId);
+        const patient = session ? getPatientById(session.patientId) : null;
+        
+        await supabase.from('transactions').insert({
+          type: 'entrada',
+          description: `Parcela ${installment.installmentNumber}/${installment.totalInstallments} - ${session?.type || 'Sessão'}${patient ? ` - ${patient.fullName}` : ''}`,
+          amount: installment.amount,
+          category: 'Sessões',
+          date: data.paidDate?.toISOString() || new Date().toISOString(),
+          patient_id: session?.patientId,
+          session_id: installment.sessionId,
+        });
+      }
+    }
+
     toast({ title: 'Parcela atualizada com sucesso' });
   };
 

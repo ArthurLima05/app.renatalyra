@@ -33,6 +33,7 @@ export default function Financeiro() {
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [dateOption, setDateOption] = useState<'hoje' | 'personalizado'>('hoje');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  const [showAllInstallments, setShowAllInstallments] = useState(false);
   const [transactionData, setTransactionData] = useState({
     type: 'entrada' as TransactionType,
     description: '',
@@ -552,6 +553,7 @@ export default function Financeiro() {
                           {installments
                             .filter(i => !i.paid && i.sessionId)
                             .sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime())
+                            .slice(0, showAllInstallments ? undefined : 8)
                             .map((installment) => {
                               const session = sessions.find(s => s.id === installment.sessionId);
                               const patient = session ? getPatientById(session.patientId) : null;
@@ -588,6 +590,16 @@ export default function Financeiro() {
                             })}
                         </TableBody>
                       </Table>
+                      {installments.filter(i => !i.paid && i.sessionId).length > 8 && (
+                        <div className="mt-4 text-center">
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowAllInstallments(!showAllInstallments)}
+                          >
+                            {showAllInstallments ? 'Mostrar menos' : `Exibir mais (${installments.filter(i => !i.paid && i.sessionId).length - 8} parcelas)`}
+                          </Button>
+                        </div>
+                      )}
                       <div className="mt-4 p-4 bg-muted rounded-lg">
                         <p className="text-sm font-medium">
                           Total previsto: R$ {installments
