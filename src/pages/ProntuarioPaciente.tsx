@@ -64,6 +64,7 @@ const ProntuarioPaciente = () => {
     time: '',
   });
   const [observations, setObservations] = useState(patient?.notes || '');
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
   if (!patient) {
     return (
@@ -645,37 +646,108 @@ const ProntuarioPaciente = () => {
             {sessions.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nenhuma transação registrada.</p>
             ) : (
-              sessions.map((session) => (
-                <Card key={session.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">{session.type}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {session.date.toLocaleDateString('pt-BR')}
-                        </p>
+              sessions.map((session) => {
+                const sessionInstallments = installments.filter(i => i.sessionId === session.id);
+                const hasInstallments = sessionInstallments.length > 0;
+                const isExpanded = expandedSessionId === session.id;
+
+                return (
+                  <Card key={session.id}>
+                    <CardContent className="pt-6">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">{session.type}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {session.date.toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        <div className="text-right space-y-2">
+                          <p className="text-xl font-bold">R$ {session.amount.toFixed(2)}</p>
+                          {getPaymentBadge(session.paymentStatus)}
+                          {session.paymentStatus === 'em_aberto' && session.amount > 0 && (
+                            <>
+                              {hasInstallments ? (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                                >
+                                  {isExpanded ? 'Ocultar' : 'Exibir'} Parcelas
+                                </Button>
+                              ) : (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => {
+                                    if (id) {
+                                      updateSession(session.id, { paymentStatus: 'pago' });
+                                    }
+                                  }}
+                                >
+                                  Registrar Pagamento
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right space-y-2">
-                        <p className="text-xl font-bold">R$ {session.amount.toFixed(2)}</p>
-                        {getPaymentBadge(session.paymentStatus)}
-                        {session.paymentStatus === 'em_aberto' && session.amount > 0 && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              if (id) {
-                                updateSession(session.id, { paymentStatus: 'pago' });
-                              }
-                            }}
-                          >
-                            Registrar Pagamento
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+
+                      {isExpanded && hasInstallments && (
+                        <div className="mt-4 border-t pt-4">
+                          <h4 className="font-medium mb-2">Parcelas desta Sessão</h4>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Parcela</TableHead>
+                                <TableHead>Valor</TableHead>
+                                <TableHead>Previsão</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Ações</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {sessionInstallments
+                                .sort((a, b) => a.installmentNumber - b.installmentNumber)
+                                .map((installment) => (
+                                  <TableRow key={installment.id}>
+                                    <TableCell>
+                                      {installment.installmentNumber}/{installment.totalInstallments}
+                                    </TableCell>
+                                    <TableCell>R$ {installment.amount.toFixed(2)}</TableCell>
+                                    <TableCell>
+                                      {installment.predictedDate.toLocaleDateString('pt-BR')}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant={installment.paid ? 'default' : 'secondary'}>
+                                        {installment.paid ? 'Pago' : 'Pendente'}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      {!installment.paid && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            updateInstallment(installment.id, {
+                                              paid: true,
+                                              paidDate: new Date(),
+                                            });
+                                          }}
+                                        >
+                                          Marcar como pago
+                                        </Button>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
             )}
           </div>
 
