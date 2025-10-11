@@ -16,14 +16,14 @@ interface ClinicContextType {
   addAppointment: (appointment: Omit<Appointment, 'id' | 'createdAt'>) => Promise<void>;
   updateAppointmentStatus: (id: string, status: AppointmentStatus) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
-  addTransaction: (transaction: Omit<Transaction, 'id'>, installments?: number, firstPaymentDate?: Date) => Promise<void>;
+  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addFeedback: (feedback: Omit<Feedback, 'id' | 'date'>) => Promise<void>;
   addProfessional: (professional: Omit<Professional, 'id'>) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Promise<void>;
   updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
-  addSession: (session: Omit<Session, 'id'>) => Promise<void>;
+  addSession: (session: Omit<Session, 'id'> & { installmentsCount?: number; firstPaymentDate?: Date }) => Promise<void>;
   updateSession: (id: string, session: Partial<Session>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   getPatientById: (id: string) => Patient | undefined;
@@ -199,6 +199,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const newInstallment: Installment = {
           id: payload.new.id,
           transactionId: payload.new.transaction_id || undefined,
+          sessionId: payload.new.session_id || undefined,
           installmentNumber: payload.new.installment_number,
           totalInstallments: payload.new.total_installments,
           amount: Number(payload.new.amount),
@@ -213,6 +214,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const updated: Installment = {
           id: payload.new.id,
           transactionId: payload.new.transaction_id || undefined,
+          sessionId: payload.new.session_id || undefined,
           installmentNumber: payload.new.installment_number,
           totalInstallments: payload.new.total_installments,
           amount: Number(payload.new.amount),
@@ -387,6 +389,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setInstallments((data || []).map(i => ({
       id: i.id,
       transactionId: i.transaction_id || undefined,
+      sessionId: i.session_id || undefined,
       installmentNumber: i.installment_number,
       totalInstallments: i.total_installments,
       amount: Number(i.amount),
@@ -463,46 +466,21 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: 'Agendamento excluído com sucesso' });
   };
 
-  const addTransaction = async (transaction: Omit<Transaction, 'id'>, installmentsCount?: number, firstPaymentDate?: Date) => {
-    const { data: transactionData, error } = await supabase.from('transactions').insert({
+  const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+    const { error } = await supabase.from('transactions').insert({
       type: transaction.type,
       description: transaction.description,
       amount: transaction.amount,
       date: transaction.date.toISOString(),
       category: transaction.category,
-    }).select().single();
+    });
 
     if (error) {
       toast({ title: 'Erro ao adicionar transação', description: error.message, variant: 'destructive' });
       throw error;
     }
 
-    // Se tiver parcelas, criar installments
-    if (installmentsCount && installmentsCount > 1 && firstPaymentDate && transactionData) {
-      const installmentAmount = transaction.amount / installmentsCount;
-      const installmentsToCreate = [];
-
-      for (let i = 0; i < installmentsCount; i++) {
-        const predictedDate = new Date(firstPaymentDate);
-        predictedDate.setMonth(predictedDate.getMonth() + i);
-
-        installmentsToCreate.push({
-          transaction_id: transactionData.id,
-          installment_number: i + 1,
-          total_installments: installmentsCount,
-          amount: installmentAmount,
-          predicted_date: predictedDate.toISOString(),
-          paid: false,
-        });
-      }
-
-      const { error: installmentsError } = await supabase.from('installments').insert(installmentsToCreate);
-
-      if (installmentsError) {
-        console.error('Error creating installments:', installmentsError);
-        toast({ title: 'Erro ao criar parcelas', description: installmentsError.message, variant: 'destructive' });
-      }
-    }
+    toast({ title: 'Transação adicionada com sucesso' });
   };
 
   const deleteTransaction = async (id: string) => {
@@ -615,7 +593,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: 'Paciente atualizado com sucesso' });
   };
 
-  const addSession = async (session: Omit<Session, 'id'>) => {
+  const addSession = async (session: Omit<Session, 'id'> & { installmentsCount?: number; firstPaymentDate?: Date }) => {
     const { data, error } = await supabase
       .from('sessions')
       .insert({
@@ -636,6 +614,33 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (error) {
       toast({ title: 'Erro ao adicionar sessão', description: error.message, variant: 'destructive' });
       throw error;
+    }
+
+    // Se houver parcelamento, criar as parcelas
+    if (session.installmentsCount && session.installmentsCount > 1 && session.firstPaymentDate) {
+      const installmentAmount = session.amount / session.installmentsCount;
+      const installmentsToCreate = [];
+
+      for (let i = 0; i < session.installmentsCount; i++) {
+        const predictedDate = new Date(session.firstPaymentDate);
+        predictedDate.setMonth(predictedDate.getMonth() + i);
+
+        installmentsToCreate.push({
+          session_id: data.id,
+          installment_number: i + 1,
+          total_installments: session.installmentsCount,
+          amount: installmentAmount,
+          predicted_date: predictedDate.toISOString(),
+          paid: false,
+        });
+      }
+
+      const { error: installmentsError } = await supabase.from('installments').insert(installmentsToCreate);
+
+      if (installmentsError) {
+        console.error('Error creating installments:', installmentsError);
+        toast({ title: 'Erro ao criar parcelas', description: installmentsError.message, variant: 'destructive' });
+      }
     }
 
     // Se a sessão foi paga, criar transação

@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
-import { Session } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2, CheckCircle2 } from 'lucide-react';
@@ -23,7 +22,7 @@ import { cn } from '@/lib/utils';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
-  const { transactions, addTransaction, deleteTransaction, installments, updateInstallment } = useClinic();
+  const { transactions, addTransaction, deleteTransaction, installments, updateInstallment, sessions, getPatientById } = useClinic();
   const [isOpen, setIsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
@@ -34,9 +33,7 @@ export default function Financeiro() {
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [dateOption, setDateOption] = useState<'hoje' | 'personalizado'>('hoje');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
-  const [installmentsCount, setInstallmentsCount] = useState<string>('1');
-  const [firstPaymentDate, setFirstPaymentDate] = useState<Date | undefined>(undefined);
-  const [formData, setFormData] = useState({
+  const [transactionData, setTransactionData] = useState({
     type: 'entrada' as TransactionType,
     description: '',
     amount: '',
@@ -148,24 +145,17 @@ export default function Financeiro() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedDate = dateOption === 'hoje' ? new Date() : (customDate || new Date());
-    const count = parseInt(installmentsCount);
     
-    addTransaction(
-      {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        date: selectedDate,
-      },
-      formData.type === 'entrada' && count > 1 ? count : undefined,
-      formData.type === 'entrada' && count > 1 ? firstPaymentDate : undefined
-    );
+    addTransaction({
+      ...transactionData,
+      amount: parseFloat(transactionData.amount),
+      date: selectedDate,
+    });
     
     setIsOpen(false);
     setDateOption('hoje');
     setCustomDate(undefined);
-    setInstallmentsCount('1');
-    setFirstPaymentDate(undefined);
-    setFormData({
+    setTransactionData({
       type: 'entrada',
       description: '',
       amount: '',
@@ -244,8 +234,8 @@ export default function Financeiro() {
               <div>
                 <Label htmlFor="type">Tipo</Label>
                 <Select
-                  value={formData.type}
-                  onValueChange={(value) => setFormData({ ...formData, type: value as TransactionType })}
+                  value={transactionData.type}
+                  onValueChange={(value) => setTransactionData({ ...transactionData, type: value as TransactionType })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -260,8 +250,8 @@ export default function Financeiro() {
                 <Label htmlFor="description">Descrição</Label>
                 <Input
                   id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  value={transactionData.description}
+                  onChange={(e) => setTransactionData({ ...transactionData, description: e.target.value })}
                   required
                 />
               </div>
@@ -271,8 +261,8 @@ export default function Financeiro() {
                   id="amount"
                   type="number"
                   step="0.01"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  value={transactionData.amount}
+                  onChange={(e) => setTransactionData({ ...transactionData, amount: e.target.value })}
                   required
                 />
               </div>
@@ -280,8 +270,8 @@ export default function Financeiro() {
                 <Label htmlFor="category">Categoria</Label>
                 <Input
                   id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  value={transactionData.category}
+                  onChange={(e) => setTransactionData({ ...transactionData, category: e.target.value })}
                   required
                 />
               </div>
@@ -319,45 +309,6 @@ export default function Financeiro() {
                   )}
                 </div>
               </div>
-              
-              {formData.type === 'entrada' && (
-                <>
-                  <div>
-                    <Label htmlFor="installments">Número de Parcelas</Label>
-                    <Input
-                      id="installments"
-                      type="number"
-                      min="1"
-                      value={installmentsCount}
-                      onChange={(e) => setInstallmentsCount(e.target.value)}
-                    />
-                  </div>
-                  
-                  {parseInt(installmentsCount) > 1 && (
-                    <div>
-                      <Label>Data da Primeira Parcela</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="w-full justify-start">
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {firstPaymentDate ? format(firstPaymentDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={firstPaymentDate}
-                            onSelect={setFirstPaymentDate}
-                            initialFocus
-                            className={cn("p-3 pointer-events-auto")}
-                            locale={ptBR}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  )}
-                </>
-              )}
               
               <Button type="submit" className="w-full">Adicionar</Button>
             </form>
@@ -578,17 +529,19 @@ export default function Financeiro() {
               <TabsContent value="previsoes" className="mt-4">
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Pagamentos futuros previstos baseados em parcelas cadastradas
+                    Pagamentos futuros previstos baseados em parcelas de sessões
                   </p>
-                  {installments.filter(i => !i.paid).length === 0 ? (
+                  {installments.filter(i => !i.paid && i.sessionId).length === 0 ? (
                     <p className="text-center text-muted-foreground py-8">
-                      Nenhuma previsão de pagamento cadastrada
+                      Nenhuma parcela futura cadastrada
                     </p>
                   ) : (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead>Paciente</TableHead>
+                            <TableHead>Sessão</TableHead>
                             <TableHead>Data Prevista</TableHead>
                             <TableHead>Parcela</TableHead>
                             <TableHead>Valor</TableHead>
@@ -597,37 +550,48 @@ export default function Financeiro() {
                         </TableHeader>
                         <TableBody>
                           {installments
-                            .filter(i => !i.paid)
+                            .filter(i => !i.paid && i.sessionId)
                             .sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime())
-                            .map((installment) => (
-                              <TableRow key={installment.id}>
-                                <TableCell>
-                                  {format(installment.predictedDate, 'dd/MM/yyyy', { locale: ptBR })}
-                                </TableCell>
-                                <TableCell>
-                                  {installment.installmentNumber}/{installment.totalInstallments}
-                                </TableCell>
-                                <TableCell>
-                                  R$ {installment.amount.toFixed(2)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => updateInstallment(installment.id, { paid: true, paidDate: new Date() })}
-                                  >
-                                    <CheckCircle2 className="h-4 w-4 mr-1" />
-                                    Marcar como Pago
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                            .map((installment) => {
+                              const session = sessions.find(s => s.id === installment.sessionId);
+                              const patient = session ? getPatientById(session.patientId) : null;
+                              
+                              return (
+                                <TableRow key={installment.id}>
+                                  <TableCell className="font-medium">
+                                    {patient?.fullName || 'Paciente não encontrado'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {session?.type || 'Sessão não encontrada'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {format(installment.predictedDate, 'dd/MM/yyyy', { locale: ptBR })}
+                                  </TableCell>
+                                  <TableCell>
+                                    {installment.installmentNumber}/{installment.totalInstallments}
+                                  </TableCell>
+                                  <TableCell>
+                                    R$ {installment.amount.toFixed(2)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => updateInstallment(installment.id, { paid: true, paidDate: new Date() })}
+                                    >
+                                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                                      Marcar como Pago
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                         </TableBody>
                       </Table>
                       <div className="mt-4 p-4 bg-muted rounded-lg">
                         <p className="text-sm font-medium">
                           Total previsto: R$ {installments
-                            .filter(i => !i.paid)
+                            .filter(i => !i.paid && i.sessionId)
                             .reduce((acc, i) => acc + i.amount, 0)
                             .toFixed(2)}
                         </p>

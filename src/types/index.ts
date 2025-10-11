@@ -87,6 +87,7 @@ export interface Session {
 export interface Installment {
   id: string;
   transactionId?: string;
+  sessionId?: string;
   installmentNumber: number;
   totalInstallments: number;
   amount: number;

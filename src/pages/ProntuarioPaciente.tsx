@@ -151,6 +151,8 @@ const ProntuarioPaciente = () => {
       amount: session.amount.toString(),
       paymentStatus: session.paymentStatus,
       nextAppointment: session.nextAppointment ? session.nextAppointment.toISOString().split('T')[0] : '',
+      installmentsCount: '',
+      firstPaymentDate: '',
     });
     setIsSessionOpen(true);
   };
@@ -400,6 +402,8 @@ const ProntuarioPaciente = () => {
                     amount: '',
                     paymentStatus: 'em_aberto',
                     nextAppointment: '',
+                    installmentsCount: '',
+                    firstPaymentDate: '',
                   });
                 }}>
                   <Plus className="h-4 w-4 mr-2" />

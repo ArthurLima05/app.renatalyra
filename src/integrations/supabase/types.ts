@@ -132,6 +132,7 @@ export type Database = {
           paid: boolean
           paid_date: string | null
           predicted_date: string
+          session_id: string | null
           total_installments: number
           transaction_id: string | null
         }
@@ -143,6 +144,7 @@ export type Database = {
           paid?: boolean
           paid_date?: string | null
           predicted_date: string
+          session_id?: string | null
           total_installments: number
           transaction_id?: string | null
         }
@@ -154,10 +156,18 @@ export type Database = {
           paid?: boolean
           paid_date?: string | null
           predicted_date?: string
+          session_id?: string | null
           total_installments?: number
           transaction_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "installments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "installments_transaction_id_fkey"
             columns: ["transaction_id"]
