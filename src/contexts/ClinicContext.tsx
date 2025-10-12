@@ -208,7 +208,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           paidDate: payload.new.paid_date ? new Date(payload.new.paid_date) : undefined,
           createdAt: new Date(payload.new.created_at),
         };
-        setInstallments(prev => [...prev, newInstallment]);
+        setInstallments(prev => {
+          if (prev.some(i => i.id === newInstallment.id)) return prev;
+          return [...prev, newInstallment];
+        });
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'installments' }, (payload) => {
         const updated: Installment = {
@@ -635,11 +638,31 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
       }
 
-      const { error: installmentsError } = await supabase.from('installments').insert(installmentsToCreate);
+      const { data: insData, error: installmentsError } = await supabase
+        .from('installments')
+        .insert(installmentsToCreate)
+        .select('*');
 
       if (installmentsError) {
         console.error('Error creating installments:', installmentsError);
         toast({ title: 'Erro ao criar parcelas', description: installmentsError.message, variant: 'destructive' });
+      } else {
+        const mapped = (insData || []).map(i => ({
+          id: i.id,
+          transactionId: i.transaction_id || undefined,
+          sessionId: i.session_id || undefined,
+          installmentNumber: i.installment_number,
+          totalInstallments: i.total_installments,
+          amount: Number(i.amount),
+          predictedDate: new Date(i.predicted_date),
+          paid: i.paid,
+          paidDate: i.paid_date ? new Date(i.paid_date) : undefined,
+          createdAt: new Date(i.created_at),
+        }));
+        setInstallments(prev => {
+          const newOnes = mapped.filter(n => !prev.some(p => p.id === n.id));
+          return [...prev, ...newOnes];
+        });
       }
     }
 
@@ -749,6 +772,13 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           patient_id: session?.patientId,
           session_id: installment.sessionId,
         });
+
+        // Se todas as parcelas desta sessão estiverem pagas, marcar sessão como paga (sem criar transação extra)
+        const sessionInstallments = installments.filter(i => i.sessionId === installment.sessionId);
+        const allPaidNow = sessionInstallments.every(i => (i.id === id ? true : i.paid));
+        if (allPaidNow) {
+          await supabase.from('sessions').update({ payment_status: 'pago' }).eq('id', installment.sessionId);
+        }
       }
     }
 
