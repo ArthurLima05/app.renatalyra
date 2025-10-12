@@ -756,6 +756,18 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
+    // Atualização otimista local para refletir imediatamente na UI
+    setInstallments(prev => prev.map(i =>
+      i.id === id
+        ? {
+            ...i,
+            paid: data.paid ?? i.paid,
+            paidDate: data.paidDate ?? i.paidDate,
+            predictedDate: data.predictedDate ?? i.predictedDate,
+          }
+        : i
+    ));
+
     // Se a parcela foi marcada como paga, criar uma transação de entrada
     if (data.paid === true) {
       const installment = installments.find(i => i.id === id);
@@ -777,7 +789,16 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const sessionInstallments = installments.filter(i => i.sessionId === installment.sessionId);
         const allPaidNow = sessionInstallments.every(i => (i.id === id ? true : i.paid));
         if (allPaidNow) {
-          await supabase.from('sessions').update({ payment_status: 'pago' }).eq('id', installment.sessionId);
+          const { error: sessErr } = await supabase
+            .from('sessions')
+            .update({ payment_status: 'pago' })
+            .eq('id', installment.sessionId);
+          if (!sessErr) {
+            // Atualização otimista local da sessão para atualizar totais/badges
+            setSessions(prev => prev.map(s =>
+              s.id === installment.sessionId ? { ...s, paymentStatus: 'pago' } : s
+            ));
+          }
         }
       }
     }
