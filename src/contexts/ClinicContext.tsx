@@ -459,6 +459,37 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
       }
     }
+
+    // Se o agendamento foi marcado como "Realizado", enviar para o webhook do n8n
+    if (status === 'realizado') {
+      const appointment = appointments.find(a => a.id === id);
+      if (appointment) {
+        const patient = patients.find(p => p.id === appointment.patientId);
+        if (patient) {
+          const feedbackLink = `${window.location.origin}/feedback/${patient.id}`;
+          
+          try {
+            await fetch('https://techclinss.app.n8n.cloud/webhook/enviar-feedback', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                patientId: patient.id,
+                patientName: patient.fullName,
+                phone: patient.phone,
+                feedbackLink: feedbackLink,
+                appointmentId: appointment.id,
+                appointmentDate: appointment.date.toISOString(),
+                appointmentTime: appointment.time,
+              }),
+            });
+          } catch (error) {
+            console.error('Erro ao enviar para webhook n8n:', error);
+          }
+        }
+      }
+    }
   };
 
   const deleteAppointment = async (id: string) => {
