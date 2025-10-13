@@ -511,8 +511,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const feedbackLink = `${window.location.origin}/feedback/${patient.id}`;
 
           try {
-            await fetch("https://techclinss.app.n8n.cloud/webhook-test/enviar-feedback", {
+            await fetch("https://techclinss.app.n8n.cloud/webhook/enviar-feedback", {
               method: "POST",
+              mode: "no-cors", // Necessário para evitar erro de CORS
               headers: {
                 "Content-Type": "application/json",
               },
@@ -526,6 +527,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 appointmentTime: appointment.time,
               }),
             });
+            
+            console.log("Webhook enviado com sucesso para n8n");
           } catch (error) {
             console.error("Erro ao enviar para webhook n8n:", error);
           }
