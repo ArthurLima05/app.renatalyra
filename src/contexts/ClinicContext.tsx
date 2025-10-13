@@ -525,6 +525,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 appointmentId: appointment.id,
                 appointmentDate: appointment.date.toISOString(),
                 appointmentTime: appointment.time,
+                status: "realizado",
               }),
             });
 
