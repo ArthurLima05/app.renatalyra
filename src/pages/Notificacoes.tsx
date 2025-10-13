@@ -75,17 +75,20 @@ export default function Notificacoes() {
         }
         break;
       case 'lembrete_feedback':
-        return (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/feedbacks')}
-            className="gap-2"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Solicitar Feedback
-          </Button>
-        );
+        if (notification.patientId) {
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/pacientes/${notification.patientId}`)}
+              className="gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Solicitar Feedback
+            </Button>
+          );
+        }
+        break;
       case 'lembrete_consulta':
         return (
           <Button

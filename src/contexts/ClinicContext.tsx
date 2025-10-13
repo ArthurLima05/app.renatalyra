@@ -650,10 +650,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           Math.abs(new Date(f.date).getTime() - new Date(apt.date).getTime()) < 7 * 24 * 60 * 60 * 1000
         );
         
+        // Verificar se já existe QUALQUER notificação (lida ou não) para evitar duplicatas
         const existingNotification = notifications.find(n => 
           n.type === 'lembrete_feedback' && 
-          n.appointmentId === apt.id &&
-          !n.read
+          n.appointmentId === apt.id
         );
         
         if (!hasFeedback && !existingNotification) {
@@ -670,30 +670,29 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
-      // 3. Lembrete de atualização do prontuário (sessões realizadas sem notas)
-      const sessionsWithoutNotes = sessions.filter(s => 
-        s.status === 'realizado' && 
-        (!s.notes || s.notes.trim() === '') &&
-        new Date(s.date) >= threeDaysAgo
-      );
+      // 3. Lembrete de atualização do prontuário (agendamentos realizados sem notas)
+      const appointmentsWithoutNotes = appointments.filter(a => {
+        const aptDate = new Date(a.date);
+        return a.status === 'realizado' && aptDate >= threeDaysAgo && aptDate <= now;
+      });
 
-      for (const session of sessionsWithoutNotes) {
+      for (const apt of appointmentsWithoutNotes) {
+        // Verificar se já existe QUALQUER notificação (lida ou não) para evitar duplicatas
         const existingNotification = notifications.find(n => 
           n.type === 'lembrete_prontuario' && 
-          n.sessionId === session.id &&
-          !n.read
+          n.appointmentId === apt.id
         );
         
         if (!existingNotification) {
-          const patient = patients.find(p => p.id === session.patientId);
+          const patient = patients.find(p => p.id === apt.patientId);
           await createNotification({
             type: 'lembrete_prontuario',
             title: 'Atualizar Prontuário',
-            message: `Prontuário de ${patient?.fullName || 'paciente'} precisa ser atualizado`,
+            message: `Prontuário de ${patient?.fullName || apt.patientName} precisa ser atualizado`,
             date: now,
             read: false,
-            patientId: session.patientId,
-            sessionId: session.id,
+            patientId: apt.patientId,
+            appointmentId: apt.id,
           });
         }
       }
