@@ -179,33 +179,74 @@ export type Database = {
       }
       notifications: {
         Row: {
+          appointment_id: string | null
           created_at: string
           date: string
           id: string
+          installment_id: string | null
           message: string
+          patient_id: string | null
           read: boolean
+          session_id: string | null
           title: string
           type: Database["public"]["Enums"]["notification_type"]
         }
         Insert: {
+          appointment_id?: string | null
           created_at?: string
           date?: string
           id?: string
+          installment_id?: string | null
           message: string
+          patient_id?: string | null
           read?: boolean
+          session_id?: string | null
           title: string
           type: Database["public"]["Enums"]["notification_type"]
         }
         Update: {
+          appointment_id?: string | null
           created_at?: string
           date?: string
           id?: string
+          installment_id?: string | null
           message?: string
+          patient_id?: string | null
           read?: boolean
+          session_id?: string | null
           title?: string
           type?: Database["public"]["Enums"]["notification_type"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patients: {
         Row: {
@@ -393,7 +434,15 @@ export type Database = {
         | "cancelado"
         | "falta"
         | "sugerido"
-      notification_type: "cancelamento" | "falta" | "agendamento" | "feedback"
+      notification_type:
+        | "cancelamento"
+        | "falta"
+        | "agendamento"
+        | "feedback"
+        | "lembrete_consulta"
+        | "lembrete_feedback"
+        | "lembrete_prontuario"
+        | "lembrete_pagamento"
       patient_origin: "Google Ads" | "Instagram" | "Indicação" | "Outro"
       payment_status: "pago" | "em_aberto"
       session_type: "primeira_consulta" | "consulta_avulsa" | "retorno"
@@ -533,7 +582,16 @@ export const Constants = {
         "falta",
         "sugerido",
       ],
-      notification_type: ["cancelamento", "falta", "agendamento", "feedback"],
+      notification_type: [
+        "cancelamento",
+        "falta",
+        "agendamento",
+        "feedback",
+        "lembrete_consulta",
+        "lembrete_feedback",
+        "lembrete_prontuario",
+        "lembrete_pagamento",
+      ],
       patient_origin: ["Google Ads", "Instagram", "Indicação", "Outro"],
       payment_status: ["pago", "em_aberto"],
       session_type: ["primeira_consulta", "consulta_avulsa", "retorno"],

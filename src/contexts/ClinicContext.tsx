@@ -21,6 +21,7 @@ interface ClinicContextType {
   addFeedback: (feedback: Omit<Feedback, 'id' | 'date'>) => Promise<void>;
   addProfessional: (professional: Omit<Professional, 'id'>) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
   addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Promise<void>;
   updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
   addSession: (session: Omit<Session, 'id'> & { installmentsCount?: number; firstPaymentDate?: Date }) => Promise<void>;
@@ -380,6 +381,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ...n,
       type: n.type as any,
       date: new Date(n.date),
+      patientId: n.patient_id || undefined,
+      appointmentId: n.appointment_id || undefined,
+      sessionId: n.session_id || undefined,
+      installmentId: n.installment_id || undefined,
     })));
   };
 
@@ -557,6 +562,176 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
   };
+
+  const deleteNotification = async (id: string) => {
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Erro ao excluir notificação', description: error.message, variant: 'destructive' });
+      throw error;
+    }
+  };
+
+  // Função auxiliar para criar notificações
+  const createNotification = async (notification: Omit<Notification, 'id'>) => {
+    const { error } = await supabase.from('notifications').insert({
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      date: notification.date.toISOString(),
+      read: false,
+      patient_id: notification.patientId,
+      appointment_id: notification.appointmentId,
+      session_id: notification.sessionId,
+      installment_id: notification.installmentId,
+    });
+
+    if (error) {
+      console.error('Error creating notification:', error);
+    }
+  };
+
+  // Verificar e criar notificações automáticas
+  useEffect(() => {
+    const checkNotifications = async () => {
+      const now = new Date();
+      
+      // 1. Lembrete de consultas (24h antes)
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      
+      const dayAfterTomorrow = new Date(tomorrow);
+      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+      
+      const upcomingAppointments = appointments.filter(a => {
+        const appointmentDate = new Date(a.date);
+        appointmentDate.setHours(0, 0, 0, 0);
+        return (a.status === 'agendado' || a.status === 'confirmado') &&
+               appointmentDate >= tomorrow &&
+               appointmentDate < dayAfterTomorrow;
+      });
+
+      for (const apt of upcomingAppointments) {
+        const existingNotification = notifications.find(n => 
+          n.type === 'lembrete_consulta' && 
+          n.appointmentId === apt.id &&
+          !n.read
+        );
+        
+        if (!existingNotification) {
+          const patient = patients.find(p => p.id === apt.patientId);
+          await createNotification({
+            type: 'lembrete_consulta',
+            title: 'Lembrete de Consulta',
+            message: `Consulta com ${patient?.fullName || apt.patientName} agendada para amanhã às ${apt.time}`,
+            date: now,
+            read: false,
+            patientId: apt.patientId,
+            appointmentId: apt.id,
+          });
+        }
+      }
+
+      // 2. Lembrete de Feedback (consultas realizadas sem feedback nos últimos 3 dias)
+      const threeDaysAgo = new Date(now);
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      
+      const recentCompletedAppointments = appointments.filter(a => {
+        const aptDate = new Date(a.date);
+        return a.status === 'realizado' && aptDate >= threeDaysAgo && aptDate <= now;
+      });
+
+      for (const apt of recentCompletedAppointments) {
+        const hasFeedback = feedbacks.some(f => f.patientId === apt.patientId && 
+          Math.abs(new Date(f.date).getTime() - new Date(apt.date).getTime()) < 7 * 24 * 60 * 60 * 1000
+        );
+        
+        const existingNotification = notifications.find(n => 
+          n.type === 'lembrete_feedback' && 
+          n.appointmentId === apt.id &&
+          !n.read
+        );
+        
+        if (!hasFeedback && !existingNotification) {
+          const patient = patients.find(p => p.id === apt.patientId);
+          await createNotification({
+            type: 'lembrete_feedback',
+            title: 'Solicitar Feedback',
+            message: `Lembre-se de solicitar feedback da consulta com ${patient?.fullName || apt.patientName}`,
+            date: now,
+            read: false,
+            patientId: apt.patientId,
+            appointmentId: apt.id,
+          });
+        }
+      }
+
+      // 3. Lembrete de atualização do prontuário (sessões realizadas sem notas)
+      const sessionsWithoutNotes = sessions.filter(s => 
+        s.status === 'realizado' && 
+        (!s.notes || s.notes.trim() === '') &&
+        new Date(s.date) >= threeDaysAgo
+      );
+
+      for (const session of sessionsWithoutNotes) {
+        const existingNotification = notifications.find(n => 
+          n.type === 'lembrete_prontuario' && 
+          n.sessionId === session.id &&
+          !n.read
+        );
+        
+        if (!existingNotification) {
+          const patient = patients.find(p => p.id === session.patientId);
+          await createNotification({
+            type: 'lembrete_prontuario',
+            title: 'Atualizar Prontuário',
+            message: `Prontuário de ${patient?.fullName || 'paciente'} precisa ser atualizado`,
+            date: now,
+            read: false,
+            patientId: session.patientId,
+            sessionId: session.id,
+          });
+        }
+      }
+
+      // 4. Lembrete de pagamento (parcelas vencidas)
+      const overdueInstallments = installments.filter(i => 
+        !i.paid && 
+        new Date(i.predictedDate) < now
+      );
+
+      for (const installment of overdueInstallments) {
+        const existingNotification = notifications.find(n => 
+          n.type === 'lembrete_pagamento' && 
+          n.installmentId === installment.id &&
+          !n.read
+        );
+        
+        if (!existingNotification) {
+          const session = sessions.find(s => s.id === installment.sessionId);
+          const patient = session ? patients.find(p => p.id === session.patientId) : undefined;
+          await createNotification({
+            type: 'lembrete_pagamento',
+            title: 'Pagamento Vencido',
+            message: `Parcela ${installment.installmentNumber}/${installment.totalInstallments} de ${patient?.fullName || 'paciente'} vencida - R$ ${installment.amount.toFixed(2)}`,
+            date: now,
+            read: false,
+            patientId: session?.patientId,
+            sessionId: session?.id,
+            installmentId: installment.id,
+          });
+        }
+      }
+    };
+
+    if (!loading) {
+      checkNotifications();
+    }
+  }, [appointments, sessions, feedbacks, installments, patients, notifications, loading]);
 
   const addPatient = async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
     const { error } = await supabase.from('patients').insert({
@@ -846,6 +1021,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     addFeedback,
     addProfessional,
     markNotificationRead,
+    deleteNotification,
     addPatient,
     updatePatient,
     addSession,

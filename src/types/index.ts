@@ -2,7 +2,7 @@ export type AppointmentStatus = 'agendado' | 'confirmado' | 'realizado' | 'cance
 export type SessionType = 'primeira_consulta' | 'consulta_avulsa' | 'retorno';
 export type PatientOrigin = 'Google Ads' | 'Instagram' | 'Indicação' | 'Outro';
 export type TransactionType = 'entrada' | 'saida';
-export type NotificationType = 'cancelamento' | 'falta' | 'agendamento' | 'feedback';
+export type NotificationType = 'cancelamento' | 'falta' | 'agendamento' | 'feedback' | 'lembrete_consulta' | 'lembrete_feedback' | 'lembrete_prontuario' | 'lembrete_pagamento';
 export type PaymentStatus = 'pago' | 'em_aberto';
 
 export interface Professional {
@@ -58,6 +58,10 @@ export interface Notification {
   message: string;
   date: Date;
   read: boolean;
+  patientId?: string;
+  appointmentId?: string;
+  sessionId?: string;
+  installmentId?: string;
 }
 
 export interface Patient {
