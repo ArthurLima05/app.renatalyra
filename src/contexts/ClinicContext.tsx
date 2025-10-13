@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Appointment, Professional, Transaction, Feedback, Notification, Patient, Session, AppointmentStatus, Installment } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +55,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const isCheckingNotifications = useRef(false);
 
   // Carregar todos os dados
   useEffect(() => {
@@ -727,10 +728,12 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
 
-    if (!loading) {
-      checkNotifications();
-    }
-  }, [appointments, sessions, feedbacks, installments, patients, notifications, loading]);
+    if (loading || isCheckingNotifications.current) return;
+    isCheckingNotifications.current = true;
+    checkNotifications().finally(() => {
+      isCheckingNotifications.current = false;
+    });
+  }, [appointments, sessions, feedbacks, installments, patients, loading]);
 
   const addPatient = async (patient: Omit<Patient, 'id' | 'createdAt'>) => {
     const { error } = await supabase.from('patients').insert({
