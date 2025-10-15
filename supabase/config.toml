@@ -1,1 +1,7 @@
 project_id = "exirdgezftyytwbgfyij"
+
+[functions.get-pending-confirmations]
+verify_jwt = false
+
+[functions.confirm-appointment]
+verify_jwt = false
