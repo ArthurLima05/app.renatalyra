@@ -23,15 +23,38 @@ Deno.serve(async (req) => {
 
     console.log('Processando resposta WhatsApp:', { buttonId, phone })
 
-    // 1. Busca o paciente pelo telefone
-    const { data: patient, error: patientError } = await supabase
+    // 1. Busca o paciente pelo telefone (tenta diferentes formatos)
+    // Formatos possíveis: 554691037113, 5546991037113
+    let patient = null
+    
+    // Tenta primeiro com o telefone exato
+    let { data, error } = await supabase
       .from('patients')
       .select('id, full_name')
       .eq('phone', phone)
-      .single()
+      .maybeSingle()
 
-    if (patientError || !patient) {
-      console.error('Paciente não encontrado:', phone)
+    if (data) {
+      patient = data
+    } else if (phone.length === 12 && phone.startsWith('55')) {
+      // Se não encontrou e o telefone tem 12 dígitos (55 + DDD + 8 dígitos),
+      // tenta adicionar um 9 após o DDD (formato: 55 + DDD + 9 + 8 dígitos)
+      const phoneWithNine = phone.slice(0, 4) + '9' + phone.slice(4)
+      console.log('Tentando formato alternativo:', phoneWithNine)
+      
+      const { data: data2 } = await supabase
+        .from('patients')
+        .select('id, full_name')
+        .eq('phone', phoneWithNine)
+        .maybeSingle()
+      
+      if (data2) {
+        patient = data2
+      }
+    }
+
+    if (!patient) {
+      console.error('Paciente não encontrado para nenhum formato:', phone)
       throw new Error(`Paciente não encontrado para o telefone ${phone}`)
     }
 
