@@ -51,7 +51,7 @@ export default function Dashboard() {
     : appointments;
 
   const totalAppointments = filteredAppointments.filter(a => a.status === 'realizado').length;
-  const confirmedAppointments = filteredAppointments.filter(a => a.status === 'confirmado' || a.status === 'realizado').length;
+  const confirmedAppointments = filteredAppointments.filter(a => a.status === 'confirmado').length;
   const canceledOrMissed = filteredAppointments.filter(a => a.status === 'cancelado' || a.status === 'falta').length;
   
   // Calcular taxa de retorno baseado nas sessões
