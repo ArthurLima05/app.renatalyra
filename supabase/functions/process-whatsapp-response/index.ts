@@ -72,29 +72,6 @@ Deno.serve(async (req) => {
 
     console.log(`Agendamento ${newStatus}:`, updatedAppointment)
 
-    // 5. Criar notificação sobre a resposta do paciente
-    const notificationMessage = buttonId === 'confirmar' 
-      ? `${patient.full_name} confirmou a consulta agendada para ${new Date(appointment.date).toLocaleDateString('pt-BR')} às ${appointment.time}`
-      : `${patient.full_name} cancelou a consulta agendada para ${new Date(appointment.date).toLocaleDateString('pt-BR')} às ${appointment.time}`
-
-    const { error: notificationError } = await supabase
-      .from('notifications')
-      .insert({
-        type: buttonId === 'confirmar' ? 'agendamento' : 'cancelamento',
-        title: buttonId === 'confirmar' ? 'Consulta Confirmada' : 'Consulta Cancelada',
-        message: notificationMessage,
-        patient_id: patient.id,
-        appointment_id: appointment.id,
-        read: false
-      })
-
-    if (notificationError) {
-      console.error('Erro ao criar notificação:', notificationError)
-      // Não lança erro aqui para não falhar o processo principal
-    } else {
-      console.log('Notificação criada com sucesso')
-    }
-
     return new Response(
       JSON.stringify({
         success: true,
