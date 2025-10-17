@@ -74,3 +74,14 @@ All colors MUST be HSL.
     @apply font-semibold;
   }
 }
+
+@layer components {
+  /* Calendar customization */
+  .rdp-day_button[aria-current="date"] {
+    @apply bg-muted/30 text-foreground font-normal;
+  }
+  
+  .rdp-day_button[aria-selected="true"] {
+    @apply rounded-xl;
+  }
+}
