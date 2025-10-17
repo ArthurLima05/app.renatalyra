@@ -181,13 +181,36 @@ export default function Agendamentos() {
         </TabsList>
 
         <TabsContent value="agendamentos" className="space-y-6 mt-6">
-          <Tabs value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-            <TabsList className="grid w-full grid-cols-3 max-w-md">
-              <TabsTrigger value="dia">Hoje</TabsTrigger>
-              <TabsTrigger value="semana">Esta Semana</TabsTrigger>
-              <TabsTrigger value="mes">Este Mês</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Filter className="h-5 w-5 text-muted-foreground" />
+            <Button
+              variant={dateFilter === 'dia' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('dia')}
+              className="rounded-full"
+            >
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Hoje
+            </Button>
+            <Button
+              variant={dateFilter === 'semana' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('semana')}
+              className="rounded-full"
+            >
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Esta Semana
+            </Button>
+            <Button
+              variant={dateFilter === 'mes' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('mes')}
+              className="rounded-full"
+            >
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Este Mês
+            </Button>
+          </div>
           
           <div className="grid gap-4">
             {activeAppointments.map((appointment, index) => {
