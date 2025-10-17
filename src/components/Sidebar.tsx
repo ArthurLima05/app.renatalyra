@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -8,9 +8,13 @@ import {
   Users,
   Bell,
   UserCircle,
+  LogOut,
 } from 'lucide-react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import logoClinica from '@/assets/logo-clinica.jpg';
 import logoMobile from '@/assets/logo-mobile.png';
 
@@ -30,8 +34,19 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { notifications } = useClinic();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const unreadCount = notifications.filter(n => !n.read).length;
   const isMobile = useIsMobile();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: 'Logout realizado',
+      description: 'Você saiu do sistema com sucesso',
+    });
+    navigate('/login');
+  };
 
   return (
     <>
@@ -51,7 +66,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         initial={false}
         animate={isMobile ? { x: isOpen ? 0 : '-100%' } : { x: 0 }}
         transition={{ duration: 0.2 }}
-        className="fixed top-0 left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto xl:static"
+        className="fixed top-0 left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto xl:static flex flex-col"
       >
         <div className="p-4 border-b border-border">
           <motion.div
@@ -66,7 +81,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           </motion.div>
         </div>
         
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 flex-1">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -90,6 +105,17 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
             </NavLink>
           ))}
         </nav>
+        
+        <div className="p-4 border-t border-border">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-foreground hover:bg-secondary"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5" />
+            <span className="font-medium">Sair</span>
+          </Button>
+        </div>
       </motion.aside>
     </>
   );

@@ -28,6 +28,7 @@ const ProntuarioPaciente = () => {
     getTransactionsByPatientId,
     getFeedbacksByPatientId,
     updatePatient,
+    deletePatient,
     addSession,
     updateSession,
     deleteSession,
@@ -47,6 +48,7 @@ const ProntuarioPaciente = () => {
   const [editData, setEditData] = useState(patient || { fullName: '', phone: '', email: '', notes: '' });
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [isDeletingPatient, setIsDeletingPatient] = useState(false);
   const [sessionData, setSessionData] = useState({
     date: '',
     type: '',
@@ -165,6 +167,14 @@ const ProntuarioPaciente = () => {
     if (deletingSessionId) {
       await deleteSession(deletingSessionId);
       setDeletingSessionId(null);
+    }
+  };
+
+  const handleDeletePatient = async () => {
+    if (id) {
+      await deletePatient(id);
+      setIsDeletingPatient(false);
+      navigate('/pacientes');
     }
   };
 
@@ -376,6 +386,16 @@ const ProntuarioPaciente = () => {
                     Copiar Link Feedback
                   </>
                 )}
+              </Button>
+
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={() => setIsDeletingPatient(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Excluir Paciente
               </Button>
             </div>
           </div>
@@ -617,6 +637,23 @@ const ProntuarioPaciente = () => {
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteSession}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={isDeletingPatient} onOpenChange={(open) => !open && setIsDeletingPatient(false)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Paciente</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir este paciente? Esta ação irá remover todos os dados relacionados e não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeletePatient} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir Permanentemente
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
