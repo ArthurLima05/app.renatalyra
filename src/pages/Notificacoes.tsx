@@ -332,11 +332,6 @@ export default function Notificacoes() {
                 <SelectItem value="lembrete_pagamento">Lembrete de Pagamento</SelectItem>
               </SelectContent>
             </Select>
-
-            <Button onClick={handleMarkAllAsRead} variant="outline" className="gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              Marcar todas como lidas
-            </Button>
           </div>
 
           {/* Ações em massa */}
