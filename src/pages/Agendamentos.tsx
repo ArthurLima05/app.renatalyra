@@ -35,6 +35,7 @@ export default function Agendamentos() {
   const [isOpen, setIsOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<DateFilter>('dia');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     patientId: '',
     date: '',
@@ -73,25 +74,31 @@ export default function Agendamentos() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedPatient || !formData.patientId) return;
+    if (!selectedPatient || !formData.patientId || isSubmitting) return;
 
-    const appointmentDate = new Date(formData.date);
-    const renataLyra = professionals.find(p => p.name === 'Renata Lyra');
-    
-    if (!renataLyra) return;
-    
-    await addAppointment({
-      patientId: selectedPatient.id,
-      patientName: selectedPatient.fullName,
-      professionalId: renataLyra.id,
-      date: appointmentDate,
-      time: formData.time,
-      status: 'agendado',
-      origin: selectedPatient.origin,
-    });
-    
-    setIsOpen(false);
-    setFormData({ patientId: '', date: '', time: '' });
+    setIsSubmitting(true);
+
+    try {
+      const appointmentDate = new Date(formData.date);
+      const renataLyra = professionals.find(p => p.name === 'Renata Lyra');
+      
+      if (!renataLyra) return;
+      
+      await addAppointment({
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.fullName,
+        professionalId: renataLyra.id,
+        date: appointmentDate,
+        time: formData.time,
+        status: 'agendado',
+        origin: selectedPatient.origin,
+      });
+      
+      setIsOpen(false);
+      setFormData({ patientId: '', date: '', time: '' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getStatusBadge = (status: AppointmentStatus) => {
@@ -151,7 +158,9 @@ export default function Agendamentos() {
                 <div><Label htmlFor="date">Data</Label><Input id="date" type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required /></div>
                 <div><Label htmlFor="time">Horário</Label><Input id="time" type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} required /></div>
               </div>
-              <Button type="submit" className="w-full" disabled={!formData.patientId}>Agendar</Button>
+              <Button type="submit" className="w-full" disabled={!formData.patientId || isSubmitting}>
+                {isSubmitting ? 'Agendando...' : 'Agendar'}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
