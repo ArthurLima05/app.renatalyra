@@ -43,7 +43,8 @@ export default function Agendamentos() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
     patientId: '',
     date: '',
@@ -72,10 +73,18 @@ export default function Agendamentos() {
       // Apenas agendamentos de hoje ou futuros
       if (appDay < today) return false;
       
-      // Se tem data personalizada, filtrar por ela
-      if (customDate) {
-        const customDay = new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate());
-        return appDay.getTime() === customDay.getTime();
+      // Se tem data personalizada
+      if (customStartDate) {
+        const startDay = new Date(customStartDate.getFullYear(), customStartDate.getMonth(), customStartDate.getDate());
+        
+        // Se tem data de fim, filtrar pelo intervalo
+        if (customEndDate) {
+          const endDay = new Date(customEndDate.getFullYear(), customEndDate.getMonth(), customEndDate.getDate());
+          return appDay >= startDay && appDay <= endDay;
+        }
+        
+        // Se só tem data de início, filtrar pelo dia específico
+        return appDay.getTime() === startDay.getTime();
       }
       
       switch (dateFilter) {
@@ -95,7 +104,7 @@ export default function Agendamentos() {
           return true;
       }
     });
-  }, [appointments, dateFilter, customDate]);
+  }, [appointments, dateFilter, customStartDate, customEndDate]);
 
   // Histórico (agendamentos passados)
   const historyAppointments = useMemo(() => {
@@ -193,7 +202,7 @@ export default function Agendamentos() {
         </TabsList>
 
         <TabsContent value="agendamentos" className="space-y-6 mt-6">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="sm"
@@ -201,90 +210,116 @@ export default function Agendamentos() {
               className="gap-2"
             >
               <Filter className="h-4 w-4" />
-              {showFilters ? 'Ocultar Filtros' : 'Filtros'}
+              {showFilters ? 'Ocultar' : 'Filtros'}
             </Button>
+            
+            {!showFilters && (customStartDate || customEndDate) && (
+              <Badge variant="secondary" className="gap-1">
+                {customStartDate && format(customStartDate, "dd/MM", { locale: ptBR })}
+                {customEndDate && ` - ${format(customEndDate, "dd/MM", { locale: ptBR })}`}
+              </Badge>
+            )}
           </div>
 
           {showFilters && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
             >
-              <div className="flex items-center gap-2 flex-wrap p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
-                  variant={dateFilter === 'dia' && !customDate ? 'default' : 'outline'}
+                  variant={dateFilter === 'dia' && !customStartDate ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => {
                     setDateFilter('dia');
-                    setCustomDate(undefined);
+                    setCustomStartDate(undefined);
+                    setCustomEndDate(undefined);
                   }}
-                  className="rounded-full"
                 >
                   Hoje
                 </Button>
                 <Button
-                  variant={dateFilter === 'semana' && !customDate ? 'default' : 'outline'}
+                  variant={dateFilter === 'semana' && !customStartDate ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => {
                     setDateFilter('semana');
-                    setCustomDate(undefined);
+                    setCustomStartDate(undefined);
+                    setCustomEndDate(undefined);
                   }}
-                  className="rounded-full"
                 >
                   Esta Semana
                 </Button>
                 <Button
-                  variant={dateFilter === 'mes' && !customDate ? 'default' : 'outline'}
+                  variant={dateFilter === 'mes' && !customStartDate ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => {
                     setDateFilter('mes');
-                    setCustomDate(undefined);
+                    setCustomStartDate(undefined);
+                    setCustomEndDate(undefined);
                   }}
-                  className="rounded-full"
                 >
                   Este Mês
                 </Button>
                 
-                <Popover>
-                  <PopoverTrigger asChild>
+                <div className="flex items-center gap-2 ml-2 pl-2 border-l">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={customStartDate ? 'default' : 'ghost'}
+                        size="sm"
+                      >
+                        {customStartDate ? format(customStartDate, "dd/MM/yyyy", { locale: ptBR }) : 'Data Início'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customStartDate}
+                        onSelect={setCustomStartDate}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={customEndDate ? 'default' : 'ghost'}
+                        size="sm"
+                        disabled={!customStartDate}
+                      >
+                        {customEndDate ? format(customEndDate, "dd/MM/yyyy", { locale: ptBR }) : 'Data Fim'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customEndDate}
+                        onSelect={setCustomEndDate}
+                        disabled={(date) => customStartDate ? date < customStartDate : false}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  {(customStartDate || customEndDate) && (
                     <Button
-                      variant={customDate ? 'default' : 'outline'}
+                      variant="ghost"
                       size="sm"
-                      className="rounded-full"
-                    >
-                      {customDate ? format(customDate, "dd/MM/yyyy", { locale: ptBR }) : 'Data Personalizada'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={customDate}
-                      onSelect={(date) => {
-                        setCustomDate(date);
+                      onClick={() => {
+                        setCustomStartDate(undefined);
+                        setCustomEndDate(undefined);
                         setDateFilter('dia');
                       }}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                {customDate && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setCustomDate(undefined);
-                      setDateFilter('dia');
-                    }}
-                    className="rounded-full"
-                  >
-                    Limpar
-                  </Button>
-                )}
+                    >
+                      Limpar
+                    </Button>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}
