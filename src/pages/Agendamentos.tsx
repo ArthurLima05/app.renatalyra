@@ -50,6 +50,36 @@ export default function Agendamentos() {
     date: '',
     time: '',
   });
+
+  // Gera horários de 30 em 30 minutos das 8h às 18h
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 8; hour <= 18; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      if (hour < 18) {
+        slots.push(`${hour.toString().padStart(2, '0')}:30`);
+      }
+    }
+    return slots;
+  };
+
+  // Verifica se um horário está ocupado
+  const isTimeSlotOccupied = (date: string, time: string) => {
+    if (!date) return false;
+    const selectedDate = new Date(date);
+    return appointments.some(app => {
+      const appDate = new Date(app.date);
+      return (
+        appDate.getFullYear() === selectedDate.getFullYear() &&
+        appDate.getMonth() === selectedDate.getMonth() &&
+        appDate.getDate() === selectedDate.getDate() &&
+        app.time === time &&
+        app.status !== 'cancelado'
+      );
+    });
+  };
+
+  const timeSlots = generateTimeSlots();
   
   // Filtros do histórico
   const [historyFilters, setHistoryFilters] = useState({
@@ -248,25 +278,53 @@ export default function Agendamentos() {
                   id="date"
                   type="date"
                   value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value, time: '' })}
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="time">Horário</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={formData.time}
-                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                  required
-                />
-              </div>
+              
+              {formData.date && (
+                <div className="space-y-2">
+                  <Label>Horário Disponível</Label>
+                  <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto p-2 border rounded-lg">
+                    {timeSlots.map((slot) => {
+                      const isOccupied = isTimeSlotOccupied(formData.date, slot);
+                      const isSelected = formData.time === slot;
+                      
+                      return (
+                        <Button
+                          key={slot}
+                          type="button"
+                          variant={isSelected ? 'default' : 'outline'}
+                          size="sm"
+                          disabled={isOccupied}
+                          onClick={() => setFormData({ ...formData, time: slot })}
+                          className={cn(
+                            "relative transition-all",
+                            isOccupied && "opacity-40 cursor-not-allowed",
+                            isSelected && "ring-2 ring-primary ring-offset-2"
+                          )}
+                        >
+                          {slot}
+                          {isOccupied && (
+                            <span className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-xs">Ocupado</span>
+                            </span>
+                          )}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  {!formData.time && (
+                    <p className="text-xs text-muted-foreground">Selecione um horário disponível</p>
+                  )}
+                </div>
+              )}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting || !formData.time}>
                   {isSubmitting ? 'Agendando...' : 'Agendar'}
                 </Button>
               </div>
