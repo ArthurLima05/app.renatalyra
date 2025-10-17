@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { Bell, Calendar, X, MessageSquare, FileText, DollarSign, Trash2, ExternalLink, Search, MoreVertical, CheckCircle2 } from 'lucide-react';
+import { Bell, Calendar, X, FileText, DollarSign, Trash2, ExternalLink, MoreVertical, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationType } from '@/types';
 import { useNavigate } from 'react-router-dom';
@@ -17,8 +17,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
@@ -36,9 +36,9 @@ export default function Notificacoes() {
   const navigate = useNavigate();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabValue>('todas');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<NotificationType | 'all'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
 
   const isUrgent = (notification: any): boolean => {
     const now = new Date();
@@ -46,8 +46,6 @@ export default function Notificacoes() {
     const hoursDiff = (now.getTime() - notifDate.getTime()) / (1000 * 60 * 60);
 
     switch (notification.type) {
-      case 'lembrete_consulta':
-        return hoursDiff < 2;
       case 'cancelamento':
         return hoursDiff < 24;
       case 'lembrete_pagamento':
@@ -94,17 +92,18 @@ export default function Notificacoes() {
       filtered = filtered.filter(n => n.read);
     }
 
-    // Filtro por busca
-    if (searchQuery) {
-      filtered = filtered.filter(n => 
-        n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        n.message.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Filtro por tipo
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(n => n.type === typeFilter);
+    // Filtro por data (apenas no histórico)
+    if (activeTab === 'historico' && (dateFrom || dateTo)) {
+      filtered = filtered.filter(n => {
+        const d = new Date(n.date);
+        const dayOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const from = dateFrom ? new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate()) : null;
+        const to = dateTo ? new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate()) : null;
+        if (from && !to) return dayOnly.getTime() === from.getTime();
+        if (!from && to) return dayOnly.getTime() === to.getTime();
+        if (from && to) return dayOnly >= from && dayOnly <= to;
+        return true;
+      });
     }
 
     // Ordenar: urgentes primeiro, depois por data
@@ -117,7 +116,7 @@ export default function Notificacoes() {
     });
 
     return filtered;
-  }, [notifications, activeTab, searchQuery, typeFilter]);
+  }, [notifications, activeTab, dateFrom, dateTo]);
 
   const groupedNotifications = useMemo(() => {
     const groups: Record<DateGroup, typeof notifications> = {
@@ -286,7 +285,52 @@ export default function Notificacoes() {
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4 mt-6">
-          {/* Filtros e Ações */}
+          {/* Filtro por data (somente no Histórico) */}
+          {activeTab === 'historico' && (
+            <div className="flex flex-wrap items-center gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="justify-start">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {dateFrom ? dateFrom.toLocaleDateString('pt-BR') : 'Data início'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={(d) => setDateFrom(d)}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="justify-start">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {dateTo ? dateTo.toLocaleDateString('pt-BR') : 'Data fim'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={(d) => setDateTo(d)}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                  Limpar filtro
+                </Button>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

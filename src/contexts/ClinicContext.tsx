@@ -657,35 +657,35 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const checkNotifications = async () => {
       const now = new Date();
 
-      // 1. Lembrete de consultas (24h antes)
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
+      // 1. Lembrete de consultas (3h antes)
+      const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
 
-      const dayAfterTomorrow = new Date(tomorrow);
-      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-
-      const upcomingAppointments = appointments.filter((a) => {
-        const appointmentDate = new Date(a.date);
-        appointmentDate.setHours(0, 0, 0, 0);
-        return (
-          (a.status === "agendado" || a.status === "confirmado") &&
-          appointmentDate >= tomorrow &&
-          appointmentDate < dayAfterTomorrow
-        );
+      const upcomingIn3Hours = appointments.filter((a) => {
+        if (!(a.status === "agendado" || a.status === "confirmado")) return false;
+        const appointmentDateTime = new Date(a.date);
+        // Combina a data com o horário HH:mm do agendamento
+        const [hh, mm] = (a.time || "00:00").split(":");
+        appointmentDateTime.setHours(parseInt(hh || "0", 10), parseInt(mm || "0", 10), 0, 0);
+        const diff = appointmentDateTime.getTime() - now.getTime();
+        return diff > 0 && diff <= THREE_HOURS_MS;
       });
 
-      for (const apt of upcomingAppointments) {
-        const existingNotification = notifications.find(
-          (n) => n.type === "lembrete_consulta" && n.appointmentId === apt.id && !n.read,
+      for (const apt of upcomingIn3Hours) {
+        // Evitar duplicatas (independente de lida ou não)
+        const exists = notifications.find(
+          (n) => n.type === "lembrete_consulta" && n.appointmentId === apt.id,
         );
 
-        if (!existingNotification) {
+        if (!exists) {
           const patient = patients.find((p) => p.id === apt.patientId);
+          const appointmentDateTime = new Date(apt.date);
+          const [hh, mm] = (apt.time || "00:00").split(":");
+          appointmentDateTime.setHours(parseInt(hh || "0", 10), parseInt(mm || "0", 10), 0, 0);
+          const sameDay = appointmentDateTime.toDateString() === now.toDateString();
           await createNotification({
             type: "lembrete_consulta",
             title: "Lembrete de Consulta",
-            message: `Consulta com ${patient?.fullName || apt.patientName} agendada para amanhã às ${apt.time}`,
+            message: `Consulta com ${patient?.fullName || apt.patientName} agendada para ${sameDay ? "hoje" : appointmentDateTime.toLocaleDateString("pt-BR")} às ${apt.time}`,
             date: now,
             read: false,
             patientId: apt.patientId,

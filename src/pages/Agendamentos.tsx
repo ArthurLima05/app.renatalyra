@@ -547,6 +547,7 @@ export default function Agendamentos() {
                               <SelectItem value="agendado">Agendado</SelectItem>
                               <SelectItem value="confirmado">Confirmado</SelectItem>
                               <SelectItem value="realizado">Realizado</SelectItem>
+                              <SelectItem value="falta">Falta</SelectItem>
                               <SelectItem value="cancelado">Cancelado</SelectItem>
                             </SelectContent>
                           </Select>
