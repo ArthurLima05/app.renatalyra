@@ -331,7 +331,13 @@ export default function Agendamentos() {
                       disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       initialFocus
                       locale={ptBR}
-                      className={cn("p-3 pointer-events-auto")}
+                      className="p-3 pointer-events-auto"
+                      modifiers={{
+                        today: new Date(),
+                      }}
+                      modifiersClassNames={{
+                        today: "bg-gray-200 text-black font-semibold rounded-md",
+                      }}
                     />
                   </PopoverContent>
                 </Popover>
