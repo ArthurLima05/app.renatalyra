@@ -12,11 +12,9 @@ export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,39 +22,14 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        if (formData.password !== formData.confirmPassword) {
-          toast({
-            title: 'Erro',
-            description: 'As senhas não coincidem',
-            variant: 'destructive',
-          });
-          setIsLoading(false);
-          return;
-        }
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
 
-        const { error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-        });
+      if (error) throw error;
 
-        if (error) throw error;
-
-        toast({
-          title: 'Conta criada com sucesso',
-          description: 'Você já pode fazer login',
-        });
-        setIsSignUp(false);
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (error) throw error;
-
-        navigate('/');
-      }
+      navigate('/');
     } catch (error: any) {
       toast({
         title: 'Erro',
@@ -77,12 +50,9 @@ export default function Login() {
             alt="Clínica Odontológica Renata Lyra" 
             className="h-24 w-auto mx-auto mb-4 object-contain"
           />
-          <CardTitle>{isSignUp ? 'Criar Conta' : 'Login'}</CardTitle>
+          <CardTitle>Login</CardTitle>
           <CardDescription>
-            {isSignUp 
-              ? 'Preencha os dados para criar sua conta' 
-              : 'Entre com suas credenciais para acessar o sistema'
-            }
+            Entre com suas credenciais para acessar o sistema
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -107,28 +77,8 @@ export default function Login() {
                 required
               />
             </div>
-            {isSignUp && (
-              <div>
-                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  required
-                />
-              </div>
-            )}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Aguarde...' : (isSignUp ? 'Criar Conta' : 'Entrar')}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => setIsSignUp(!isSignUp)}
-            >
-              {isSignUp ? 'Já tem uma conta? Faça login' : 'Não tem uma conta? Cadastre-se'}
+              {isLoading ? 'Aguarde...' : 'Entrar'}
             </Button>
           </form>
         </CardContent>
