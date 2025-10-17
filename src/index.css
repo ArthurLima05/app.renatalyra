@@ -77,11 +77,13 @@ All colors MUST be HSL.
 
 @layer components {
   /* Calendar customization */
-  .rdp-day_button[aria-current="date"] {
-    @apply bg-muted/30 text-foreground font-normal;
+  .rdp-day_button:where([aria-current="date"]:not([aria-selected="true"])) {
+    background-color: hsl(var(--muted) / 0.2) !important;
+    color: hsl(var(--foreground)) !important;
+    font-weight: 400 !important;
   }
   
   .rdp-day_button[aria-selected="true"] {
-    @apply rounded-xl;
+    border-radius: 0.75rem !important;
   }
 }
