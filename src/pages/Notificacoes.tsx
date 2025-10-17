@@ -76,10 +76,10 @@ export default function Notificacoes() {
   };
 
   const dateGroupLabels: Record<DateGroup, string> = {
-    hoje: '🕐 Hoje',
-    ontem: '📅 Ontem',
-    esta_semana: '📆 Esta semana',
-    mais_antigas: '📂 Mais antigas'
+    hoje: 'Hoje',
+    ontem: 'Ontem',
+    esta_semana: 'Esta semana',
+    mais_antigas: 'Mais antigas'
   };
 
   const filteredNotifications = useMemo(() => {
@@ -287,20 +287,20 @@ export default function Notificacoes() {
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="todas">📩 Todas</TabsTrigger>
+          <TabsTrigger value="todas">Todas</TabsTrigger>
           <TabsTrigger value="nao_lidas">
-            🆕 Não lidas
+            Não lidas
             {unreadCount > 0 && (
               <Badge variant="destructive" className="ml-2">{unreadCount}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="urgentes">
-            ⚡ Urgentes
+            Urgentes
             {urgentCount > 0 && (
               <Badge variant="destructive" className="ml-2">{urgentCount}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="historico">🕒 Histórico</TabsTrigger>
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4 mt-6">
@@ -444,24 +444,18 @@ export default function Notificacoes() {
                                         {notification.message}
                                       </p>
                                       <p className="text-xs text-muted-foreground mt-2">
-                                        {notification.date.toLocaleString('pt-BR')}
+                                        {notification.date.toLocaleString('pt-BR', { 
+                                          day: '2-digit', 
+                                          month: '2-digit', 
+                                          year: 'numeric', 
+                                          hour: '2-digit', 
+                                          minute: '2-digit' 
+                                        })}
                                       </p>
                                     </div>
                                     
                                     <div className="flex items-center gap-2 shrink-0">
                                       {getActionButton(notification)}
-                                      
-                                      {!notification.read && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => markNotificationRead(notification.id)}
-                                          className="gap-2"
-                                        >
-                                          <CheckCircle2 className="h-4 w-4" />
-                                          Marcar como lida
-                                        </Button>
-                                      )}
                                       
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
