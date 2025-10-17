@@ -191,7 +191,87 @@ export default function Agendamentos() {
           <p className="text-sm sm:text-base text-muted-foreground">Gerencie todas as consultas</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-...
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="h-5 w-5" />
+              Novo Agendamento
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Novo Agendamento</DialogTitle>
+              <DialogDescription>
+                Selecione um paciente e escolha data e horário para o agendamento.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="patient">Paciente</Label>
+                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                    >
+                      {selectedPatient?.fullName || "Selecione um paciente..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar paciente..." />
+                      <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                      <CommandList>
+                        <CommandGroup>
+                          {patients.map((patient) => (
+                            <CommandItem
+                              key={patient.id}
+                              value={patient.fullName}
+                              onSelect={() => {
+                                setFormData({ ...formData, patientId: patient.id });
+                                setSearchOpen(false);
+                              }}
+                            >
+                              {patient.fullName}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label htmlFor="date">Data</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="time">Horário</Label>
+                <Input
+                  id="time"
+                  type="time"
+                  value={formData.time}
+                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Agendando...' : 'Agendar'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
         </Dialog>
       </motion.div>
 
