@@ -677,20 +677,29 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         );
 
         if (!exists) {
-          const patient = patients.find((p) => p.id === apt.patientId);
-          const appointmentDateTime = new Date(apt.date);
-          const [hh, mm] = (apt.time || "00:00").split(":");
-          appointmentDateTime.setHours(parseInt(hh || "0", 10), parseInt(mm || "0", 10), 0, 0);
-          const sameDay = appointmentDateTime.toDateString() === now.toDateString();
-          await createNotification({
-            type: "lembrete_consulta",
-            title: "Lembrete de Consulta",
-            message: `Consulta com ${patient?.fullName || apt.patientName} agendada para ${sameDay ? "hoje" : appointmentDateTime.toLocaleDateString("pt-BR")} às ${apt.time}`,
-            date: now,
-            read: false,
-            patientId: apt.patientId,
-            appointmentId: apt.id,
-          });
+          // Verificação adicional no backend para evitar duplicações por corrida de eventos
+          const { count, error: existsError } = await supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("type", "lembrete_consulta")
+            .eq("appointment_id", apt.id);
+
+          if (!existsError && (count ?? 0) === 0) {
+            const patient = patients.find((p) => p.id === apt.patientId);
+            const appointmentDateTime = new Date(apt.date);
+            const [hh, mm] = (apt.time || "00:00").split(":");
+            appointmentDateTime.setHours(parseInt(hh || "0", 10), parseInt(mm || "0", 10), 0, 0);
+            const sameDay = appointmentDateTime.toDateString() === now.toDateString();
+            await createNotification({
+              type: "lembrete_consulta",
+              title: "Lembrete de Consulta",
+              message: `Consulta com ${patient?.fullName || apt.patientName} agendada para ${sameDay ? "hoje" : appointmentDateTime.toLocaleDateString("pt-BR")} às ${apt.time}`,
+              date: now,
+              read: false,
+              patientId: apt.patientId,
+              appointmentId: apt.id,
+            });
+          }
         }
       }
 
