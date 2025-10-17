@@ -598,14 +598,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toast({ title: "Erro ao adicionar feedback", description: error.message, variant: "destructive" });
       throw error;
     }
-
-    if (feedback.rating <= 2) {
-      await supabase.from("notifications").insert({
-        type: "feedback",
-        title: "Feedback negativo recebido",
-        message: `${feedback.patientName} deixou uma avaliação de ${feedback.rating} estrelas`,
-      });
-    }
   };
 
   const addProfessional = async (professional: Omit<Professional, "id">) => {
@@ -702,42 +694,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
-      // 2. Lembrete de Feedback (consultas realizadas sem feedback nos últimos 3 dias)
+      // 2. Lembrete de atualização do prontuário (agendamentos realizados sem notas)
       const threeDaysAgo = new Date(now);
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
-      const recentCompletedAppointments = appointments.filter((a) => {
-        const aptDate = new Date(a.date);
-        return a.status === "realizado" && aptDate >= threeDaysAgo && aptDate <= now;
-      });
-
-      for (const apt of recentCompletedAppointments) {
-        const hasFeedback = feedbacks.some(
-          (f) =>
-            f.patientId === apt.patientId &&
-            Math.abs(new Date(f.date).getTime() - new Date(apt.date).getTime()) < 7 * 24 * 60 * 60 * 1000,
-        );
-
-        // Verificar se já existe QUALQUER notificação (lida ou não) para evitar duplicatas
-        const existingNotification = notifications.find(
-          (n) => n.type === "lembrete_feedback" && n.appointmentId === apt.id,
-        );
-
-        if (!hasFeedback && !existingNotification) {
-          const patient = patients.find((p) => p.id === apt.patientId);
-          await createNotification({
-            type: "lembrete_feedback",
-            title: "Solicitar Feedback",
-            message: `Lembre-se de solicitar feedback da consulta com ${patient?.fullName || apt.patientName}`,
-            date: now,
-            read: false,
-            patientId: apt.patientId,
-            appointmentId: apt.id,
-          });
-        }
-      }
-
-      // 3. Lembrete de atualização do prontuário (agendamentos realizados sem notas)
       const appointmentsWithoutNotes = appointments.filter((a) => {
         const aptDate = new Date(a.date);
         return a.status === "realizado" && aptDate >= threeDaysAgo && aptDate <= now;

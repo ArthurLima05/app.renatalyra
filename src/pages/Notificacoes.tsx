@@ -143,9 +143,6 @@ export default function Notificacoes() {
       case 'cancelamento':
       case 'falta':
         return <X className="h-5 w-5 text-destructive" />;
-      case 'feedback':
-      case 'lembrete_feedback':
-        return <MessageSquare className="h-5 w-5 text-primary" />;
       case 'lembrete_prontuario':
         return <FileText className="h-5 w-5 text-primary" />;
       case 'lembrete_pagamento':
@@ -183,21 +180,6 @@ export default function Notificacoes() {
             >
               <ExternalLink className="h-4 w-4" />
               Ver Pagamentos
-            </Button>
-          );
-        }
-        break;
-      case 'lembrete_feedback':
-        if (notification.patientId) {
-          return (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/pacientes/${notification.patientId}`)}
-              className="gap-2"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Solicitar Feedback
             </Button>
           );
         }
@@ -325,9 +307,7 @@ export default function Notificacoes() {
                 <SelectItem value="agendamento">Agendamento</SelectItem>
                 <SelectItem value="cancelamento">Cancelamento</SelectItem>
                 <SelectItem value="falta">Falta</SelectItem>
-                <SelectItem value="feedback">Feedback</SelectItem>
                 <SelectItem value="lembrete_consulta">Lembrete de Consulta</SelectItem>
-                <SelectItem value="lembrete_feedback">Lembrete de Feedback</SelectItem>
                 <SelectItem value="lembrete_prontuario">Lembrete de Prontuário</SelectItem>
                 <SelectItem value="lembrete_pagamento">Lembrete de Pagamento</SelectItem>
               </SelectContent>
