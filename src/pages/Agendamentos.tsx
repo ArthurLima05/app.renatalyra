@@ -175,18 +175,17 @@ export default function Agendamentos() {
       </motion.div>
 
       <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as MainTab)}>
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="inline-flex w-auto">
           <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agendamentos" className="space-y-6 mt-6">
           <Tabs value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-            <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+            <TabsList className="inline-flex w-auto">
               <TabsTrigger value="dia">Hoje</TabsTrigger>
               <TabsTrigger value="semana">Esta Semana</TabsTrigger>
               <TabsTrigger value="mes">Este Mês</TabsTrigger>
-              <TabsTrigger value="ano">Este Ano</TabsTrigger>
             </TabsList>
           </Tabs>
           
