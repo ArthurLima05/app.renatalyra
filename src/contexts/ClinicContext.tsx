@@ -737,22 +737,31 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       for (const installment of overdueInstallments) {
         const existingNotification = notifications.find(
-          (n) => n.type === "lembrete_pagamento" && n.installmentId === installment.id && !n.read,
+          (n) => n.type === "lembrete_pagamento" && n.installmentId === installment.id,
         );
 
         if (!existingNotification) {
-          const session = sessions.find((s) => s.id === installment.sessionId);
-          const patient = session ? patients.find((p) => p.id === session.patientId) : undefined;
-          await createNotification({
-            type: "lembrete_pagamento",
-            title: "Pagamento Vencido",
-            message: `Parcela ${installment.installmentNumber}/${installment.totalInstallments} de ${patient?.fullName || "paciente"} vencida - R$ ${installment.amount.toFixed(2)}`,
-            date: now,
-            read: false,
-            patientId: session?.patientId,
-            sessionId: session?.id,
-            installmentId: installment.id,
-          });
+          // Verificação adicional no backend para evitar duplicações
+          const { count, error: existsError } = await supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("type", "lembrete_pagamento")
+            .eq("installment_id", installment.id);
+
+          if (!existsError && (count ?? 0) === 0) {
+            const session = sessions.find((s) => s.id === installment.sessionId);
+            const patient = session ? patients.find((p) => p.id === session.patientId) : undefined;
+            await createNotification({
+              type: "lembrete_pagamento",
+              title: "Pagamento Vencido",
+              message: `Parcela ${installment.installmentNumber}/${installment.totalInstallments} de ${patient?.fullName || "paciente"} vencida - R$ ${installment.amount.toFixed(2)}`,
+              date: now,
+              read: false,
+              patientId: session?.patientId,
+              sessionId: session?.id,
+              installmentId: installment.id,
+            });
+          }
         }
       }
     };
