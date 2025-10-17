@@ -389,13 +389,12 @@ const ProntuarioPaciente = () => {
               </Button>
 
               <Button 
-                variant="destructive" 
-                size="sm" 
+                variant="ghost" 
+                size="icon"
                 onClick={() => setIsDeletingPatient(true)}
-                className="gap-2"
+                className="h-9 w-9 text-muted-foreground hover:text-destructive transition-colors"
               >
                 <Trash2 className="h-4 w-4" />
-                Excluir Paciente
               </Button>
             </div>
           </div>
