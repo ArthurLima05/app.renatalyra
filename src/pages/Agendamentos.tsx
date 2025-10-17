@@ -49,7 +49,7 @@ export default function Agendamentos() {
     patientName: '',
     date: '',
     time: '',
-    status: '' as AppointmentStatus | '',
+    status: 'all' as AppointmentStatus | 'all',
   });
 
   const selectedPatient = patients.find(p => p.id === formData.patientId);
@@ -112,7 +112,7 @@ export default function Agendamentos() {
         return false;
       }
       
-      if (historyFilters.status && app.status !== historyFilters.status) {
+      if (historyFilters.status && historyFilters.status !== 'all' && app.status !== historyFilters.status) {
         return false;
       }
       
@@ -288,13 +288,13 @@ export default function Agendamentos() {
                   <Label htmlFor="filter-status">Status</Label>
                   <Select 
                     value={historyFilters.status} 
-                    onValueChange={(value) => setHistoryFilters({ ...historyFilters, status: value as AppointmentStatus | '' })}
+                    onValueChange={(value) => setHistoryFilters({ ...historyFilters, status: value as AppointmentStatus | 'all' })}
                   >
                     <SelectTrigger id="filter-status">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="agendado">Agendado</SelectItem>
                       <SelectItem value="confirmado">Confirmado</SelectItem>
                       <SelectItem value="realizado">Realizado</SelectItem>
@@ -304,12 +304,12 @@ export default function Agendamentos() {
                   </Select>
                 </div>
               </div>
-              {(historyFilters.patientName || historyFilters.date || historyFilters.time || historyFilters.status) && (
+              {(historyFilters.patientName || historyFilters.date || historyFilters.time || historyFilters.status !== 'all') && (
                 <Button 
                   variant="outline" 
                   size="sm" 
                   className="mt-4"
-                  onClick={() => setHistoryFilters({ patientName: '', date: '', time: '', status: '' })}
+                  onClick={() => setHistoryFilters({ patientName: '', date: '', time: '', status: 'all' })}
                 >
                   Limpar Filtros
                 </Button>
@@ -365,7 +365,7 @@ export default function Agendamentos() {
             })}
             {historyAppointments.length === 0 && (
               <p className="text-center text-muted-foreground py-8">
-                {historyFilters.patientName || historyFilters.date || historyFilters.time || historyFilters.status 
+                {historyFilters.patientName || historyFilters.date || historyFilters.time || historyFilters.status !== 'all'
                   ? 'Nenhum agendamento encontrado com os filtros aplicados.' 
                   : 'Nenhum agendamento no histórico.'}
               </p>
