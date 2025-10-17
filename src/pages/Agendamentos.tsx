@@ -331,12 +331,14 @@ export default function Agendamentos() {
                       disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       initialFocus
                       locale={ptBR}
-                      className="p-3 pointer-events-auto"
+                      className={cn("p-3 pointer-events-auto")}
                       modifiers={{
                         today: new Date(),
+                        selected: formData.date ? new Date(formData.date) : undefined,
                       }}
                       modifiersClassNames={{
                         today: "bg-gray-200 text-black font-semibold rounded-md",
+                        selected: "bg-blue-500 text-white font-semibold rounded-full", // Aqui é a data selecionada
                       }}
                     />
                   </PopoverContent>
