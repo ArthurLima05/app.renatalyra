@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import Financeiro from '@/pages/Financeiro';
 
 const FINANCE_PASSWORD = 'renatalyra2025';
-const SESSION_KEY = 'finance_access';
+const STORAGE_KEY = 'finance_access';
 
 export const FinanceiroProtected = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -16,8 +16,8 @@ export const FinanceiroProtected = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Verifica se já tem acesso na sessão atual
-    const hasAccess = sessionStorage.getItem(SESSION_KEY) === 'true';
+    // Verifica se já tem acesso salvo no localStorage (permanente)
+    const hasAccess = localStorage.getItem(STORAGE_KEY) === 'true';
     setIsAuthenticated(hasAccess);
     setLoading(false);
   }, []);
@@ -26,7 +26,7 @@ export const FinanceiroProtected = () => {
     e.preventDefault();
     
     if (password === FINANCE_PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, 'true');
+      localStorage.setItem(STORAGE_KEY, 'true');
       setIsAuthenticated(true);
       toast({
         title: "Acesso permitido",
