@@ -357,12 +357,13 @@ export default function Notificacoes() {
           )}
 
           {/* Seleção em massa */}
-          {filteredNotifications.length > 0 && (
+          {selectedIds.size > 0 && (
             <div className="flex items-center gap-2">
               <Checkbox
                 checked={selectedIds.size === filteredNotifications.length && filteredNotifications.length > 0}
                 onCheckedChange={handleSelectAll}
                 id="select-all"
+                className="h-5 w-5"
               />
               <label htmlFor="select-all" className="text-sm text-muted-foreground cursor-pointer">
                 Selecionar todas ({filteredNotifications.length})
@@ -409,11 +410,13 @@ export default function Notificacoes() {
                           >
                             <CardContent className="p-4">
                               <div className="flex items-start gap-4">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => handleToggleSelect(notification.id)}
-                                  className="mt-1"
-                                />
+                                <div className="flex items-center pt-2">
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => handleToggleSelect(notification.id)}
+                                    className="h-5 w-5"
+                                  />
+                                </div>
                                 
                                 <div className="bg-primary/10 p-2 rounded-lg shrink-0">
                                   {getNotificationIcon(notification.type)}
