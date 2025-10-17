@@ -15,6 +15,10 @@ import { AppointmentStatus } from '@/types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 type DateFilter = 'dia' | 'semana' | 'mes' | 'ano';
 type MainTab = 'agendamentos' | 'historico';
@@ -38,6 +42,8 @@ export default function Agendamentos() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('dia');
   const [searchOpen, setSearchOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
     patientId: '',
     date: '',
@@ -66,6 +72,12 @@ export default function Agendamentos() {
       // Apenas agendamentos de hoje ou futuros
       if (appDay < today) return false;
       
+      // Se tem data personalizada, filtrar por ela
+      if (customDate) {
+        const customDay = new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate());
+        return appDay.getTime() === customDay.getTime();
+      }
+      
       switch (dateFilter) {
         case 'dia':
           return appDay.getTime() === today.getTime();
@@ -83,7 +95,7 @@ export default function Agendamentos() {
           return true;
       }
     });
-  }, [appointments, dateFilter]);
+  }, [appointments, dateFilter, customDate]);
 
   // Histórico (agendamentos passados)
   const historyAppointments = useMemo(() => {
@@ -181,36 +193,101 @@ export default function Agendamentos() {
         </TabsList>
 
         <TabsContent value="agendamentos" className="space-y-6 mt-6">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="h-5 w-5 text-muted-foreground" />
+          <div className="flex items-center gap-2">
             <Button
-              variant={dateFilter === 'dia' ? 'default' : 'outline'}
+              variant="outline"
               size="sm"
-              onClick={() => setDateFilter('dia')}
-              className="rounded-full"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-2"
             >
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Hoje
-            </Button>
-            <Button
-              variant={dateFilter === 'semana' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateFilter('semana')}
-              className="rounded-full"
-            >
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Esta Semana
-            </Button>
-            <Button
-              variant={dateFilter === 'mes' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateFilter('mes')}
-              className="rounded-full"
-            >
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Este Mês
+              <Filter className="h-4 w-4" />
+              {showFilters ? 'Ocultar Filtros' : 'Filtros'}
             </Button>
           </div>
+
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="flex items-center gap-2 flex-wrap p-4 bg-muted/50 rounded-lg">
+                <Button
+                  variant={dateFilter === 'dia' && !customDate ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setDateFilter('dia');
+                    setCustomDate(undefined);
+                  }}
+                  className="rounded-full"
+                >
+                  Hoje
+                </Button>
+                <Button
+                  variant={dateFilter === 'semana' && !customDate ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setDateFilter('semana');
+                    setCustomDate(undefined);
+                  }}
+                  className="rounded-full"
+                >
+                  Esta Semana
+                </Button>
+                <Button
+                  variant={dateFilter === 'mes' && !customDate ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setDateFilter('mes');
+                    setCustomDate(undefined);
+                  }}
+                  className="rounded-full"
+                >
+                  Este Mês
+                </Button>
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={customDate ? 'default' : 'outline'}
+                      size="sm"
+                      className="rounded-full"
+                    >
+                      {customDate ? format(customDate, "dd/MM/yyyy", { locale: ptBR }) : 'Data Personalizada'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customDate}
+                      onSelect={(date) => {
+                        setCustomDate(date);
+                        setDateFilter('dia');
+                      }}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                {customDate && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setCustomDate(undefined);
+                      setDateFilter('dia');
+                    }}
+                    className="rounded-full"
+                  >
+                    Limpar
+                  </Button>
+                )}
+              </div>
+            </motion.div>
+          )}
           
           <div className="grid gap-4">
             {activeAppointments.map((appointment, index) => {
