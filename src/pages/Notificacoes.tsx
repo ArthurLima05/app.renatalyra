@@ -45,6 +45,11 @@ export default function Notificacoes() {
     const notifDate = new Date(notification.date);
     const hoursDiff = (now.getTime() - notifDate.getTime()) / (1000 * 60 * 60);
 
+    // Notificações de remarcação são sempre urgentes
+    if (notification.title?.includes('Solicitação de Remarcação')) {
+      return true;
+    }
+
     switch (notification.type) {
       case 'cancelamento':
         return hoursDiff < 24;

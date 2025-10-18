@@ -86,14 +86,14 @@ Deno.serve(async (req) => {
 
     // 3. Cria notificação urgente de remarcação
     const notificationMessage = message 
-      ? `🔴 URGENTE: ${patient.full_name} deseja remarcar a consulta. Mensagem: ${message}`
-      : `🔴 URGENTE: ${patient.full_name} deseja remarcar a consulta${appointment ? ` que estava agendada para ${new Date(appointment.date).toLocaleDateString('pt-BR')} às ${appointment.time}` : ''}`
+      ? `${patient.full_name} deseja remarcar a consulta. Mensagem: ${message}`
+      : `${patient.full_name} deseja remarcar a consulta${appointment ? ` que estava agendada para ${new Date(appointment.date).toLocaleDateString('pt-BR')} às ${appointment.time}` : ''}`
 
     const { data: notification, error: notificationError } = await supabase
       .from('notifications')
       .insert({
         type: 'agendamento',
-        title: '🔴 Solicitação de Remarcação',
+        title: 'Solicitação de Remarcação',
         message: notificationMessage,
         date: new Date().toISOString(),
         read: false,
