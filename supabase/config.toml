@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.process-whatsapp-response]
 verify_jwt = false
+
+[functions.request-reschedule]
+verify_jwt = false
