@@ -345,6 +345,16 @@ const ProntuarioPaciente = () => {
                   </DialogHeader>
                   <form onSubmit={handleAppointmentSubmit} className="space-y-4">
                     <div>
+                      <Label htmlFor="patientName">Paciente</Label>
+                      <Input
+                        id="patientName"
+                        type="text"
+                        value={patient.fullName}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                    <div>
                       <Label htmlFor="appointmentDate">Data *</Label>
                       <Input
                         id="appointmentDate"
