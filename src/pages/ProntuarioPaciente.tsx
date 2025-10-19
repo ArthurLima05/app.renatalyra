@@ -13,9 +13,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, Link2, Check } from 'lucide-react';
 import { AppointmentStatus, PaymentStatus, SessionType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const ProntuarioPaciente = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,12 +40,43 @@ const ProntuarioPaciente = () => {
     addAppointment,
     installments,
     updateInstallment,
+    appointments,
   } = useClinic();
 
   const patient = id ? getPatientById(id) : undefined;
   const sessions = id ? getSessionsByPatientId(id) : [];
   const transactions = id ? getTransactionsByPatientId(id) : [];
   const feedbacks = id ? getFeedbacksByPatientId(id) : [];
+
+  // Gera horários de 30 em 30 minutos das 8h às 18h
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 8; hour <= 18; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      if (hour < 18) {
+        slots.push(`${hour.toString().padStart(2, '0')}:30`);
+      }
+    }
+    return slots;
+  };
+
+  // Verifica se um horário está ocupado
+  const isTimeSlotOccupied = (date: string, time: string) => {
+    if (!date) return false;
+    const selectedDate = new Date(date);
+    return appointments.some((app) => {
+      const appDate = new Date(app.date);
+      return (
+        appDate.getFullYear() === selectedDate.getFullYear() &&
+        appDate.getMonth() === selectedDate.getMonth() &&
+        appDate.getDate() === selectedDate.getDate() &&
+        app.time === time &&
+        app.status !== 'cancelado'
+      );
+    });
+  };
+
+  const timeSlots = generateTimeSlots();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSessionOpen, setIsSessionOpen] = useState(false);
@@ -336,7 +372,7 @@ const ProntuarioPaciente = () => {
                     Agendar Consulta
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader>
                     <DialogTitle>Agendar Consulta</DialogTitle>
                     <DialogDescription>
@@ -354,27 +390,88 @@ const ProntuarioPaciente = () => {
                         className="bg-muted"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="appointmentDate">Data *</Label>
-                      <Input
-                        id="appointmentDate"
-                        type="date"
-                        value={appointmentData.date}
-                        onChange={(e) => setAppointmentData({ ...appointmentData, date: e.target.value })}
-                        required
-                      />
+                    <div className="space-y-2">
+                      <Label>Data da Consulta *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !appointmentData.date && "text-muted-foreground"
+                            )}
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {appointmentData.date ? format(new Date(appointmentData.date), "PPP", { locale: ptBR }) : "Selecione a data"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={appointmentData.date ? new Date(appointmentData.date) : undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                setAppointmentData({
+                                  ...appointmentData,
+                                  date: format(date, 'yyyy-MM-dd'),
+                                  time: '',
+                                });
+                              }
+                            }}
+                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                            initialFocus
+                            locale={ptBR}
+                            className="p-3 pointer-events-auto"
+                            modifiers={{
+                              today: new Date(),
+                            }}
+                            modifiersClassNames={{
+                              today: "bg-gray-200 text-black font-semibold rounded-md",
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
-                    <div>
-                      <Label htmlFor="appointmentTime">Horário *</Label>
-                      <Input
-                        id="appointmentTime"
-                        type="time"
-                        value={appointmentData.time}
-                        onChange={(e) => setAppointmentData({ ...appointmentData, time: e.target.value })}
-                        required
-                      />
+
+                    {appointmentData.date && (
+                      <div className="space-y-2">
+                        <Label>Horário Disponível *</Label>
+                        <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto p-2 border rounded-lg">
+                          {timeSlots.map((slot) => {
+                            const isOccupied = isTimeSlotOccupied(appointmentData.date, slot);
+                            const isSelected = appointmentData.time === slot;
+
+                            return (
+                              <Button
+                                key={slot}
+                                type="button"
+                                variant={isSelected ? "default" : "outline"}
+                                size="sm"
+                                disabled={isOccupied}
+                                onClick={() => setAppointmentData({ ...appointmentData, time: slot })}
+                                className={cn(
+                                  "relative transition-all",
+                                  isOccupied && "opacity-40 cursor-not-allowed",
+                                  isSelected && "ring-2 ring-primary ring-offset-2"
+                                )}
+                              >
+                                {slot}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        {!appointmentData.time && <p className="text-xs text-muted-foreground">Selecione um horário disponível</p>}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setIsAppointmentOpen(false)}>
+                        Cancelar
+                      </Button>
+                      <Button type="submit" disabled={!appointmentData.time}>
+                        Agendar
+                      </Button>
                     </div>
-                    <Button type="submit" className="w-full">Agendar</Button>
                   </form>
                 </DialogContent>
               </Dialog>
