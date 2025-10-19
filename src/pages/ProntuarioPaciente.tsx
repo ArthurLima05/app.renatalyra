@@ -41,6 +41,7 @@ const ProntuarioPaciente = () => {
     installments,
     updateInstallment,
     appointments,
+    professionals,
   } = useClinic();
 
   const patient = id ? getPatientById(id) : undefined;
@@ -217,12 +218,23 @@ const ProntuarioPaciente = () => {
   const handleAppointmentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (id && patient) {
+      const renataLyra = professionals.find((p) => p.name === "Renata Lyra");
+
+      if (!renataLyra) {
+        toast({ 
+          title: 'Erro', 
+          description: 'Profissional não encontrado',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const appointmentDate = new Date(appointmentData.date);
       
       addAppointment({
         patientId: id,
         patientName: patient.fullName,
-        professionalId: 'renata-lyra',
+        professionalId: renataLyra.id,
         date: appointmentDate,
         time: appointmentData.time,
         status: 'agendado',
@@ -234,6 +246,12 @@ const ProntuarioPaciente = () => {
         time: '',
       });
       setIsAppointmentOpen(false);
+      
+      toast({ 
+        title: 'Sucesso', 
+        description: 'Agendamento criado com sucesso'
+      });
+      
       navigate('/agendamentos');
     }
   };
