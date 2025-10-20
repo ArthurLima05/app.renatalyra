@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import logoTechClin from '@/assets/logo-techclin.png';
 import { Button } from './ui/button';
 import { Menu, X } from 'lucide-react';
+import { ThemeToggle } from './ThemeToggle';
 
 interface HeaderProps {
   isSidebarOpen: boolean;
@@ -39,19 +40,22 @@ export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
           </p>
         </motion.div>
 
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          className="flex-shrink-0 flex-col items-end gap-1 hidden sm:flex"
-        >
-          <span className="text-xs text-muted-foreground">
-            Desenvolvido por
-          </span>
-          <img
-            src={logoTechClin}
-            alt="TechClin"
-            className="h-8 sm:h-10 w-auto object-contain"
-          />
-        </motion.div>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="flex-shrink-0 flex-col items-end gap-1 hidden sm:flex"
+          >
+            <span className="text-xs text-muted-foreground">
+              Desenvolvido por
+            </span>
+            <img
+              src={logoTechClin}
+              alt="TechClin"
+              className="h-8 sm:h-10 w-auto object-contain"
+            />
+          </motion.div>
+        </div>
       </div>
     </motion.header>
   );
