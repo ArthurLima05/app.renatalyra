@@ -322,18 +322,18 @@ const ProntuarioPaciente = () => {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex flex-col gap-4">
             <div className="space-y-2">
-              <CardTitle className="text-2xl">{patient.fullName}</CardTitle>
-              <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+              <CardTitle className="text-xl sm:text-2xl">{patient.fullName}</CardTitle>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Phone className="h-4 w-4" />
-                  {patient.phone}
+                  <span className="truncate">{patient.phone}</span>
                 </div>
                 {patient.email && (
                   <div className="flex items-center gap-1">
                     <Mail className="h-4 w-4" />
-                    {patient.email}
+                    <span className="truncate">{patient.email}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-1">
@@ -342,12 +342,13 @@ const ProntuarioPaciente = () => {
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full">
               <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => setEditData(patient)}>
+                  <Button variant="outline" size="sm" onClick={() => setEditData(patient)} className="flex-1 sm:flex-none">
                     <Edit className="h-4 w-4 mr-2" />
-                    Editar Dados
+                    <span className="hidden sm:inline">Editar Dados</span>
+                    <span className="sm:hidden">Editar</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -385,9 +386,10 @@ const ProntuarioPaciente = () => {
               
               <Dialog open={isAppointmentOpen} onOpenChange={setIsAppointmentOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="gap-2">
+                  <Button size="sm" className="gap-2 flex-1 sm:flex-none">
                     <Calendar className="h-4 w-4" />
-                    Agendar Consulta
+                    <span className="hidden sm:inline">Agendar Consulta</span>
+                    <span className="sm:hidden">Agendar</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
@@ -498,26 +500,27 @@ const ProntuarioPaciente = () => {
                 variant="outline" 
                 size="sm" 
                 onClick={handleCopyFeedbackLink}
-                className="gap-2"
+                className="gap-2 flex-1 sm:flex-none"
               >
                 {copiedLink ? (
                   <>
                     <Check className="h-4 w-4" />
-                    Copiado!
+                    <span className="hidden sm:inline">Copiado!</span>
                   </>
                 ) : (
                   <>
                     <Link2 className="h-4 w-4" />
-                    Copiar Link Feedback
+                    <span className="hidden sm:inline">Copiar Link Feedback</span>
+                    <span className="sm:hidden">Feedback</span>
                   </>
                 )}
               </Button>
 
               <Button 
                 variant="ghost" 
-                size="icon"
+                size="sm"
                 onClick={() => setIsDeletingPatient(true)}
-                className="h-9 w-9 text-muted-foreground hover:text-destructive transition-colors"
+                className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -527,19 +530,19 @@ const ProntuarioPaciente = () => {
       </Card>
 
       <Tabs defaultValue="sessions" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="sessions">Histórico</TabsTrigger>
-          <TabsTrigger value="financial">Financeiro</TabsTrigger>
-          <TabsTrigger value="feedbacks">Feedbacks</TabsTrigger>
-          <TabsTrigger value="notes">Observações</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
+          <TabsTrigger value="sessions" className="text-xs sm:text-sm">Histórico</TabsTrigger>
+          <TabsTrigger value="financial" className="text-xs sm:text-sm">Financeiro</TabsTrigger>
+          <TabsTrigger value="feedbacks" className="text-xs sm:text-sm">Feedbacks</TabsTrigger>
+          <TabsTrigger value="notes" className="text-xs sm:text-sm">Observações</TabsTrigger>
         </TabsList>
 
         <TabsContent value="sessions" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Histórico de Sessões</h3>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h3 className="text-base sm:text-lg font-semibold">Histórico de Sessões</h3>
             <Dialog open={isSessionOpen} onOpenChange={setIsSessionOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" onClick={() => {
+                <Button size="sm" className="w-full sm:w-auto" onClick={() => {
                   setEditingSessionId(null);
                   setSessionData({
                     date: '',
@@ -698,15 +701,15 @@ const ProntuarioPaciente = () => {
                 
                 return (
                   <Card key={session.id}>
-                    <CardContent className="pt-6">
-                      <div className="flex flex-col md:flex-row justify-between gap-4">
+                    <CardContent className="pt-4 sm:pt-6">
+                      <div className="flex flex-col gap-4">
                         <div className="space-y-2 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-semibold">{session.type}</h4>
-                            <Badge variant="secondary">{sessionTypeLabels[session.sessionType]}</Badge>
+                            <h4 className="text-sm sm:text-base font-semibold">{session.type}</h4>
+                            <Badge variant="secondary" className="text-xs">{sessionTypeLabels[session.sessionType]}</Badge>
                             {getStatusBadge(session.status)}
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {session.date.toLocaleDateString('pt-BR', { 
                               weekday: 'long',
                               year: 'numeric',
@@ -715,19 +718,20 @@ const ProntuarioPaciente = () => {
                             })}
                           </p>
                           {session.notes && (
-                            <p className="text-sm mt-2 p-2 bg-muted rounded">{session.notes}</p>
+                            <p className="text-xs sm:text-sm mt-2 p-2 bg-muted rounded break-words">{session.notes}</p>
                           )}
                           {session.nextAppointment && (
-                            <p className="text-sm text-primary font-medium">
+                            <p className="text-xs sm:text-sm text-primary font-medium">
                               Próxima consulta sugerida: {session.nextAppointment.toLocaleDateString('pt-BR')}
                             </p>
                           )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Button 
                             size="sm" 
                             variant="outline"
                             onClick={() => handleEditSession(session)}
+                            className="w-full sm:w-auto"
                           >
                             <Edit className="h-4 w-4 mr-2" />
                             Editar
@@ -736,6 +740,7 @@ const ProntuarioPaciente = () => {
                             size="sm" 
                             variant="destructive"
                             onClick={() => setDeletingSessionId(session.id)}
+                            className="w-full sm:w-auto"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Excluir
@@ -783,26 +788,26 @@ const ProntuarioPaciente = () => {
         </AlertDialog>
 
         <TabsContent value="financial" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Pago</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Pago</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-primary">R$ {totalPaid.toFixed(2)}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-primary">R$ {totalPaid.toFixed(2)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Pendente</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Pendente</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-destructive">R$ {totalPending.toFixed(2)}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-destructive">R$ {totalPending.toFixed(2)}</p>
               </CardContent>
             </Card>
           </div>
 
-          <h3 className="text-lg font-semibold mt-6">Transações</h3>
+          <h3 className="text-base sm:text-lg font-semibold mt-6">Transações</h3>
           <div className="space-y-2">
             {sessions.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nenhuma transação registrada.</p>
@@ -815,16 +820,16 @@ const ProntuarioPaciente = () => {
 
                 return (
                   <Card key={`${session.id}-${sessionInstallments.length}-${sessionInstallments.filter(i => i.paid).length}`}>
-                    <CardContent className="pt-6">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">{session.type}</p>
-                          <p className="text-sm text-muted-foreground">
+                    <CardContent className="pt-4 sm:pt-6">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="flex-1">
+                          <p className="text-sm sm:text-base font-medium">{session.type}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {session.date.toLocaleDateString('pt-BR')}
                           </p>
                         </div>
-                        <div className="text-right space-y-2">
-                          <p className="text-xl font-bold">R$ {session.amount.toFixed(2)}</p>
+                        <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
+                          <p className="text-lg sm:text-xl font-bold">R$ {session.amount.toFixed(2)}</p>
                           {allPaid && session.paymentStatus === 'em_aberto' ? getPaymentBadge('pago') : getPaymentBadge(session.paymentStatus)}
                           {!allPaid && session.paymentStatus === 'em_aberto' && session.amount > 0 && (
                             <>
@@ -833,6 +838,7 @@ const ProntuarioPaciente = () => {
                                   size="sm" 
                                   variant="outline"
                                   onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                                  className="w-full sm:w-auto text-xs sm:text-sm"
                                 >
                                   {isExpanded ? 'Ocultar' : 'Exibir'} Parcelas
                                 </Button>
@@ -845,6 +851,7 @@ const ProntuarioPaciente = () => {
                                       updateSession(session.id, { paymentStatus: 'pago' });
                                     }
                                   }}
+                                  className="w-full sm:w-auto text-xs sm:text-sm"
                                 >
                                   Registrar Pagamento
                                 </Button>
@@ -856,15 +863,16 @@ const ProntuarioPaciente = () => {
 
                       {isExpanded && hasInstallments && (
                         <div className="mt-4 border-t pt-4">
-                          <h4 className="font-medium mb-2">Parcelas desta Sessão</h4>
-                          <Table>
+                          <h4 className="text-sm sm:text-base font-medium mb-2">Parcelas desta Sessão</h4>
+                          <div className="overflow-x-auto -mx-2 sm:mx-0">
+                          <Table className="min-w-full">
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Parcela</TableHead>
-                                <TableHead>Valor</TableHead>
-                                <TableHead>Previsão</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Ações</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Parcela</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Valor</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Previsão</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Ações</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -872,19 +880,19 @@ const ProntuarioPaciente = () => {
                                 .sort((a, b) => a.installmentNumber - b.installmentNumber)
                                 .map((installment) => (
                                   <TableRow key={installment.id}>
-                                    <TableCell>
+                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
                                       {installment.installmentNumber}/{installment.totalInstallments}
                                     </TableCell>
-                                    <TableCell>R$ {installment.amount.toFixed(2)}</TableCell>
-                                    <TableCell>
+                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">R$ {installment.amount.toFixed(2)}</TableCell>
+                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
                                       {installment.predictedDate.toLocaleDateString('pt-BR')}
                                     </TableCell>
-                                    <TableCell>
-                                      <Badge variant={installment.paid ? 'default' : 'secondary'}>
+                                    <TableCell className="text-xs sm:text-sm">
+                                      <Badge variant={installment.paid ? 'default' : 'secondary'} className="text-xs">
                                         {installment.paid ? 'Pago' : 'Pendente'}
                                       </Badge>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="text-xs sm:text-sm">
                                       {!installment.paid && (
                                         <Button
                                           size="sm"
@@ -895,6 +903,7 @@ const ProntuarioPaciente = () => {
                                               paidDate: new Date(),
                                             });
                                           }}
+                                          className="text-xs whitespace-nowrap"
                                         >
                                           Marcar como pago
                                         </Button>
@@ -904,6 +913,7 @@ const ProntuarioPaciente = () => {
                                 ))}
                             </TableBody>
                           </Table>
+                          </div>
                         </div>
                       )}
                     </CardContent>
@@ -916,27 +926,27 @@ const ProntuarioPaciente = () => {
         </TabsContent>
 
         <TabsContent value="feedbacks" className="space-y-4">
-          <h3 className="text-lg font-semibold">Feedbacks do Paciente</h3>
+          <h3 className="text-base sm:text-lg font-semibold">Feedbacks do Paciente</h3>
           <div className="space-y-3">
             {feedbacks.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhum feedback registrado ainda.</p>
+              <p className="text-muted-foreground text-xs sm:text-sm">Nenhum feedback registrado ainda.</p>
             ) : (
               feedbacks.map((feedback) => (
                 <Card key={feedback.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex justify-between items-start mb-2">
+                  <CardContent className="pt-4 sm:pt-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
                       <div className="flex gap-1">
                         {[...Array(5)].map((_, i) => (
-                          <span key={i} className="text-xl">
+                          <span key={i} className="text-lg sm:text-xl">
                             {i < feedback.rating ? '★' : '☆'}
                           </span>
                         ))}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         {feedback.date.toLocaleDateString('pt-BR')}
                       </p>
                     </div>
-                    <p className="text-sm">{feedback.comment}</p>
+                    <p className="text-xs sm:text-sm break-words">{feedback.comment}</p>
                   </CardContent>
                 </Card>
               ))
@@ -945,17 +955,17 @@ const ProntuarioPaciente = () => {
         </TabsContent>
 
         <TabsContent value="notes" className="space-y-4">
-          <h3 className="text-lg font-semibold">Prontuário Livre</h3>
+          <h3 className="text-base sm:text-lg font-semibold">Prontuário Livre</h3>
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6">
               <Textarea
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
                 placeholder="Observações odontológicas, histórico de tratamentos, alergias, notas clínicas..."
                 rows={10}
-                className="mb-4"
+                className="mb-4 text-sm"
               />
-              <Button onClick={handleSaveObservations}>Salvar Observações</Button>
+              <Button onClick={handleSaveObservations} className="w-full sm:w-auto">Salvar Observações</Button>
             </CardContent>
           </Card>
         </TabsContent>
