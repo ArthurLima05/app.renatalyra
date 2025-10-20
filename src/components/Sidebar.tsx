@@ -67,7 +67,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         initial={false}
         animate={isMobile ? { x: isOpen ? 0 : '-100%' } : { x: 0 }}
         transition={{ duration: 0.2 }}
-        className="fixed top-0 left-0 bottom-0 w-64 bg-card border-r border-border z-40 overflow-y-auto xl:static flex flex-col"
+        className="fixed top-0 left-0 bottom-0 w-64 min-w-64 max-w-64 bg-card border-r border-border z-40 overflow-y-auto xl:static flex flex-col"
       >
         <div className="p-4 border-b border-border">
           <motion.div
