@@ -64,7 +64,7 @@ export default function Dashboard() {
     { name: 'Instagram', value: filteredAppointments.filter(a => a.origin === 'Instagram').length },
     { name: 'Indicação', value: filteredAppointments.filter(a => a.origin === 'Indicação').length },
     { name: 'Outro', value: filteredAppointments.filter(a => a.origin === 'Outro').length },
-  ];
+  ].filter(item => item.value > 0);
 
   const statusData = [
     { status: 'Agendado', count: filteredAppointments.filter(a => a.status === 'agendado').length },
