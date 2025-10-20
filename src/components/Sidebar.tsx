@@ -15,6 +15,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import logoClinica from '@/assets/logo-clinica.jpg';
 import logoMobile from '@/assets/logo-mobile.png';
 
@@ -106,7 +107,10 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           ))}
         </nav>
         
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-2">
+          <div className="flex justify-center">
+            <ThemeToggle />
+          </div>
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-foreground hover:bg-secondary"
