@@ -156,53 +156,56 @@ export default function Notificacoes() {
     }
   };
 
-  const getActionButton = (notification: any) => {
-    switch (notification.type) {
-      case 'lembrete_prontuario':
-        if (notification.patientId) {
-          return (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/prontuario/${notification.patientId}`)}
-              className="gap-2"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Ir ao Prontuário
-            </Button>
-          );
+      const getActionButton = (notification: any) => {
+        switch (notification.type) {
+          case 'lembrete_prontuario':
+            if (notification.patientId) {
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/prontuario/${notification.patientId}`)}
+                  className="gap-2 text-xs w-full sm:w-auto"
+                >
+                  <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Ir ao Prontuário</span>
+                  <span className="sm:hidden">Prontuário</span>
+                </Button>
+              );
+            }
+            break;
+          case 'lembrete_pagamento':
+            if (notification.patientId) {
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/prontuario/${notification.patientId}`)}
+                  className="gap-2 text-xs w-full sm:w-auto"
+                >
+                  <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Ver Pagamentos</span>
+                  <span className="sm:hidden">Pagamentos</span>
+                </Button>
+              );
+            }
+            break;
+          case 'lembrete_consulta':
+            return (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/agendamentos')}
+                className="gap-2 text-xs w-full sm:w-auto"
+              >
+                <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Ver Agendamentos</span>
+                <span className="sm:hidden">Agendamentos</span>
+              </Button>
+            );
         }
-        break;
-      case 'lembrete_pagamento':
-        if (notification.patientId) {
-          return (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/prontuario/${notification.patientId}`)}
-              className="gap-2"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Ver Pagamentos
-            </Button>
-          );
-        }
-        break;
-      case 'lembrete_consulta':
-        return (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/agendamentos')}
-            className="gap-2"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Ver Agendamentos
-          </Button>
-        );
-    }
-    return null;
-  };
+        return null;
+      };
 
   const handleDelete = async (id: string) => {
     await deleteNotification(id);
@@ -264,38 +267,42 @@ export default function Notificacoes() {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
+        className="space-y-2"
       >
-        <h1 className="text-3xl font-bold text-foreground">Notificações</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Notificações</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           {unreadCount} não lidas · {urgentCount} urgentes
         </p>
       </motion.div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="todas">Todas</TabsTrigger>
-          <TabsTrigger value="nao_lidas">
-            Não lidas
-            {unreadCount > 0 && (
-              <Badge variant="destructive" className="ml-2">{unreadCount}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="urgentes">
-            Urgentes
-            {urgentCount > 0 && (
-              <Badge variant="destructive" className="ml-2">{urgentCount}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-2 -mx-2 px-2">
+          <TabsList className="grid w-full min-w-[400px] sm:min-w-0 grid-cols-4 h-auto">
+            <TabsTrigger value="todas" className="text-xs sm:text-sm py-2.5">Todas</TabsTrigger>
+            <TabsTrigger value="nao_lidas" className="text-xs sm:text-sm py-2.5 flex items-center gap-1">
+              <span className="hidden sm:inline">Não lidas</span>
+              <span className="sm:hidden">Não lidas</span>
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="text-[10px] h-4 px-1">{unreadCount}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="urgentes" className="text-xs sm:text-sm py-2.5 flex items-center gap-1">
+              Urgentes
+              {urgentCount > 0 && (
+                <Badge variant="destructive" className="text-[10px] h-4 px-1">{urgentCount}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="historico" className="text-xs sm:text-sm py-2.5">Histórico</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value={activeTab} className="space-y-4 mt-6">
           {/* Filtro por data (somente no Histórico) */}
           {activeTab === 'historico' && (
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start">
+                  <Button variant="outline" className="justify-start w-full sm:w-auto">
                     <Calendar className="mr-2 h-4 w-4" />
                     {dateFrom ? dateFrom.toLocaleDateString('pt-BR') : 'Data início'}
                   </Button>
@@ -313,7 +320,7 @@ export default function Notificacoes() {
 
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start">
+                  <Button variant="outline" className="justify-start w-full sm:w-auto">
                     <Calendar className="mr-2 h-4 w-4" />
                     {dateTo ? dateTo.toLocaleDateString('pt-BR') : 'Data fim'}
                   </Button>
@@ -330,7 +337,7 @@ export default function Notificacoes() {
               </Popover>
 
               {(dateFrom || dateTo) && (
-                <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }} className="w-full sm:w-auto">
                   Limpar filtro
                 </Button>
               )}
@@ -342,20 +349,22 @@ export default function Notificacoes() {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 p-4 bg-primary/10 rounded-lg border border-primary/20"
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-primary/10 rounded-lg border border-primary/20"
             >
-              <span className="text-sm font-medium">
+              <span className="text-xs sm:text-sm font-medium">
                 {selectedIds.size} selecionada(s)
               </span>
-              <Button onClick={handleBulkMarkAsRead} size="sm" variant="outline">
-                Marcar como lidas
-              </Button>
-              <Button onClick={handleBulkDelete} size="sm" variant="destructive">
-                Excluir selecionadas
-              </Button>
-              <Button onClick={() => setSelectedIds(new Set())} size="sm" variant="ghost">
-                Cancelar
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <Button onClick={handleBulkMarkAsRead} size="sm" variant="outline" className="w-full sm:w-auto">
+                  Marcar como lidas
+                </Button>
+                <Button onClick={handleBulkDelete} size="sm" variant="destructive" className="w-full sm:w-auto">
+                  Excluir selecionadas
+                </Button>
+                <Button onClick={() => setSelectedIds(new Set())} size="sm" variant="ghost" className="w-full sm:w-auto">
+                  Cancelar
+                </Button>
+              </div>
             </motion.div>
           )}
 
@@ -411,75 +420,79 @@ export default function Notificacoes() {
                               ${isSelected ? 'ring-2 ring-primary' : ''}
                             `}
                           >
-                            <CardContent className="p-4">
-                              <div className="flex items-start gap-4">
-                                <div className="flex items-center pt-2">
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={() => handleToggleSelect(notification.id)}
-                                    className="h-5 w-5"
-                                  />
-                                </div>
-                                
-                                <div className="bg-primary/10 p-2 rounded-lg shrink-0">
-                                  {getNotificationIcon(notification.type)}
-                                </div>
-                                
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <h3 className="font-semibold">{notification.title}</h3>
-                                        {urgent && (
-                                          <Badge variant="destructive" className="text-xs">
-                                            URGENTE
-                                          </Badge>
-                                        )}
-                                        {!notification.read && (
-                                          <Badge variant="default" className="text-xs">
-                                            Nova
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      <p className="text-sm text-muted-foreground mt-1">
-                                        {notification.message}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground mt-2">
-                                        {notification.date.toLocaleString('pt-BR', { 
-                                          day: '2-digit', 
-                                          month: '2-digit', 
-                                          year: 'numeric', 
-                                          hour: '2-digit', 
-                                          minute: '2-digit' 
-                                        })}
-                                      </p>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      {getActionButton(notification)}
-                                      
-                                      <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" size="sm">
-                                            <MoreVertical className="h-4 w-4" />
-                                          </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                          {!notification.read && (
-                                            <DropdownMenuItem onClick={() => markNotificationRead(notification.id)}>
-                                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                                              Marcar como lida
+                            <CardContent className="p-3 sm:p-4">
+                              <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+                                <div className="flex items-start gap-3 w-full">
+                                  <div className="flex items-center pt-1">
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => handleToggleSelect(notification.id)}
+                                      className="h-4 w-4 sm:h-5 sm:w-5"
+                                    />
+                                  </div>
+                                  
+                                  <div className="bg-primary/10 p-2 rounded-lg flex-shrink-0">
+                                    {getNotificationIcon(notification.type)}
+                                  </div>
+                                  
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex flex-col gap-2">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                                            <h3 className="text-sm sm:text-base font-semibold break-words">{notification.title}</h3>
+                                            {urgent && (
+                                              <Badge variant="destructive" className="text-[10px] sm:text-xs">
+                                                URGENTE
+                                              </Badge>
+                                            )}
+                                            {!notification.read && (
+                                              <Badge variant="default" className="text-[10px] sm:text-xs">
+                                                Nova
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          <p className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">
+                                            {notification.message}
+                                          </p>
+                                          <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
+                                            {notification.date.toLocaleString('pt-BR', { 
+                                              day: '2-digit', 
+                                              month: '2-digit', 
+                                              year: 'numeric', 
+                                              hour: '2-digit', 
+                                              minute: '2-digit' 
+                                            })}
+                                          </p>
+                                        </div>
+                                        
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 flex-shrink-0">
+                                              <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            {!notification.read && (
+                                              <DropdownMenuItem onClick={() => markNotificationRead(notification.id)}>
+                                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                                Marcar como lida
+                                              </DropdownMenuItem>
+                                            )}
+                                            <DropdownMenuItem 
+                                              onClick={() => setDeleteConfirmId(notification.id)}
+                                              className="text-destructive"
+                                            >
+                                              <Trash2 className="h-4 w-4 mr-2" />
+                                              Excluir
                                             </DropdownMenuItem>
-                                          )}
-                                          <DropdownMenuItem 
-                                            onClick={() => setDeleteConfirmId(notification.id)}
-                                            className="text-destructive"
-                                          >
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Excluir
-                                          </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-2">
+                                        {getActionButton(notification)}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
