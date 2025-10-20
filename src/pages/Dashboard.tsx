@@ -80,16 +80,16 @@ export default function Dashboard() {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="flex items-center justify-between"
+        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral das métricas da clínica</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Visão geral das métricas da clínica</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Select value={datePeriod} onValueChange={(value) => setDatePeriod(value as DatePeriod)}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -103,10 +103,10 @@ export default function Dashboard() {
           </Select>
           
           {datePeriod === 'personalizado' && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9">
+                  <Button variant="outline" size="sm" className="h-9 justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {customStartDate ? format(customStartDate, "dd/MM/yy", { locale: ptBR }) : "Início"}
                   </Button>
@@ -123,11 +123,11 @@ export default function Dashboard() {
                 </PopoverContent>
               </Popover>
               
-              <span className="text-sm text-muted-foreground">-</span>
+              <span className="hidden sm:inline text-sm text-muted-foreground">-</span>
               
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9">
+                  <Button variant="outline" size="sm" className="h-9 justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {customEndDate ? format(customEndDate, "dd/MM/yy", { locale: ptBR }) : "Fim"}
                   </Button>
