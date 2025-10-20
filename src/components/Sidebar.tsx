@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import logoClinica from '@/assets/logo-clinica.jpg';
+import logoClinicaDark from '@/assets/logo-clinica-dark.png';
 import logoMobile from '@/assets/logo-mobile.png';
 
 const navItems = [
@@ -77,7 +78,12 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
             <img
               src={logoClinica}
               alt="Clínica Renata Lyra"
-              className="h-16 w-auto object-contain xl:h-auto xl:w-full"
+              className="h-16 w-auto object-contain xl:h-auto xl:w-full dark:hidden"
+            />
+            <img
+              src={logoClinicaDark}
+              alt="Clínica Renata Lyra"
+              className="h-16 w-auto object-contain xl:h-auto xl:w-full hidden dark:block"
             />
           </motion.div>
         </div>

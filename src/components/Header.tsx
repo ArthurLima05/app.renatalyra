@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import logoTechClin from '@/assets/logo-techclin.png';
+import logoTechClinDark from '@/assets/logo-techclin-dark.png';
 import { Button } from './ui/button';
 import { Menu, X } from 'lucide-react';
 
@@ -49,7 +50,12 @@ export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
           <img
             src={logoTechClin}
             alt="TechClin"
-            className="h-8 sm:h-10 w-auto object-contain"
+            className="h-8 sm:h-10 w-auto object-contain dark:hidden"
+          />
+          <img
+            src={logoTechClinDark}
+            alt="TechClin"
+            className="h-8 sm:h-10 w-auto object-contain hidden dark:block"
           />
         </motion.div>
       </div>
