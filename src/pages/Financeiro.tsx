@@ -215,14 +215,15 @@ export default function Financeiro() {
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financeiro</h1>
             <p className="text-sm sm:text-base text-muted-foreground">Controle detalhado de receitas e despesas</p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={exportToCSV} variant="outline" className="gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button onClick={exportToCSV} variant="outline" className="gap-2 w-full sm:w-auto">
               <Download className="h-4 w-4" />
-              Download
+              <span className="hidden sm:inline">Download</span>
+              <span className="sm:hidden">Exportar CSV</span>
             </Button>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button className="gap-2 w-full sm:w-auto">
                   <Plus className="h-4 w-4" />
                   Novo Lançamento
                 </Button>
@@ -319,10 +320,10 @@ export default function Financeiro() {
         </div>
 
         {/* Filtros de Data */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <span className="text-sm font-medium text-muted-foreground">Período:</span>
           <Select value={datePeriod} onValueChange={(value) => setDatePeriod(value as DatePeriod)}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -335,10 +336,10 @@ export default function Financeiro() {
           </Select>
           
           {datePeriod === 'personalizado' && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9">
+                  <Button variant="outline" size="sm" className="h-9 w-full sm:w-auto justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {customStartDate ? format(customStartDate, "dd/MM/yy", { locale: ptBR }) : "Início"}
                   </Button>
@@ -355,11 +356,11 @@ export default function Financeiro() {
                 </PopoverContent>
               </Popover>
               
-              <span className="text-sm text-muted-foreground">-</span>
+              <span className="hidden sm:inline text-sm text-muted-foreground">-</span>
               
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9">
+                  <Button variant="outline" size="sm" className="h-9 w-full sm:w-auto justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {customEndDate ? format(customEndDate, "dd/MM/yy", { locale: ptBR }) : "Fim"}
                   </Button>
@@ -470,15 +471,17 @@ export default function Financeiro() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="distribuicao" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 h-auto">
-                <TabsTrigger value="distribuicao" className="text-xs sm:text-sm">Distribuição</TabsTrigger>
-                <TabsTrigger value="categorias" className="text-xs sm:text-sm">Categorias</TabsTrigger>
-                <TabsTrigger value="evolucao" className="text-xs sm:text-sm">Evolução</TabsTrigger>
-                <TabsTrigger value="previsoes" className="text-xs sm:text-sm">Previsões</TabsTrigger>
-              </TabsList>
+              <div className="w-full overflow-x-auto pb-2 -mx-2 px-2">
+                <TabsList className="grid w-full min-w-[400px] sm:min-w-0 grid-cols-4 h-auto">
+                  <TabsTrigger value="distribuicao" className="text-xs sm:text-sm py-2">Distribuição</TabsTrigger>
+                  <TabsTrigger value="categorias" className="text-xs sm:text-sm py-2">Categorias</TabsTrigger>
+                  <TabsTrigger value="evolucao" className="text-xs sm:text-sm py-2">Evolução</TabsTrigger>
+                  <TabsTrigger value="previsoes" className="text-xs sm:text-sm py-2">Previsões</TabsTrigger>
+                </TabsList>
+              </div>
               
               <TabsContent value="distribuicao" className="mt-4">
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie
                       data={chartData}
@@ -500,13 +503,13 @@ export default function Financeiro() {
               </TabsContent>
 
               <TabsContent value="categorias" className="mt-4">
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={categoryChartData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    <Legend wrapperStyle={{ fontSize: '10px' }} />
                     <Bar dataKey="Entradas" fill="#10b981" />
                     <Bar dataKey="Saídas" fill="#ef4444" />
                   </BarChart>
@@ -514,13 +517,13 @@ export default function Financeiro() {
               </TabsContent>
 
               <TabsContent value="evolucao" className="mt-4">
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={evolutionData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="mes" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    <Legend wrapperStyle={{ fontSize: '10px' }} />
                     <Line type="monotone" dataKey="entrada" stroke="#10b981" strokeWidth={2} name="Entradas" />
                     <Line type="monotone" dataKey="saida" stroke="#ef4444" strokeWidth={2} name="Saídas" />
                   </LineChart>
@@ -529,79 +532,85 @@ export default function Financeiro() {
 
               <TabsContent value="previsoes" className="mt-4">
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Pagamentos futuros previstos baseados em parcelas de sessões
                   </p>
                   {installments.filter(i => !i.paid && i.sessionId).length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
+                    <p className="text-center text-muted-foreground py-8 text-sm">
                       Nenhuma parcela futura cadastrada
                     </p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Paciente</TableHead>
-                            <TableHead>Sessão</TableHead>
-                            <TableHead>Data Prevista</TableHead>
-                            <TableHead>Parcela</TableHead>
-                            <TableHead>Valor</TableHead>
-                            <TableHead className="text-right">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {installments
-                            .filter(i => !i.paid && i.sessionId)
-                            .sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime())
-                            .slice(0, showAllInstallments ? undefined : 8)
-                            .map((installment) => {
-                              const session = sessions.find(s => s.id === installment.sessionId);
-                              const patient = session ? getPatientById(session.patientId) : null;
-                              
-                              return (
-                                <TableRow key={installment.id}>
-                                  <TableCell className="font-medium">
-                                    {patient?.fullName || 'Paciente não encontrado'}
-                                  </TableCell>
-                                  <TableCell>
-                                    {session?.type || 'Sessão não encontrada'}
-                                  </TableCell>
-                                  <TableCell>
-                                    {format(installment.predictedDate, 'dd/MM/yyyy', { locale: ptBR })}
-                                  </TableCell>
-                                  <TableCell>
-                                    {installment.installmentNumber}/{installment.totalInstallments}
-                                  </TableCell>
-                                  <TableCell>
-                                    R$ {installment.amount.toFixed(2)}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => updateInstallment(installment.id, { paid: true, paidDate: new Date() })}
-                                    >
-                                      <CheckCircle2 className="h-4 w-4 mr-1" />
-                                      Marcar como Pago
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                        </TableBody>
-                      </Table>
+                    <div className="overflow-x-auto -mx-4 sm:mx-0">
+                      <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                        <Table className="min-w-[600px]">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs sm:text-sm">Paciente</TableHead>
+                              <TableHead className="text-xs sm:text-sm">Sessão</TableHead>
+                              <TableHead className="text-xs sm:text-sm">Data Prevista</TableHead>
+                              <TableHead className="text-xs sm:text-sm">Parcela</TableHead>
+                              <TableHead className="text-xs sm:text-sm">Valor</TableHead>
+                              <TableHead className="text-right text-xs sm:text-sm">Ações</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {installments
+                              .filter(i => !i.paid && i.sessionId)
+                              .sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime())
+                              .slice(0, showAllInstallments ? undefined : 8)
+                              .map((installment) => {
+                                const session = sessions.find(s => s.id === installment.sessionId);
+                                const patient = session ? getPatientById(session.patientId) : null;
+                                
+                                return (
+                                  <TableRow key={installment.id}>
+                                    <TableCell className="font-medium text-xs sm:text-sm">
+                                      {patient?.fullName || 'Paciente não encontrado'}
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm">
+                                      {session?.type || 'Sessão não encontrada'}
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
+                                      {format(installment.predictedDate, 'dd/MM/yyyy', { locale: ptBR })}
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm">
+                                      {installment.installmentNumber}/{installment.totalInstallments}
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
+                                      R$ {installment.amount.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => updateInstallment(installment.id, { paid: true, paidDate: new Date() })}
+                                        className="text-xs"
+                                      >
+                                        <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                        <span className="hidden sm:inline">Marcar como Pago</span>
+                                        <span className="sm:hidden">Pago</span>
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+                      </div>
                       {installments.filter(i => !i.paid && i.sessionId).length > 8 && (
                         <div className="mt-4 text-center">
                           <Button
                             variant="outline"
+                            size="sm"
                             onClick={() => setShowAllInstallments(!showAllInstallments)}
+                            className="text-xs sm:text-sm"
                           >
                             {showAllInstallments ? 'Mostrar menos' : `Exibir mais (${installments.filter(i => !i.paid && i.sessionId).length - 8} parcelas)`}
                           </Button>
                         </div>
                       )}
-                      <div className="mt-4 p-4 bg-muted rounded-lg">
-                        <p className="text-sm font-medium">
+                      <div className="mt-4 p-3 sm:p-4 bg-muted rounded-lg">
+                        <p className="text-xs sm:text-sm font-medium">
                           Total previsto: R$ {installments
                             .filter(i => !i.paid && i.sessionId)
                             .reduce((acc, i) => acc + i.amount, 0)
@@ -626,10 +635,10 @@ export default function Financeiro() {
         <Card>
           <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <CardTitle>Histórico de Transações</CardTitle>
-              <div className="flex gap-2 flex-wrap">
+              <CardTitle className="text-lg sm:text-xl">Histórico de Transações</CardTitle>
+              <div className="flex gap-2 flex-wrap w-full sm:w-auto">
                 <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-full sm:w-[140px]">
                     <SelectValue placeholder="Tipo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -639,7 +648,7 @@ export default function Financeiro() {
                   </SelectContent>
                 </Select>
                 <Select value={filterCategory} onValueChange={setFilterCategory}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-full sm:w-[140px]">
                     <SelectValue placeholder="Categoria" />
                   </SelectTrigger>
                   <SelectContent>
