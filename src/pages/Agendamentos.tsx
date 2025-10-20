@@ -414,42 +414,44 @@ export default function Agendamentos() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  variant={dateFilter === "dia" && !customStartDate ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => {
-                    setDateFilter("dia");
-                    setCustomStartDate(undefined);
-                    setCustomEndDate(undefined);
-                  }}
-                >
-                  Hoje
-                </Button>
-                <Button
-                  variant={dateFilter === "semana" && !customStartDate ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => {
-                    setDateFilter("semana");
-                    setCustomStartDate(undefined);
-                    setCustomEndDate(undefined);
-                  }}
-                >
-                  Esta Semana
-                </Button>
-                <Button
-                  variant={dateFilter === "mes" && !customStartDate ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => {
-                    setDateFilter("mes");
-                    setCustomStartDate(undefined);
-                    setCustomEndDate(undefined);
-                  }}
-                >
-                  Este Mês
-                </Button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap justify-center">
+                  <Button
+                    variant={dateFilter === "dia" && !customStartDate ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => {
+                      setDateFilter("dia");
+                      setCustomStartDate(undefined);
+                      setCustomEndDate(undefined);
+                    }}
+                  >
+                    Hoje
+                  </Button>
+                  <Button
+                    variant={dateFilter === "semana" && !customStartDate ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => {
+                      setDateFilter("semana");
+                      setCustomStartDate(undefined);
+                      setCustomEndDate(undefined);
+                    }}
+                  >
+                    Esta Semana
+                  </Button>
+                  <Button
+                    variant={dateFilter === "mes" && !customStartDate ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => {
+                      setDateFilter("mes");
+                      setCustomStartDate(undefined);
+                      setCustomEndDate(undefined);
+                    }}
+                  >
+                    Este Mês
+                  </Button>
+                </div>
 
-                <div className="flex items-center gap-2 ml-2 pl-2 border-l">
+                <div className="flex items-center gap-2 sm:ml-2 sm:pl-2 sm:border-l justify-center">
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant={customStartDate ? "default" : "ghost"} size="sm">
