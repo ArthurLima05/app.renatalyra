@@ -320,8 +320,17 @@ const ProntuarioPaciente = () => {
         Voltar para Pacientes
       </Button>
 
-      <Card>
-        <CardHeader>
+      <Card className="relative">
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => setIsDeletingPatient(true)}
+          className="absolute top-4 right-4 h-8 w-8 text-muted-foreground hover:text-destructive transition-colors z-10"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+        
+        <CardHeader className="pr-12">
           <div className="flex flex-col gap-4">
             <div className="space-y-2">
               <CardTitle className="text-xl sm:text-2xl">{patient.fullName}</CardTitle>
@@ -342,13 +351,12 @@ const ProntuarioPaciente = () => {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
               <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => setEditData(patient)} className="flex-1 sm:flex-none">
+                  <Button variant="outline" size="sm" onClick={() => setEditData(patient)} className="w-full">
                     <Edit className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Editar Dados</span>
-                    <span className="sm:hidden">Editar</span>
+                    <span>Editar Dados</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -386,10 +394,9 @@ const ProntuarioPaciente = () => {
               
               <Dialog open={isAppointmentOpen} onOpenChange={setIsAppointmentOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="gap-2 flex-1 sm:flex-none">
+                  <Button size="sm" className="gap-2 w-full">
                     <Calendar className="h-4 w-4" />
-                    <span className="hidden sm:inline">Agendar Consulta</span>
-                    <span className="sm:hidden">Agendar</span>
+                    <span>Agendar Consulta</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
@@ -500,29 +507,19 @@ const ProntuarioPaciente = () => {
                 variant="outline" 
                 size="sm" 
                 onClick={handleCopyFeedbackLink}
-                className="gap-2 flex-1 sm:flex-none"
+                className="gap-2 w-full"
               >
                 {copiedLink ? (
                   <>
                     <Check className="h-4 w-4" />
-                    <span className="hidden sm:inline">Copiado!</span>
+                    <span>Copiado!</span>
                   </>
                 ) : (
                   <>
                     <Link2 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Copiar Link Feedback</span>
-                    <span className="sm:hidden">Feedback</span>
+                    <span>Link Feedback</span>
                   </>
                 )}
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setIsDeletingPatient(true)}
-                className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
-              >
-                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -530,12 +527,34 @@ const ProntuarioPaciente = () => {
       </Card>
 
       <Tabs defaultValue="sessions" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
-          <TabsTrigger value="sessions" className="text-xs sm:text-sm">Histórico</TabsTrigger>
-          <TabsTrigger value="financial" className="text-xs sm:text-sm">Financeiro</TabsTrigger>
-          <TabsTrigger value="feedbacks" className="text-xs sm:text-sm">Feedbacks</TabsTrigger>
-          <TabsTrigger value="notes" className="text-xs sm:text-sm">Observações</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-2">
+          <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/50">
+            <TabsTrigger 
+              value="sessions" 
+              className="text-xs sm:text-sm py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Histórico
+            </TabsTrigger>
+            <TabsTrigger 
+              value="financial" 
+              className="text-xs sm:text-sm py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Financeiro
+            </TabsTrigger>
+            <TabsTrigger 
+              value="feedbacks" 
+              className="text-xs sm:text-sm py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Feedbacks
+            </TabsTrigger>
+            <TabsTrigger 
+              value="notes" 
+              className="text-xs sm:text-sm py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Observações
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="sessions" className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
