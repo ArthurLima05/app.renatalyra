@@ -492,19 +492,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
-    const appointment = appointments.find((a) => a.id === id);
-    
-    if (status === "confirmado" && appointment) {
-      await supabase.from("notifications").insert({
-        type: "agendamento",
-        title: "Consulta confirmada",
-        message: `${appointment.patientName} confirmou a consulta para ${appointment.date.toLocaleDateString()} às ${appointment.time}`,
-        patient_id: appointment.patientId,
-        appointment_id: id,
-      });
-    }
-
     if (status === "cancelado" || status === "falta") {
+      const appointment = appointments.find((a) => a.id === id);
       if (appointment) {
         await supabase.from("notifications").insert({
           type: status === "cancelado" ? "cancelamento" : "falta",
