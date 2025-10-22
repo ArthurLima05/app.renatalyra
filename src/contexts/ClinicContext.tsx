@@ -102,6 +102,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const newPatient = {
           ...payload.new,
           fullName: payload.new.full_name,
+          birthDate: payload.new.birth_date ? new Date(payload.new.birth_date) : undefined,
           createdAt: new Date(payload.new.created_at),
         } as Patient;
         setPatients((prev) => [...prev, newPatient]);
@@ -110,6 +111,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const updated = {
           ...payload.new,
           fullName: payload.new.full_name,
+          birthDate: payload.new.birth_date ? new Date(payload.new.birth_date) : undefined,
           createdAt: new Date(payload.new.created_at),
         } as Patient;
         setPatients((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -314,6 +316,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       (data || []).map((p) => ({
         ...p,
         fullName: p.full_name,
+        birthDate: p.birth_date ? new Date(p.birth_date) : undefined,
         createdAt: new Date(p.created_at),
       })),
     );
@@ -780,9 +783,11 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       full_name: patient.fullName,
       phone: patient.phone,
       email: patient.email,
+      birth_date: patient.birthDate?.toISOString().split('T')[0],
+      cpf: patient.cpf,
       origin: patient.origin,
       notes: patient.notes,
-    });
+    } as any);
 
     if (error) {
       toast({ title: "Erro ao adicionar paciente", description: error.message, variant: "destructive" });
@@ -797,6 +802,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (patient.fullName) updateData.full_name = patient.fullName;
     if (patient.phone) updateData.phone = patient.phone;
     if (patient.email !== undefined) updateData.email = patient.email;
+    if (patient.birthDate !== undefined) updateData.birth_date = patient.birthDate?.toISOString().split('T')[0];
+    if (patient.cpf !== undefined) updateData.cpf = patient.cpf;
     if (patient.origin) updateData.origin = patient.origin;
     if (patient.notes !== undefined) updateData.notes = patient.notes;
 

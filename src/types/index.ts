@@ -69,6 +69,8 @@ export interface Patient {
   fullName: string;
   phone: string;
   email?: string;
+  birthDate?: Date;
+  cpf?: string;
   origin: PatientOrigin;
   notes?: string;
   createdAt: Date;

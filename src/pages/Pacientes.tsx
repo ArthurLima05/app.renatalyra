@@ -22,17 +22,24 @@ const Pacientes = () => {
     fullName: '',
     phone: '',
     email: '',
+    birthDate: '',
+    cpf: '',
     origin: 'Outro' as PatientOrigin,
     notes: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    addPatient(formData);
+    addPatient({
+      ...formData,
+      birthDate: formData.birthDate ? new Date(formData.birthDate) : undefined,
+    });
     setFormData({
       fullName: '',
       phone: '',
       email: '',
+      birthDate: '',
+      cpf: '',
       origin: 'Outro',
       notes: '',
     });
@@ -108,6 +115,24 @@ const Pacientes = () => {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="paciente@email.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="birthDate">Data de Nascimento</Label>
+                <Input
+                  id="birthDate"
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="cpf">CPF</Label>
+                <Input
+                  id="cpf"
+                  value={formData.cpf}
+                  onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                  placeholder="000.000.000-00"
                 />
               </div>
               <div>
