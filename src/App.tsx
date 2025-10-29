@@ -10,7 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Agendamentos from "./pages/Agendamentos";
 import Pacientes from "./pages/Pacientes";
 import ProntuarioPaciente from "./pages/ProntuarioPaciente";
-import { FinanceiroProtected } from "./components/FinanceiroProtected";
+import Financeiro from "./pages/Financeiro";
 import Notificacoes from "./pages/Notificacoes";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -31,7 +31,7 @@ const App = () => (
             <Route path="/pacientes" element={<Pacientes />} />
             <Route path="/pacientes/:id" element={<ProntuarioPaciente />} />
             <Route path="/prontuario/:id" element={<ProntuarioPaciente />} />
-            <Route path="/financeiro" element={<FinanceiroProtected />} />
+            <Route path="/financeiro" element={<Financeiro />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
           </Route>
           <Route path="*" element={<NotFound />} />

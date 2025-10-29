@@ -4,6 +4,7 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2, CheckCircle2 } from 'lucide-react';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
   const { transactions, addTransaction, deleteTransaction, installments, updateInstallment, sessions, getPatientById } = useClinic();
+  const { role, isSecretaria, loading: roleLoading } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
@@ -203,6 +205,14 @@ export default function Financeiro() {
   const COLORS = ['#DBC192', '#9CA0A0'];
   const allCategories = Array.from(new Set(transactions.map(t => t.category)));
 
+  if (roleLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <motion.div
@@ -213,14 +223,18 @@ export default function Financeiro() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financeiro</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">Controle detalhado de receitas e despesas</p>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              {isSecretaria ? 'Adicionar lançamentos' : 'Controle detalhado de receitas e despesas'}
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={exportToCSV} variant="outline" className="gap-2 w-full sm:w-auto">
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Download</span>
-              <span className="sm:hidden">Exportar CSV</span>
-            </Button>
+            {!isSecretaria && (
+              <Button onClick={exportToCSV} variant="outline" className="gap-2 w-full sm:w-auto">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Download</span>
+                <span className="sm:hidden">Exportar CSV</span>
+              </Button>
+            )}
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2 w-full sm:w-auto">
@@ -381,8 +395,9 @@ export default function Financeiro() {
         </div>
       </motion.div>
 
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Cards de Resumo - apenas para admin */}
+      {!isSecretaria && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -457,10 +472,12 @@ export default function Financeiro() {
             </CardContent>
           </Card>
         </motion.div>
-      </div>
+        </div>
+      )}
 
-      {/* Tabs com Gráficos */}
-      <motion.div
+      {/* Tabs com Gráficos - apenas para admin */}
+      {!isSecretaria && (
+        <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.4 }}
@@ -624,7 +641,8 @@ export default function Financeiro() {
             </Tabs>
           </CardContent>
         </Card>
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* Filtros e Histórico */}
       <motion.div
@@ -685,25 +703,29 @@ export default function Financeiro() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <div className="text-right flex-1 sm:flex-shrink-0">
-                        <p className={`font-bold text-base sm:text-lg ${transaction.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
-                          {transaction.type === 'entrada' ? '+' : '-'} R$ {transaction.amount.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {transaction.type === 'entrada' ? 'Entrada' : 'Saída'}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setTransactionToDelete(transaction.id);
-                          setDeleteDialogOpen(true);
-                        }}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {!isSecretaria && (
+                        <div className="text-right flex-1 sm:flex-shrink-0">
+                          <p className={`font-bold text-base sm:text-lg ${transaction.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
+                            {transaction.type === 'entrada' ? '+' : '-'} R$ {transaction.amount.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {transaction.type === 'entrada' ? 'Entrada' : 'Saída'}
+                          </p>
+                        </div>
+                      )}
+                      {!isSecretaria && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setTransactionToDelete(transaction.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))
