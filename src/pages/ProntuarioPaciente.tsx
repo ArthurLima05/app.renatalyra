@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, Link2, Check } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2 } from 'lucide-react';
 import { AppointmentStatus, PaymentStatus, SessionType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -26,12 +26,10 @@ const ProntuarioPaciente = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [copiedLink, setCopiedLink] = useState(false);
   const {
     getPatientById,
     getSessionsByPatientId,
     getTransactionsByPatientId,
-    getFeedbacksByPatientId,
     updatePatient,
     deletePatient,
     addSession,
@@ -47,7 +45,6 @@ const ProntuarioPaciente = () => {
   const patient = id ? getPatientById(id) : undefined;
   const sessions = id ? getSessionsByPatientId(id) : [];
   const transactions = id ? getTransactionsByPatientId(id) : [];
-  const feedbacks = id ? getFeedbacksByPatientId(id) : [];
 
   // Gera horários de 30 em 30 minutos das 8h às 18h
   const generateTimeSlots = () => {
@@ -262,16 +259,6 @@ const ProntuarioPaciente = () => {
     }
   };
 
-  const handleCopyFeedbackLink = () => {
-    if (!id) return;
-    
-    const feedbackUrl = `${window.location.origin}/feedback?patientId=${id}&origin=${encodeURIComponent(patient.origin)}`;
-    navigator.clipboard.writeText(feedbackUrl);
-    setCopiedLink(true);
-    toast({ title: 'Link copiado!', description: 'Link de feedback copiado para a área de transferência' });
-    
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
 
   const totalPaid = sessions
     .filter(s => s.paymentStatus === 'pago')
@@ -502,25 +489,6 @@ const ProntuarioPaciente = () => {
                   </form>
                 </DialogContent>
               </Dialog>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleCopyFeedbackLink}
-                className="gap-2 w-full"
-              >
-                {copiedLink ? (
-                  <>
-                    <Check className="h-4 w-4" />
-                    <span>Copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <Link2 className="h-4 w-4" />
-                    <span>Link Feedback</span>
-                  </>
-                )}
-              </Button>
             </div>
           </div>
         </CardHeader>
@@ -542,13 +510,6 @@ const ProntuarioPaciente = () => {
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Financeiro
-            </TabsTrigger>
-            <TabsTrigger 
-              value="feedbacks" 
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
-              Feedbacks
             </TabsTrigger>
             <TabsTrigger 
               value="notes" 
@@ -946,35 +907,6 @@ const ProntuarioPaciente = () => {
             )}
           </div>
 
-        </TabsContent>
-
-        <TabsContent value="feedbacks" className="space-y-4">
-          <h3 className="text-base sm:text-lg font-semibold">Feedbacks do Paciente</h3>
-          <div className="space-y-3">
-            {feedbacks.length === 0 ? (
-              <p className="text-muted-foreground text-xs sm:text-sm">Nenhum feedback registrado ainda.</p>
-            ) : (
-              feedbacks.map((feedback) => (
-                <Card key={feedback.id}>
-                  <CardContent className="pt-4 sm:pt-6">
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
-                      <div className="flex gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <span key={i} className="text-lg sm:text-xl">
-                            {i < feedback.rating ? '★' : '☆'}
-                          </span>
-                        ))}
-                      </div>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        {feedback.date.toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
-                    <p className="text-xs sm:text-sm break-words">{feedback.comment}</p>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
         </TabsContent>
 
         <TabsContent value="notes" className="space-y-4">

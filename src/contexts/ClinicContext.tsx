@@ -17,7 +17,6 @@ interface ClinicContextType {
   professionals: Professional[];
   appointments: Appointment[];
   transactions: Transaction[];
-  feedbacks: Feedback[];
   notifications: Notification[];
   patients: Patient[];
   sessions: Session[];
@@ -28,7 +27,6 @@ interface ClinicContextType {
   deleteAppointment: (id: string) => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  addFeedback: (feedback: Omit<Feedback, "id" | "date">) => Promise<void>;
   addProfessional: (professional: Omit<Professional, "id">) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
@@ -41,7 +39,6 @@ interface ClinicContextType {
   getPatientById: (id: string) => Patient | undefined;
   getSessionsByPatientId: (patientId: string) => Session[];
   getTransactionsByPatientId: (patientId: string) => Transaction[];
-  getFeedbacksByPatientId: (patientId: string) => Feedback[];
   linkAppointmentToSession: (sessionId: string, appointmentDate: Date, appointmentTime: string) => Promise<void>;
   getSuggestedSessionsByPatientId: (patientId: string) => Session[];
   updateInstallment: (id: string, data: Partial<Installment>) => Promise<void>;
@@ -59,7 +56,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -194,13 +190,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
       .subscribe();
 
-    const feedbacksChannel = supabase
-      .channel("feedbacks-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "feedbacks" }, () => {
-        loadFeedbacks(); // Mantém carregamento completo por causa do join com patients
-      })
-      .subscribe();
-
     const notificationsChannel = supabase
       .channel("notifications-changes")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
@@ -270,7 +259,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       supabase.removeChannel(appointmentsChannel);
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(transactionsChannel);
-      supabase.removeChannel(feedbacksChannel);
       supabase.removeChannel(notificationsChannel);
       supabase.removeChannel(installmentsChannel);
     };
@@ -284,7 +272,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loadAppointments(),
       loadSessions(),
       loadTransactions(),
-      loadFeedbacks(),
       loadNotifications(),
       loadInstallments(),
     ]);
@@ -385,31 +372,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         amount: Number(t.amount),
         patientId: t.patient_id || undefined,
         sessionId: t.session_id || undefined,
-      })),
-    );
-  };
-
-  const loadFeedbacks = async () => {
-    const { data, error } = await supabase
-      .from("feedbacks")
-      .select("*, patients(full_name)")
-      .order("date", { ascending: false });
-
-    if (error) {
-      console.error("Error loading feedbacks:", error);
-      return;
-    }
-
-    setFeedbacks(
-      (data || []).map((f) => ({
-        id: f.id,
-        patientId: f.patient_id,
-        patientName: f.patients?.full_name || "",
-        rating: f.rating,
-        comment: f.comment,
-        origin: f.origin as any,
-        date: new Date(f.date),
-        professionalId: f.professional_id || undefined,
       })),
     );
   };
@@ -583,29 +545,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: "Transação excluída com sucesso" });
   };
 
-  const addFeedback = async (feedback: Omit<Feedback, "id" | "date">) => {
-    // Buscar patient_id pelo nome
-    const { data: patientData } = await supabase
-      .from("patients")
-      .select("id")
-      .eq("full_name", feedback.patientName)
-      .single();
-
-    const { error } = await supabase.from("feedbacks").insert({
-      patient_id: patientData?.id,
-      rating: feedback.rating,
-      comment: feedback.comment,
-      origin: feedback.origin,
-      date: new Date().toISOString(),
-      professional_id: feedback.professionalId,
-    });
-
-    if (error) {
-      toast({ title: "Erro ao adicionar feedback", description: error.message, variant: "destructive" });
-      throw error;
-    }
-  };
-
   const addProfessional = async (professional: Omit<Professional, "id">) => {
     const { error } = await supabase.from("professionals").insert({
       name: professional.name,
@@ -776,7 +715,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     checkNotifications().finally(() => {
       isCheckingNotifications.current = false;
     });
-  }, [appointments, sessions, feedbacks, installments, patients, loading]);
+  }, [appointments, sessions, installments, patients, loading]);
 
   const addPatient = async (patient: Omit<Patient, "id" | "createdAt">) => {
     const { error } = await supabase.from("patients").insert({
@@ -1049,7 +988,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const getPatientById = (id: string) => patients.find((p) => p.id === id);
   const getSessionsByPatientId = (patientId: string) => sessions.filter((s) => s.patientId === patientId);
   const getTransactionsByPatientId = (patientId: string) => transactions.filter((t) => t.patientId === patientId);
-  const getFeedbacksByPatientId = (patientId: string) => feedbacks.filter((f) => f.patientId === patientId);
   const getSuggestedSessionsByPatientId = (patientId: string) =>
     sessions.filter((s) => s.patientId === patientId && s.status === "sugerido");
 
@@ -1057,7 +995,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     professionals,
     appointments,
     transactions,
-    feedbacks,
     notifications,
     patients,
     sessions,
@@ -1068,7 +1005,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     deleteAppointment,
     addTransaction,
     deleteTransaction,
-    addFeedback,
     addProfessional,
     markNotificationRead,
     deleteNotification,
@@ -1081,7 +1017,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     getPatientById,
     getSessionsByPatientId,
     getTransactionsByPatientId,
-    getFeedbacksByPatientId,
     linkAppointmentToSession,
     getSuggestedSessionsByPatientId,
     updateInstallment,

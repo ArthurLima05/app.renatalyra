@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado' | 'todos';
 
 export default function Dashboard() {
-  const { appointments, feedbacks, sessions } = useClinic();
+  const { appointments, sessions } = useClinic();
   const [datePeriod, setDatePeriod] = useState<DatePeriod>('todos');
   const [customStartDate, setCustomStartDate] = useState<Date>();
   const [customEndDate, setCustomEndDate] = useState<Date>();

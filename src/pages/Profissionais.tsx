@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export default function Profissionais() {
-  const { professionals, feedbacks, addProfessional } = useClinic();
+  const { professionals, addProfessional } = useClinic();
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -28,12 +28,6 @@ export default function Profissionais() {
       email: '',
       phone: '',
     });
-  };
-
-  const getProfessionalRating = (professionalId: string) => {
-    const profFeedbacks = feedbacks.filter(f => f.professionalId === professionalId);
-    if (profFeedbacks.length === 0) return 0;
-    return (profFeedbacks.reduce((acc, f) => acc + f.rating, 0) / profFeedbacks.length).toFixed(1);
   };
 
   return (
@@ -104,9 +98,6 @@ export default function Profissionais() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {professionals.map((professional, index) => {
-          const rating = getProfessionalRating(professional.id);
-          const feedbackCount = feedbacks.filter(f => f.professionalId === professional.id).length;
-          
           return (
             <motion.div
               key={professional.id}
@@ -116,36 +107,23 @@ export default function Profissionais() {
             >
               <Card className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-6">
-                  <div className="text-center mb-4">
-                    <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <span className="text-2xl font-bold text-primary">
-                        {professional.name.split(' ').map(n => n[0]).join('')}
-                      </span>
-                    </div>
-                    <h3 className="font-semibold text-lg">{professional.name}</h3>
-                    <p className="text-sm text-muted-foreground">{professional.specialty}</p>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">{professional.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">{professional.phone}</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-semibold">{rating}</span>
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground">{professional.name}</h3>
+                        <p className="text-sm text-muted-foreground">{professional.specialty}</p>
                       </div>
-                      <span className="text-sm text-muted-foreground">
-                        {feedbackCount} {feedbackCount === 1 ? 'avaliação' : 'avaliações'}
-                      </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">{professional.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">{professional.phone}</span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

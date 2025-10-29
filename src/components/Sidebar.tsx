@@ -25,7 +25,6 @@ const navItems = [
   { to: '/agendamentos', icon: Calendar, label: 'Agendamentos' },
   { to: '/pacientes', icon: UserCircle, label: 'Pacientes' },
   { to: '/financeiro', icon: DollarSign, label: 'Financeiro' },
-  { to: '/feedbacks', icon: MessageSquare, label: 'Feedbacks' },
   { to: '/notificacoes', icon: Bell, label: 'Notificações' },
 ];
 
