@@ -166,8 +166,12 @@ export default function Financeiro() {
     });
   };
 
-  const exportToCSV = () => {
-    const csvData = filteredByDateTransactions.map(t => ({
+  const exportToCSV = (type?: 'entrada' | 'saida') => {
+    const dataToExport = type 
+      ? filteredByDateTransactions.filter(t => t.type === type)
+      : filteredByDateTransactions;
+
+    const csvData = dataToExport.map(t => ({
       Data: format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
       Tipo: t.type === 'entrada' ? 'Entrada' : 'Saída',
       Descrição: t.description,
@@ -186,8 +190,11 @@ export default function Financeiro() {
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
+    const fileName = type 
+      ? `financeiro_${type}_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`
+      : `financeiro_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`;
     link.setAttribute('href', url);
-    link.setAttribute('download', `financeiro_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`);
+    link.setAttribute('download', fileName);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -228,13 +235,18 @@ export default function Financeiro() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            {!isSecretaria && (
-              <Button onClick={exportToCSV} variant="outline" className="gap-2 w-full sm:w-auto">
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Download</span>
-                <span className="sm:hidden">Exportar CSV</span>
-              </Button>
-            )}
+            <Button onClick={() => exportToCSV('entrada')} variant="outline" className="gap-2 w-full sm:w-auto">
+              <Download className="h-4 w-4" />
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Entradas</span>
+              <span className="sm:hidden">Download Entradas</span>
+            </Button>
+            <Button onClick={() => exportToCSV('saida')} variant="outline" className="gap-2 w-full sm:w-auto">
+              <Download className="h-4 w-4" />
+              <TrendingDown className="h-4 w-4" />
+              <span className="hidden sm:inline">Saídas</span>
+              <span className="sm:hidden">Download Saídas</span>
+            </Button>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2 w-full sm:w-auto">
