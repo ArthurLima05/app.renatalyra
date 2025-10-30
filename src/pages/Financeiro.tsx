@@ -171,19 +171,25 @@ export default function Financeiro() {
       ? filteredByDateTransactions.filter(t => t.type === type)
       : filteredByDateTransactions;
 
+    const typeLabel = type === 'entrada' ? 'ENTRADAS' : type === 'saida' ? 'DESPESAS' : 'FINANCEIRO';
+    const periodLabel = `${format(dateRange.start, 'dd/MM/yyyy')} - ${format(dateRange.end, 'dd/MM/yyyy')}`;
+    
     const csvData = dataToExport.map(t => ({
-      Data: format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
-      Tipo: t.type === 'entrada' ? 'Entrada' : 'Saída',
-      Descrição: t.description,
-      Categoria: t.category,
-      Valor: t.amount.toFixed(2)
+      DATA: format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
+      'DESCRIÇÃO DA DESPESA': t.description,
+      VALOR: t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      'OBSERVAÇÕES': t.category || ''
     }));
 
-    const headers = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor'];
+    const title = `${typeLabel} DO PERÍODO ${periodLabel}`;
+    const headers = ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'];
+    
     const csvContent = [
+      title,
+      '',
       headers.join(','),
       ...csvData.map(row => 
-        Object.values(row).map(value => `"${value}"`).join(',')
+        headers.map(header => `"${row[header as keyof typeof row] || ''}"`).join(',')
       )
     ].join('\n');
 
@@ -191,7 +197,7 @@ export default function Financeiro() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     const fileName = type 
-      ? `financeiro_${type}_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`
+      ? `${typeLabel}_do_período_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`
       : `financeiro_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`;
     link.setAttribute('href', url);
     link.setAttribute('download', fileName);
