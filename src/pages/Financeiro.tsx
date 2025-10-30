@@ -19,6 +19,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, eachMonthOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import * as XLSX from 'xlsx';
 
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
@@ -166,45 +167,69 @@ export default function Financeiro() {
     });
   };
 
-  const exportToCSV = (type?: 'entrada' | 'saida') => {
-    const dataToExport = type 
+  const exportToExcel = (type?: 'entrada' | 'saida') => {
+    const dataToExport = type
       ? filteredByDateTransactions.filter(t => t.type === type)
       : filteredByDateTransactions;
 
     const typeLabel = type === 'entrada' ? 'ENTRADAS' : type === 'saida' ? 'DESPESAS' : 'FINANCEIRO';
     const periodLabel = `${format(dateRange.start, 'dd/MM/yyyy')} - ${format(dateRange.end, 'dd/MM/yyyy')}`;
-    
-    const csvData = dataToExport.map(t => ({
-      DATA: format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
-      'DESCRIÇÃO DA DESPESA': t.description,
-      VALOR: t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      'OBSERVAÇÕES': t.category || ''
-    }));
-
     const title = `${typeLabel} DO PERÍODO ${periodLabel}`;
-    const headers = ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'];
     
-    const csvContent = [
-      title,
-      '',
-      headers.join(','),
-      ...csvData.map(row => 
-        headers.map(header => `"${row[header as keyof typeof row] || ''}"`).join(',')
-      )
-    ].join('\n');
+    // Criar workbook e worksheet
+    const wb = XLSX.utils.book_new();
+    
+    // Preparar dados da tabela
+    const tableData = dataToExport.map(t => [
+      format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
+      t.description,
+      t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      t.category || ''
+    ]);
 
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    const fileName = type 
-      ? `${typeLabel}_do_período_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`
-      : `financeiro_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`;
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Criar array com título, linha vazia, headers e dados
+    const wsData = [
+      [title], // Linha do título
+      [], // Linha vazia
+      ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'], // Headers
+      ...tableData
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Mesclar células do título (A1 até D1)
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+    // Definir larguras das colunas
+    ws['!cols'] = [
+      { wch: 12 }, // DATA
+      { wch: 40 }, // DESCRIÇÃO DA DESPESA
+      { wch: 15 }, // VALOR
+      { wch: 25 }  // OBSERVAÇÕES
+    ];
+
+    // Aplicar estilos ao título (negrito e centralizado)
+    if (ws['A1']) {
+      ws['A1'].s = {
+        font: { bold: true, sz: 14 },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+    }
+
+    // Estilo dos headers (negrito)
+    ['A3', 'B3', 'C3', 'D3'].forEach(cell => {
+      if (ws[cell]) {
+        ws[cell].s = {
+          font: { bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+      }
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Financeiro');
+
+    const fileName = `${typeLabel}_do_período_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const handleDeleteTransaction = async () => {
@@ -241,13 +266,13 @@ export default function Financeiro() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => exportToCSV('entrada')} variant="outline" className="gap-2 w-full sm:w-auto">
+            <Button onClick={() => exportToExcel('entrada')} variant="outline" className="gap-2 w-full sm:w-auto">
               <Download className="h-4 w-4" />
               <TrendingUp className="h-4 w-4" />
               <span className="hidden sm:inline">Entradas</span>
               <span className="sm:hidden">Download Entradas</span>
             </Button>
-            <Button onClick={() => exportToCSV('saida')} variant="outline" className="gap-2 w-full sm:w-auto">
+            <Button onClick={() => exportToExcel('saida')} variant="outline" className="gap-2 w-full sm:w-auto">
               <Download className="h-4 w-4" />
               <TrendingDown className="h-4 w-4" />
               <span className="hidden sm:inline">Saídas</span>
