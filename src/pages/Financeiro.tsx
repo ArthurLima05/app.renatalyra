@@ -167,7 +167,7 @@ export default function Financeiro() {
     });
   };
 
-  const exportToExcel = (type?: 'entrada' | 'saida') => {
+  const exportToExcelAnual = (type?: 'entrada' | 'saida') => {
     const wb = XLSX.utils.book_new();
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth(); // 0-11
@@ -264,6 +264,64 @@ export default function Financeiro() {
     XLSX.writeFile(wb, fileName);
   };
 
+  const exportToExcelPeriodo = (type?: 'entrada' | 'saida') => {
+    const dataToExport = type
+      ? filteredByDateTransactions.filter(t => t.type === type)
+      : filteredByDateTransactions;
+
+    const typeLabel = type === 'entrada' ? 'ENTRADAS' : type === 'saida' ? 'DESPESAS' : 'FINANCEIRO';
+    const periodLabel = `${format(dateRange.start, 'dd/MM/yyyy')} - ${format(dateRange.end, 'dd/MM/yyyy')}`;
+    const title = `${typeLabel} DO PERÍODO ${periodLabel}`;
+    
+    const wb = XLSX.utils.book_new();
+    
+    const tableData = dataToExport.map(t => [
+      format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
+      t.description,
+      t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      t.category || ''
+    ]);
+
+    const wsData = [
+      [title],
+      [],
+      ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'],
+      ...tableData
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+    ws['!cols'] = [
+      { wch: 12 },
+      { wch: 40 },
+      { wch: 15 },
+      { wch: 25 }
+    ];
+
+    if (ws['A1']) {
+      ws['A1'].s = {
+        font: { bold: true, sz: 14 },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+    }
+
+    ['A3', 'B3', 'C3', 'D3'].forEach(cell => {
+      if (ws[cell]) {
+        ws[cell].s = {
+          font: { bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+      }
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Período');
+
+    const fileName = `${typeLabel}_do_período_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
   const handleDeleteTransaction = async () => {
     if (transactionToDelete) {
       await deleteTransaction(transactionToDelete);
@@ -298,18 +356,45 @@ export default function Financeiro() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => exportToExcel('entrada')} variant="outline" className="gap-2 w-full sm:w-auto">
-              <Download className="h-4 w-4" />
-              <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline">Entradas</span>
-              <span className="sm:hidden">Download Entradas</span>
-            </Button>
-            <Button onClick={() => exportToExcel('saida')} variant="outline" className="gap-2 w-full sm:w-auto">
-              <Download className="h-4 w-4" />
-              <TrendingDown className="h-4 w-4" />
-              <span className="hidden sm:inline">Saídas</span>
-              <span className="sm:hidden">Download Saídas</span>
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                  <Download className="h-4 w-4" />
+                  <TrendingUp className="h-4 w-4" />
+                  Entradas
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48">
+                <div className="flex flex-col gap-2">
+                  <Button onClick={() => exportToExcelAnual('entrada')} variant="ghost" size="sm" className="w-full justify-start">
+                    Anual (12 meses)
+                  </Button>
+                  <Button onClick={() => exportToExcelPeriodo('entrada')} variant="ghost" size="sm" className="w-full justify-start">
+                    Período Atual
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                  <Download className="h-4 w-4" />
+                  <TrendingDown className="h-4 w-4" />
+                  Saídas
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48">
+                <div className="flex flex-col gap-2">
+                  <Button onClick={() => exportToExcelAnual('saida')} variant="ghost" size="sm" className="w-full justify-start">
+                    Anual (12 meses)
+                  </Button>
+                  <Button onClick={() => exportToExcelPeriodo('saida')} variant="ghost" size="sm" className="w-full justify-start">
+                    Período Atual
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2 w-full sm:w-auto">
