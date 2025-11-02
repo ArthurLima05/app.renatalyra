@@ -168,67 +168,99 @@ export default function Financeiro() {
   };
 
   const exportToExcel = (type?: 'entrada' | 'saida') => {
-    const dataToExport = type
-      ? filteredByDateTransactions.filter(t => t.type === type)
-      : filteredByDateTransactions;
+    const wb = XLSX.utils.book_new();
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth(); // 0-11
+    
+    const monthNames = [
+      'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
+      'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
+    ];
 
     const typeLabel = type === 'entrada' ? 'ENTRADAS' : type === 'saida' ? 'DESPESAS' : 'FINANCEIRO';
-    const periodLabel = `${format(dateRange.start, 'dd/MM/yyyy')} - ${format(dateRange.end, 'dd/MM/yyyy')}`;
-    const title = `${typeLabel} DO PERÍODO ${periodLabel}`;
-    
-    // Criar workbook e worksheet
-    const wb = XLSX.utils.book_new();
-    
-    // Preparar dados da tabela
-    const tableData = dataToExport.map(t => [
-      format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
-      t.description,
-      t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      t.category || ''
-    ]);
 
-    // Criar array com título, linha vazia, headers e dados
-    const wsData = [
-      [title], // Linha do título
-      [], // Linha vazia
-      ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'], // Headers
-      ...tableData
-    ];
+    // Criar uma aba para cada mês
+    monthNames.forEach((monthName, monthIndex) => {
+      // Filtrar transações do mês específico
+      const monthStart = new Date(currentYear, monthIndex, 1);
+      const monthEnd = endOfMonth(monthStart);
+      
+      const monthTransactions = transactions.filter(t => {
+        const tDate = new Date(t.date);
+        return tDate >= monthStart && tDate <= monthEnd &&
+               (type ? t.type === type : true);
+      });
 
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
+      // Preparar dados da tabela
+      const tableData = monthTransactions.map(t => [
+        format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
+        t.description,
+        t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        t.category || ''
+      ]);
 
-    // Mesclar células do título (A1 até D1)
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+      // Criar título com o período do mês
+      const title = `${typeLabel} DO PERÍODO ${format(monthStart, 'dd/MM/yyyy')} - ${format(monthEnd, 'dd/MM/yyyy')}`;
 
-    // Definir larguras das colunas
-    ws['!cols'] = [
-      { wch: 12 }, // DATA
-      { wch: 40 }, // DESCRIÇÃO DA DESPESA
-      { wch: 15 }, // VALOR
-      { wch: 25 }  // OBSERVAÇÕES
-    ];
+      // Criar array com título, linha vazia, headers e dados
+      const wsData = [
+        [title],
+        [],
+        ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'],
+        ...tableData
+      ];
 
-    // Aplicar estilos ao título (negrito e centralizado)
-    if (ws['A1']) {
-      ws['A1'].s = {
-        font: { bold: true, sz: 14 },
-        alignment: { horizontal: 'center', vertical: 'center' }
-      };
-    }
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // Estilo dos headers (negrito)
-    ['A3', 'B3', 'C3', 'D3'].forEach(cell => {
-      if (ws[cell]) {
-        ws[cell].s = {
-          font: { bold: true },
+      // Mesclar células do título (A1 até D1)
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+      // Definir larguras das colunas
+      ws['!cols'] = [
+        { wch: 12 },
+        { wch: 40 },
+        { wch: 15 },
+        { wch: 25 }
+      ];
+
+      // Aplicar estilos ao título
+      if (ws['A1']) {
+        ws['A1'].s = {
+          font: { bold: true, sz: 14 },
           alignment: { horizontal: 'center', vertical: 'center' }
         };
       }
+
+      // Estilo dos headers
+      ['A3', 'B3', 'C3', 'D3'].forEach(cell => {
+        if (ws[cell]) {
+          ws[cell].s = {
+            font: { bold: true },
+            alignment: { horizontal: 'center', vertical: 'center' }
+          };
+        }
+      });
+
+      // Aplicar background cinzento no mês atual
+      if (monthIndex === currentMonth) {
+        // Aplicar cor de fundo nas células de dados do mês atual
+        for (let row = 3; row < wsData.length; row++) {
+          ['A', 'B', 'C', 'D'].forEach(col => {
+            const cellRef = `${col}${row + 1}`;
+            if (ws[cellRef]) {
+              ws[cellRef].s = {
+                ...ws[cellRef].s,
+                fill: { fgColor: { rgb: "D3D3D3" } }
+              };
+            }
+          });
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, monthName);
     });
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Financeiro');
-
-    const fileName = `${typeLabel}_do_período_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.xlsx`;
+    const fileName = `${typeLabel}_${currentYear}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
 
