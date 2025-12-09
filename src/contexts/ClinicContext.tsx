@@ -476,7 +476,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (appointment) {
         const patient = patients.find((p) => p.id === appointment.patientId);
         if (patient) {
-          const feedbackLink = `${window.location.origin}/feedback/${patient.id}`;
+          const feedbackLink = `https://search.google.com/local/writereview?placeid=ChIJ542NAkYfqwcR-l-sSWB3u_0`;
 
           try {
             await fetch("https://testetecchclin.app.n8n.cloud/webhook-test/enviar-feedback", {
