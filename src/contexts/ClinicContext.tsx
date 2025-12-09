@@ -479,7 +479,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const feedbackLink = `https://search.google.com/local/writereview?placeid=ChIJ542NAkYfqwcR-l-sSWB3u_0`;
 
           try {
-            await fetch("https://testetecchclin.app.n8n.cloud/webhook-test/enviar-feedback", {
+            await fetch("https://testetecchclin.app.n8n.cloud/webhook/enviar-feedback", {
               method: "POST",
               mode: "no-cors", // Necessário para evitar erro de CORS
               headers: {
