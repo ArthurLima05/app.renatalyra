@@ -19,6 +19,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, eachMonthOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import * as XLSX from 'xlsx';
 
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
@@ -166,39 +167,159 @@ export default function Financeiro() {
     });
   };
 
-  const exportToCSV = (type?: 'entrada' | 'saida') => {
-    const dataToExport = type 
+  const exportToExcelAnual = (type?: 'entrada' | 'saida') => {
+    const wb = XLSX.utils.book_new();
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth(); // 0-11
+    
+    const monthNames = [
+      'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
+      'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
+    ];
+
+    const typeLabel = type === 'entrada' ? 'ENTRADAS' : type === 'saida' ? 'DESPESAS' : 'FINANCEIRO';
+
+    // Criar uma aba para cada mês
+    monthNames.forEach((monthName, monthIndex) => {
+      // Filtrar transações do mês específico
+      const monthStart = new Date(currentYear, monthIndex, 1);
+      const monthEnd = endOfMonth(monthStart);
+      
+      const monthTransactions = transactions.filter(t => {
+        const tDate = new Date(t.date);
+        return tDate >= monthStart && tDate <= monthEnd &&
+               (type ? t.type === type : true);
+      });
+
+      // Preparar dados da tabela
+      const tableData = monthTransactions.map(t => [
+        format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
+        t.description,
+        t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        t.category || ''
+      ]);
+
+      // Criar título com o período do mês
+      const title = `${typeLabel} DO PERÍODO ${format(monthStart, 'dd/MM/yyyy')} - ${format(monthEnd, 'dd/MM/yyyy')}`;
+
+      // Criar array com título, linha vazia, headers e dados
+      const wsData = [
+        [title],
+        [],
+        ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'],
+        ...tableData
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      // Mesclar células do título (A1 até D1)
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+      // Definir larguras das colunas
+      ws['!cols'] = [
+        { wch: 12 },
+        { wch: 40 },
+        { wch: 15 },
+        { wch: 25 }
+      ];
+
+      // Aplicar estilos ao título
+      if (ws['A1']) {
+        ws['A1'].s = {
+          font: { bold: true, sz: 14 },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+      }
+
+      // Estilo dos headers
+      ['A3', 'B3', 'C3', 'D3'].forEach(cell => {
+        if (ws[cell]) {
+          ws[cell].s = {
+            font: { bold: true },
+            alignment: { horizontal: 'center', vertical: 'center' }
+          };
+        }
+      });
+
+      // Aplicar background cinzento no mês atual
+      if (monthIndex === currentMonth) {
+        // Aplicar cor de fundo nas células de dados do mês atual
+        for (let row = 3; row < wsData.length; row++) {
+          ['A', 'B', 'C', 'D'].forEach(col => {
+            const cellRef = `${col}${row + 1}`;
+            if (ws[cellRef]) {
+              ws[cellRef].s = {
+                ...ws[cellRef].s,
+                fill: { fgColor: { rgb: "D3D3D3" } }
+              };
+            }
+          });
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, monthName);
+    });
+
+    const fileName = `${typeLabel}_${currentYear}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const exportToExcelPeriodo = (type?: 'entrada' | 'saida') => {
+    const dataToExport = type
       ? filteredByDateTransactions.filter(t => t.type === type)
       : filteredByDateTransactions;
 
-    const csvData = dataToExport.map(t => ({
-      Data: format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
-      Tipo: t.type === 'entrada' ? 'Entrada' : 'Saída',
-      Descrição: t.description,
-      Categoria: t.category,
-      Valor: t.amount.toFixed(2)
-    }));
+    const typeLabel = type === 'entrada' ? 'ENTRADAS' : type === 'saida' ? 'DESPESAS' : 'FINANCEIRO';
+    const periodLabel = `${format(dateRange.start, 'dd/MM/yyyy')} - ${format(dateRange.end, 'dd/MM/yyyy')}`;
+    const title = `${typeLabel} DO PERÍODO ${periodLabel}`;
+    
+    const wb = XLSX.utils.book_new();
+    
+    const tableData = dataToExport.map(t => [
+      format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
+      t.description,
+      t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      t.category || ''
+    ]);
 
-    const headers = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor'];
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => 
-        Object.values(row).map(value => `"${value}"`).join(',')
-      )
-    ].join('\n');
+    const wsData = [
+      [title],
+      [],
+      ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'],
+      ...tableData
+    ];
 
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    const fileName = type 
-      ? `financeiro_${type}_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`
-      : `financeiro_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.csv`;
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+    ws['!cols'] = [
+      { wch: 12 },
+      { wch: 40 },
+      { wch: 15 },
+      { wch: 25 }
+    ];
+
+    if (ws['A1']) {
+      ws['A1'].s = {
+        font: { bold: true, sz: 14 },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+    }
+
+    ['A3', 'B3', 'C3', 'D3'].forEach(cell => {
+      if (ws[cell]) {
+        ws[cell].s = {
+          font: { bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+      }
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Período');
+
+    const fileName = `${typeLabel}_do_período_${format(dateRange.start, 'dd-MM-yyyy')}_${format(dateRange.end, 'dd-MM-yyyy')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const handleDeleteTransaction = async () => {
@@ -235,18 +356,45 @@ export default function Financeiro() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => exportToCSV('entrada')} variant="outline" className="gap-2 w-full sm:w-auto">
-              <Download className="h-4 w-4" />
-              <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline">Entradas</span>
-              <span className="sm:hidden">Download Entradas</span>
-            </Button>
-            <Button onClick={() => exportToCSV('saida')} variant="outline" className="gap-2 w-full sm:w-auto">
-              <Download className="h-4 w-4" />
-              <TrendingDown className="h-4 w-4" />
-              <span className="hidden sm:inline">Saídas</span>
-              <span className="sm:hidden">Download Saídas</span>
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                  <Download className="h-4 w-4" />
+                  <TrendingUp className="h-4 w-4" />
+                  Entradas
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48">
+                <div className="flex flex-col gap-2">
+                  <Button onClick={() => exportToExcelAnual('entrada')} variant="ghost" size="sm" className="w-full justify-start">
+                    Anual (12 meses)
+                  </Button>
+                  <Button onClick={() => exportToExcelPeriodo('entrada')} variant="ghost" size="sm" className="w-full justify-start">
+                    Período Atual
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                  <Download className="h-4 w-4" />
+                  <TrendingDown className="h-4 w-4" />
+                  Saídas
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48">
+                <div className="flex flex-col gap-2">
+                  <Button onClick={() => exportToExcelAnual('saida')} variant="ghost" size="sm" className="w-full justify-start">
+                    Anual (12 meses)
+                  </Button>
+                  <Button onClick={() => exportToExcelPeriodo('saida')} variant="ghost" size="sm" className="w-full justify-start">
+                    Período Atual
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2 w-full sm:w-auto">
