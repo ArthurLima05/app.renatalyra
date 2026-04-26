@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2 } from 'lucide-react';
-import { AppointmentStatus, PaymentStatus, SessionType } from '@/types';
+import { SessionStatus, PaymentStatus, SessionType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -85,7 +85,7 @@ const ProntuarioPaciente = () => {
   const [isDeletingPatient, setIsDeletingPatient] = useState(false);
   const [sessionData, setSessionData] = useState({
     date: '',
-    type: '',
+    procedure: '',
     sessionTypeSelection: '' as 'primeira_consulta' | 'retorno' | 'outra' | '',
     customType: '',
     notes: '',
@@ -129,7 +129,7 @@ const ProntuarioPaciente = () => {
         // Editar sessão existente
         updateSession(editingSessionId, {
           date: new Date(sessionData.date),
-          type: sessionData.type,
+          procedure: sessionData.procedure,
           notes: sessionData.notes,
           amount: parseFloat(sessionData.amount),
           paymentStatus: sessionData.paymentStatus,
@@ -152,7 +152,7 @@ const ProntuarioPaciente = () => {
         addSession({
           patientId: id,
           date: new Date(sessionData.date),
-          type: sessionData.type,
+          procedure: sessionData.procedure,
           sessionType: sessionType,
           status: 'realizado',
           notes: finalNotes,
@@ -165,7 +165,7 @@ const ProntuarioPaciente = () => {
       }
       setSessionData({
         date: '',
-        type: '',
+        procedure: '',
         sessionTypeSelection: '',
         customType: '',
         notes: '',
@@ -184,7 +184,7 @@ const ProntuarioPaciente = () => {
     setEditingSessionId(session.id);
     setSessionData({
       date: session.date.toISOString().split('T')[0],
-      type: session.type,
+      procedure: session.procedure,
       sessionTypeSelection: '',
       customType: '',
       notes: session.notes || '',
@@ -235,7 +235,6 @@ const ProntuarioPaciente = () => {
         date: appointmentDate,
         time: appointmentData.time,
         status: 'agendado',
-        origin: patient.origin,
       });
 
       setAppointmentData({
@@ -268,22 +267,16 @@ const ProntuarioPaciente = () => {
     .filter(s => s.paymentStatus === 'em_aberto')
     .reduce((sum, s) => sum + s.amount, 0);
 
-  const getStatusBadge = (status: AppointmentStatus) => {
-    const variants: Record<AppointmentStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      agendado: 'secondary',
-      confirmado: 'default',
-      realizado: 'outline',
-      cancelado: 'destructive',
-      falta: 'destructive',
+  const getStatusBadge = (status: SessionStatus) => {
+    const variants: Record<SessionStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       sugerido: 'outline',
+      agendado: 'secondary',
+      realizado: 'outline',
     };
-    const labels: Record<AppointmentStatus, string> = {
-      agendado: 'Agendado',
-      confirmado: 'Confirmado',
-      realizado: 'Realizado',
-      cancelado: 'Cancelado',
-      falta: 'Falta',
+    const labels: Record<SessionStatus, string> = {
       sugerido: '',
+      agendado: 'Agendado',
+      realizado: 'Realizado',
     };
     return status === 'sugerido' ? null : <Badge variant={variants[status]}>{labels[status]}</Badge>;
   };
@@ -594,8 +587,8 @@ const ProntuarioPaciente = () => {
                   <div>
                     <Label>Título do Atendimento *</Label>
                     <Input
-                      value={sessionData.type}
-                      onChange={(e) => setSessionData({ ...sessionData, type: e.target.value })}
+                      value={sessionData.procedure}
+                      onChange={(e) => setSessionData({ ...sessionData, procedure: e.target.value })}
                       placeholder="Ex: Limpeza, Botox, Laser..."
                       required
                     />
@@ -689,7 +682,7 @@ const ProntuarioPaciente = () => {
                       <div className="flex flex-col gap-4">
                         <div className="space-y-2 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm sm:text-base font-semibold">{session.type}</h4>
+                            <h4 className="text-sm sm:text-base font-semibold">{session.procedure}</h4>
                             <Badge variant="secondary" className="text-xs">{sessionTypeLabels[session.sessionType]}</Badge>
                             {getStatusBadge(session.status)}
                           </div>
@@ -807,7 +800,7 @@ const ProntuarioPaciente = () => {
                     <CardContent className="pt-4 sm:pt-6">
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="flex-1">
-                          <p className="text-sm sm:text-base font-medium">{session.type}</p>
+                          <p className="text-sm sm:text-base font-medium">{session.procedure}</p>
                           <p className="text-xs sm:text-sm text-muted-foreground">
                             {session.date.toLocaleDateString('pt-BR')}
                           </p>

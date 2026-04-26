@@ -213,7 +213,6 @@ export default function Agendamentos() {
         date: appointmentDate,
         time: formData.time,
         status: "agendado",
-        origin: selectedPatient.origin,
       });
 
       setIsOpen(false);
@@ -532,7 +531,6 @@ export default function Agendamentos() {
                             <p className="text-xs sm:text-sm mt-1">
                               {appointment.date.toLocaleDateString("pt-BR")} às {appointment.time}
                             </p>
-                            <p className="text-xs text-muted-foreground mt-1">Origem: {appointment.origin}</p>
                           </div>
                         </div>
                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
@@ -695,7 +693,6 @@ export default function Agendamentos() {
                             <p className="text-xs sm:text-sm mt-1">
                               {appointment.date.toLocaleDateString("pt-BR")} às {appointment.time}
                             </p>
-                            <p className="text-xs text-muted-foreground mt-1">Origem: {appointment.origin}</p>
                           </div>
                         </div>
                         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">

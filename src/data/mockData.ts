@@ -1,4 +1,4 @@
-import { Professional, Appointment, Transaction, Feedback, Patient, Session } from '@/types';
+import { Professional, Appointment, Transaction, Patient, Session } from '@/types';
 
 export const mockProfessionals: Professional[] = [
   {
@@ -7,7 +7,6 @@ export const mockProfessionals: Professional[] = [
     specialty: 'Dermatologia',
     email: 'renata@clinicalyra.com',
     phone: '(11) 98765-4321',
-    averageRating: 4.8,
   },
   {
     id: '2',
@@ -15,7 +14,6 @@ export const mockProfessionals: Professional[] = [
     specialty: 'Estética',
     email: 'carlos@clinicalyra.com',
     phone: '(11) 98765-4322',
-    averageRating: 4.6,
   },
 ];
 
@@ -28,7 +26,6 @@ export const mockAppointments: Appointment[] = [
     date: new Date(2025, 9, 20),
     time: '09:00',
     status: 'confirmado',
-    origin: 'Instagram',
     createdAt: new Date(2025, 9, 5),
   },
   {
@@ -39,7 +36,6 @@ export const mockAppointments: Appointment[] = [
     date: new Date(2025, 9, 22),
     time: '14:30',
     status: 'agendado',
-    origin: 'Google Ads',
     createdAt: new Date(2025, 9, 6),
   },
   {
@@ -50,7 +46,6 @@ export const mockAppointments: Appointment[] = [
     date: new Date(2025, 9, 5),
     time: '10:00',
     status: 'realizado',
-    origin: 'Indicação',
     createdAt: new Date(2025, 8, 30),
   },
   {
@@ -61,7 +56,6 @@ export const mockAppointments: Appointment[] = [
     date: new Date(2025, 8, 15),
     time: '11:00',
     status: 'realizado',
-    origin: 'Instagram',
     createdAt: new Date(2025, 8, 10),
   },
   {
@@ -72,7 +66,6 @@ export const mockAppointments: Appointment[] = [
     date: new Date(2025, 8, 20),
     time: '15:00',
     status: 'cancelado',
-    origin: 'Google Ads',
     createdAt: new Date(2025, 8, 15),
   },
   {
@@ -83,7 +76,6 @@ export const mockAppointments: Appointment[] = [
     date: new Date(2025, 7, 10),
     time: '09:30',
     status: 'realizado',
-    origin: 'Google Ads',
     createdAt: new Date(2025, 7, 5),
   },
   {
@@ -94,7 +86,6 @@ export const mockAppointments: Appointment[] = [
     date: new Date(2025, 7, 25),
     time: '14:00',
     status: 'falta',
-    origin: 'Indicação',
     createdAt: new Date(2025, 7, 20),
   },
 ];
@@ -123,29 +114,6 @@ export const mockTransactions: Transaction[] = [
     amount: 800,
     date: new Date(2025, 9, 8),
     category: 'Procedimento',
-  },
-];
-
-export const mockFeedbacks: Feedback[] = [
-  {
-    id: '1',
-    patientId: '1',
-    patientName: 'Maria Santos',
-    rating: 5,
-    comment: 'Excelente atendimento! Muito profissional e atenciosa.',
-    origin: 'Instagram',
-    date: new Date(2025, 9, 8),
-    professionalId: '1',
-  },
-  {
-    id: '2',
-    patientId: '2',
-    patientName: 'Pedro Lima',
-    rating: 4,
-    comment: 'Bom atendimento, ambiente agradável.',
-    origin: 'Google Ads',
-    date: new Date(2025, 9, 7),
-    professionalId: '2',
   },
 ];
 
@@ -191,7 +159,7 @@ export const mockSessions: Session[] = [
     id: 's1',
     patientId: 'p1',
     date: new Date(2025, 9, 8),
-    type: 'Limpeza de Pele',
+    procedure: 'Limpeza de Pele',
     sessionType: 'retorno',
     status: 'realizado',
     notes: 'Procedimento realizado com sucesso. Pele respondeu bem ao tratamento.',
@@ -204,7 +172,7 @@ export const mockSessions: Session[] = [
     id: 's2',
     patientId: 'p1',
     date: new Date(2025, 8, 10),
-    type: 'Preenchimento',
+    procedure: 'Preenchimento',
     sessionType: 'primeira_consulta',
     status: 'realizado',
     notes: 'Aplicação de ácido hialurônico.',
@@ -216,7 +184,7 @@ export const mockSessions: Session[] = [
     id: 's3',
     patientId: 'p2',
     date: new Date(2025, 9, 10),
-    type: 'Consulta Inicial',
+    procedure: 'Consulta Inicial',
     sessionType: 'primeira_consulta',
     status: 'agendado',
     amount: 250,
@@ -227,7 +195,7 @@ export const mockSessions: Session[] = [
     id: 's4',
     patientId: 'p3',
     date: new Date(2025, 9, 8),
-    type: 'Laser',
+    procedure: 'Laser',
     sessionType: 'consulta_avulsa',
     status: 'realizado',
     notes: 'Sessão de laser facial. Paciente tolerou bem o procedimento.',
@@ -239,7 +207,7 @@ export const mockSessions: Session[] = [
     id: 's5',
     patientId: 'p3',
     date: new Date(2025, 8, 15),
-    type: 'Botox',
+    procedure: 'Botox',
     sessionType: 'retorno',
     status: 'realizado',
     amount: 1200,

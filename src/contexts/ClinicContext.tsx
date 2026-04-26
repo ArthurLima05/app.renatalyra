@@ -3,10 +3,10 @@ import {
   Appointment,
   Professional,
   Transaction,
-  Feedback,
   Notification,
   Patient,
   Session,
+  SessionStatus,
   AppointmentStatus,
   Installment,
 } from "@/types";
@@ -74,7 +74,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "professionals" }, (payload) => {
         const newPro = {
           ...payload.new,
-          averageRating: payload.new.average_rating ? Number(payload.new.average_rating) : undefined,
           createdAt: new Date(payload.new.created_at),
         } as Professional;
         setProfessionals((prev) => [...prev, newPro]);
@@ -82,7 +81,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "professionals" }, (payload) => {
         const updated = {
           ...payload.new,
-          averageRating: payload.new.average_rating ? Number(payload.new.average_rating) : undefined,
           createdAt: new Date(payload.new.created_at),
         } as Professional;
         setProfessionals((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -131,9 +129,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           id: payload.new.id,
           patientId: payload.new.patient_id,
           date: new Date(payload.new.date),
-          type: payload.new.type,
+          procedure: payload.new.type,
           sessionType: payload.new.session_type,
-          status: payload.new.status,
+          status: payload.new.status as SessionStatus,
           amount: Number(payload.new.amount),
           paymentStatus: payload.new.payment_status,
           nextAppointment: payload.new.next_appointment ? new Date(payload.new.next_appointment) : undefined,
@@ -147,9 +145,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           id: payload.new.id,
           patientId: payload.new.patient_id,
           date: new Date(payload.new.date),
-          type: payload.new.type,
+          procedure: payload.new.type,
           sessionType: payload.new.session_type,
-          status: payload.new.status,
+          status: payload.new.status as SessionStatus,
           amount: Number(payload.new.amount),
           paymentStatus: payload.new.payment_status,
           nextAppointment: payload.new.next_appointment ? new Date(payload.new.next_appointment) : undefined,
@@ -287,7 +285,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setProfessionals(
       (data || []).map((p) => ({
         ...p,
-        averageRating: p.average_rating ? Number(p.average_rating) : undefined,
         createdAt: new Date(p.created_at),
       })),
     );
@@ -329,7 +326,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         date: new Date(a.date),
         time: a.time,
         status: a.status as AppointmentStatus,
-        origin: a.origin as any,
         notes: a.notes || undefined,
         createdAt: new Date(a.created_at),
         sessionId: a.session_id || undefined,
@@ -345,16 +341,17 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     setSessions(
       (data || []).map((s) => ({
-        ...s,
+        id: s.id,
         patientId: s.patient_id,
         date: new Date(s.date),
+        procedure: s.type,
         sessionType: s.session_type as any,
-        status: s.status as AppointmentStatus,
+        status: s.status as SessionStatus,
+        notes: s.notes || undefined,
         amount: Number(s.amount),
         paymentStatus: s.payment_status as any,
         nextAppointment: s.next_appointment ? new Date(s.next_appointment) : undefined,
         professionalId: s.professional_id || undefined,
-        createdAt: new Date(s.created_at),
       })),
     );
   };
@@ -421,6 +418,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addAppointment = async (appointment: Omit<Appointment, "id" | "createdAt">) => {
+    const patient = patients.find((p) => p.id === appointment.patientId);
     const { data, error } = await supabase
       .from("appointments")
       .insert({
@@ -429,9 +427,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         date: appointment.date.toISOString(),
         time: appointment.time,
         status: appointment.status,
-        origin: appointment.origin,
         notes: appointment.notes,
         session_id: appointment.sessionId,
+        origin: patient?.origin ?? "Outro",
       })
       .select()
       .single();
@@ -551,7 +549,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       specialty: professional.specialty,
       email: professional.email,
       phone: professional.phone,
-      average_rating: professional.averageRating,
     });
 
     if (error) {
@@ -773,7 +770,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .insert({
         patient_id: session.patientId,
         date: session.date.toISOString(),
-        type: session.type,
+        type: session.procedure,
         session_type: session.sessionType,
         status: "sugerido",
         notes: session.notes,
@@ -841,7 +838,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (session.paymentStatus === "pago" && session.amount > 0) {
       await supabase.from("transactions").insert({
         type: "entrada",
-        description: `Pagamento - ${session.type}`,
+        description: `Pagamento - ${session.procedure}`,
         amount: session.amount,
         date: session.date.toISOString(),
         category: "Consulta",
@@ -856,7 +853,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateSession = async (id: string, session: Partial<Session>) => {
     const updateData: any = {};
     if (session.date) updateData.date = session.date.toISOString();
-    if (session.type) updateData.type = session.type;
+    if (session.procedure) updateData.type = session.procedure;
     if (session.sessionType) updateData.session_type = session.sessionType;
     if (session.status) updateData.status = session.status;
     if (session.notes !== undefined) updateData.notes = session.notes;
@@ -880,7 +877,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (existingSession && existingSession.paymentStatus !== "pago") {
         await supabase.from("transactions").insert({
           type: "entrada",
-          description: `Pagamento - ${existingSession.type}`,
+          description: `Pagamento - ${existingSession.procedure}`,
           amount: session.amount || existingSession.amount,
           date: new Date().toISOString(),
           category: "Consulta",
@@ -941,7 +938,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         await supabase.from("transactions").insert({
           type: "entrada",
-          description: `Parcela ${installment.installmentNumber}/${installment.totalInstallments} - ${session?.type || "Sessão"}${patient ? ` - ${patient.fullName}` : ""}`,
+          description: `Parcela ${installment.installmentNumber}/${installment.totalInstallments} - ${session?.procedure || "Sessão"}${patient ? ` - ${patient.fullName}` : ""}`,
           amount: installment.amount,
           category: "Sessões",
           date: data.paidDate?.toISOString() || new Date().toISOString(),
