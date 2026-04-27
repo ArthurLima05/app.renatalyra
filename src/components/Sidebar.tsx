@@ -4,11 +4,10 @@ import {
   LayoutDashboard,
   Calendar,
   DollarSign,
-  MessageSquare,
-  Users,
   Bell,
   UserCircle,
   LogOut,
+  Stethoscope,
 } from 'lucide-react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -21,9 +20,10 @@ import logoClinicaDark from '@/assets/logo-clinica-dark.png';
 import logoMobile from '@/assets/logo-mobile.png';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/agendamentos', icon: Calendar, label: 'Agendamentos' },
+  { to: '/', icon: Calendar, label: 'Agendamentos' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/pacientes', icon: UserCircle, label: 'Pacientes' },
+  { to: '/profissionais', icon: Stethoscope, label: 'Profissionais' },
   { to: '/financeiro', icon: DollarSign, label: 'Financeiro' },
   { to: '/notificacoes', icon: Bell, label: 'Notificações' },
 ];

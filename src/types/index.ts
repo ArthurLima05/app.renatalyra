@@ -22,6 +22,7 @@ export interface Appointment {
   professionalId: string;
   date: Date;
   time: string;
+  duration: number;
   status: AppointmentStatus;
   notes?: string;
   createdAt: Date;

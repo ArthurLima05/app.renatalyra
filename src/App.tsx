@@ -12,6 +12,7 @@ import Pacientes from "./pages/Pacientes";
 import ProntuarioPaciente from "./pages/ProntuarioPaciente";
 import Financeiro from "./pages/Financeiro";
 import Notificacoes from "./pages/Notificacoes";
+import Profissionais from "./pages/Profissionais";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -26,13 +27,14 @@ const App = () => (
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route element={<ProtectedRoute><ClinicProvider><Layout /></ClinicProvider></ProtectedRoute>}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/agendamentos" element={<Agendamentos />} />
+            <Route path="/" element={<Agendamentos />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/pacientes" element={<Pacientes />} />
             <Route path="/pacientes/:id" element={<ProntuarioPaciente />} />
             <Route path="/prontuario/:id" element={<ProntuarioPaciente />} />
             <Route path="/financeiro" element={<Financeiro />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
+            <Route path="/profissionais" element={<Profissionais />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

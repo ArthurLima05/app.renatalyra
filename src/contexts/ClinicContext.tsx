@@ -24,10 +24,13 @@ interface ClinicContextType {
   loading: boolean;
   addAppointment: (appointment: Omit<Appointment, "id" | "createdAt">) => Promise<void>;
   updateAppointmentStatus: (id: string, status: AppointmentStatus) => Promise<void>;
+  updateAppointmentTime: (id: string, date: Date, time: string, duration: number) => Promise<void>;
+  updateAppointmentProfessional: (id: string, professionalId: string) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addProfessional: (professional: Omit<Professional, "id">) => Promise<void>;
+  updateProfessional: (id: string, data: Partial<Omit<Professional, "id">>) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
   addPatient: (patient: Omit<Patient, "id" | "createdAt">) => Promise<void>;
@@ -325,6 +328,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         professionalId: a.professional_id,
         date: new Date(a.date),
         time: a.time,
+        duration: a.duration ?? 1,
         status: a.status as AppointmentStatus,
         notes: a.notes || undefined,
         createdAt: new Date(a.created_at),
@@ -426,6 +430,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         professional_id: appointment.professionalId,
         date: appointment.date.toISOString(),
         time: appointment.time,
+        duration: appointment.duration ?? 1,
         status: appointment.status,
         notes: appointment.notes,
         session_id: appointment.sessionId,
@@ -504,6 +509,32 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const updateAppointmentTime = async (id: string, date: Date, time: string, duration: number) => {
+    const { error } = await supabase
+      .from("appointments")
+      .update({ date: date.toISOString(), time, duration })
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Erro ao reagendar", description: error.message, variant: "destructive" });
+      throw error;
+    }
+
+    toast({ title: "Horário atualizado com sucesso" });
+  };
+
+  const updateAppointmentProfessional = async (id: string, professionalId: string) => {
+    const { error } = await supabase
+      .from("appointments")
+      .update({ professional_id: professionalId })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao reatribuir dentista", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    toast({ title: "Dentista atualizado com sucesso" });
+  };
+
   const deleteAppointment = async (id: string) => {
     const { error } = await supabase.from("appointments").delete().eq("id", id);
 
@@ -546,15 +577,32 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addProfessional = async (professional: Omit<Professional, "id">) => {
     const { error } = await supabase.from("professionals").insert({
       name: professional.name,
-      specialty: professional.specialty,
-      email: professional.email,
-      phone: professional.phone,
+      specialty: professional.specialty || "",
+      email: professional.email || "",
+      phone: professional.phone || "",
     });
 
     if (error) {
       toast({ title: "Erro ao adicionar profissional", description: error.message, variant: "destructive" });
       throw error;
     }
+  };
+
+  const updateProfessional = async (id: string, data: Partial<Omit<Professional, "id">>) => {
+    const update: Record<string, unknown> = {};
+    if (data.name !== undefined) update.name = data.name;
+    if (data.specialty !== undefined) update.specialty = data.specialty;
+    if (data.email !== undefined) update.email = data.email;
+    if (data.phone !== undefined) update.phone = data.phone;
+
+    const { error } = await supabase.from("professionals").update(update).eq("id", id);
+
+    if (error) {
+      toast({ title: "Erro ao atualizar profissional", description: error.message, variant: "destructive" });
+      throw error;
+    }
+
+    toast({ title: "Profissional atualizado com sucesso" });
   };
 
   const markNotificationRead = async (id: string) => {
@@ -999,10 +1047,13 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     loading,
     addAppointment,
     updateAppointmentStatus,
+    updateAppointmentTime,
+    updateAppointmentProfessional,
     deleteAppointment,
     addTransaction,
     deleteTransaction,
     addProfessional,
+    updateProfessional,
     markNotificationRead,
     deleteNotification,
     addPatient,
