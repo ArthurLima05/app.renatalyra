@@ -9,6 +9,9 @@ import {
   SessionStatus,
   AppointmentStatus,
   Installment,
+  OdontogramProcedure,
+  PatientPhoto,
+  PhotoCategory,
 } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +48,14 @@ interface ClinicContextType {
   linkAppointmentToSession: (sessionId: string, appointmentDate: Date, appointmentTime: string) => Promise<void>;
   getSuggestedSessionsByPatientId: (patientId: string) => Session[];
   updateInstallment: (id: string, data: Partial<Installment>) => Promise<void>;
+  odontogramProcedures: OdontogramProcedure[];
+  addOdontogramProcedure: (proc: Omit<OdontogramProcedure, "id" | "createdAt">) => Promise<void>;
+  getOdontogramByPatientId: (patientId: string) => OdontogramProcedure[];
+  patientPhotos: PatientPhoto[];
+  addPatientPhoto: (patientId: string, file: File, caption: string, category: PhotoCategory) => Promise<void>;
+  deletePatientPhoto: (id: string, url: string) => Promise<void>;
+  updatePatientAvatar: (patientId: string, file: File) => Promise<void>;
+  getPhotosByPatientId: (patientId: string) => PatientPhoto[];
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -63,6 +74,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [installments, setInstallments] = useState<Installment[]>([]);
+  const [odontogramProcedures, setOdontogramProcedures] = useState<OdontogramProcedure[]>([]);
+  const [patientPhotos, setPatientPhotos] = useState<PatientPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const isCheckingNotifications = useRef(false);
@@ -96,21 +109,35 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const patientsChannel = supabase
       .channel("patients-changes")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "patients" }, (payload) => {
-        const newPatient = {
-          ...payload.new,
-          fullName: payload.new.full_name,
-          birthDate: payload.new.birth_date ? new Date(payload.new.birth_date) : undefined,
-          createdAt: new Date(payload.new.created_at),
-        } as Patient;
+        const raw: any = payload.new;
+        const newPatient: Patient = {
+          ...raw,
+          fullName: raw.full_name,
+          birthDate: raw.birth_date ? new Date(raw.birth_date) : undefined,
+          nickname: raw.nickname ?? undefined,
+          gender: raw.gender ?? undefined,
+          rg: raw.rg ?? undefined,
+          maritalStatus: raw.marital_status ?? undefined,
+          education: raw.education ?? undefined,
+          avatarUrl: raw.avatar_url ?? undefined,
+          createdAt: new Date(raw.created_at),
+        };
         setPatients((prev) => [...prev, newPatient]);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "patients" }, (payload) => {
-        const updated = {
-          ...payload.new,
-          fullName: payload.new.full_name,
-          birthDate: payload.new.birth_date ? new Date(payload.new.birth_date) : undefined,
-          createdAt: new Date(payload.new.created_at),
-        } as Patient;
+        const raw: any = payload.new;
+        const updated: Patient = {
+          ...raw,
+          fullName: raw.full_name,
+          birthDate: raw.birth_date ? new Date(raw.birth_date) : undefined,
+          nickname: raw.nickname ?? undefined,
+          gender: raw.gender ?? undefined,
+          rg: raw.rg ?? undefined,
+          maritalStatus: raw.marital_status ?? undefined,
+          education: raw.education ?? undefined,
+          avatarUrl: raw.avatar_url ?? undefined,
+          createdAt: new Date(raw.created_at),
+        };
         setPatients((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "patients" }, (payload) => {
@@ -275,6 +302,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loadTransactions(),
       loadNotifications(),
       loadInstallments(),
+      loadOdontogramProcedures(),
+      loadPatientPhotos(),
     ]);
     setLoading(false);
   };
@@ -300,10 +329,16 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     setPatients(
-      (data || []).map((p) => ({
+      (data || []).map((p: any) => ({
         ...p,
         fullName: p.full_name,
         birthDate: p.birth_date ? new Date(p.birth_date) : undefined,
+        nickname: p.nickname ?? undefined,
+        gender: p.gender ?? undefined,
+        rg: p.rg ?? undefined,
+        maritalStatus: p.marital_status ?? undefined,
+        education: p.education ?? undefined,
+        avatarUrl: p.avatar_url ?? undefined,
         createdAt: new Date(p.created_at),
       })),
     );
@@ -326,7 +361,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         patientId: a.patient_id,
         patientName: a.patients?.full_name || "",
         professionalId: a.professional_id,
-        date: new Date(a.date),
+        date: new Date(a.date.substring(0, 10) + 'T12:00:00'),
         time: a.time,
         duration: a.duration ?? 1,
         status: a.status as AppointmentStatus,
@@ -768,7 +803,12 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       phone: patient.phone,
       email: patient.email,
       birth_date: patient.birthDate?.toISOString().split('T')[0],
+      nickname: patient.nickname,
+      gender: patient.gender,
       cpf: patient.cpf,
+      rg: patient.rg,
+      marital_status: patient.maritalStatus,
+      education: patient.education,
       origin: patient.origin,
       notes: patient.notes,
     } as any);
@@ -784,11 +824,17 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updatePatient = async (id: string, patient: Partial<Patient>) => {
     const updateData: any = {};
     if (patient.fullName) updateData.full_name = patient.fullName;
-    if (patient.phone) updateData.phone = patient.phone;
+    if (patient.phone !== undefined) updateData.phone = patient.phone;
     if (patient.email !== undefined) updateData.email = patient.email;
     if (patient.birthDate !== undefined) updateData.birth_date = patient.birthDate?.toISOString().split('T')[0];
+    if (patient.nickname !== undefined) updateData.nickname = patient.nickname;
+    if (patient.gender !== undefined) updateData.gender = patient.gender;
     if (patient.cpf !== undefined) updateData.cpf = patient.cpf;
-    if (patient.origin) updateData.origin = patient.origin;
+    if (patient.rg !== undefined) updateData.rg = patient.rg;
+    if (patient.maritalStatus !== undefined) updateData.marital_status = patient.maritalStatus;
+    if (patient.education !== undefined) updateData.education = patient.education;
+    if (patient.avatarUrl !== undefined) updateData.avatar_url = patient.avatarUrl;
+    if (patient.origin !== undefined) updateData.origin = patient.origin;
     if (patient.notes !== undefined) updateData.notes = patient.notes;
 
     const { error } = await supabase.from("patients").update(updateData).eq("id", id);
@@ -949,6 +995,130 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: "Sessão excluída com sucesso" });
   };
 
+  const loadPatientPhotos = async () => {
+    const { data, error } = await (supabase as any)
+      .from("patient_photos")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) { console.error("Error loading photos:", error); return; }
+    setPatientPhotos(
+      (data || []).map((r: any) => ({
+        id: r.id,
+        patientId: r.patient_id,
+        url: r.url,
+        caption: r.caption ?? undefined,
+        category: r.category,
+        createdAt: new Date(r.created_at),
+      }))
+    );
+  };
+
+  const addPatientPhoto = async (patientId: string, file: File, caption: string, category: PhotoCategory) => {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${patientId}/${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("patient-photos")
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    if (uploadError) {
+      toast({ title: "Erro ao enviar foto", description: uploadError.message, variant: "destructive" });
+      throw uploadError;
+    }
+    const { data: { publicUrl } } = supabase.storage.from("patient-photos").getPublicUrl(path);
+    const { error } = await (supabase as any).from("patient_photos").insert({
+      patient_id: patientId,
+      url: publicUrl,
+      caption: caption || null,
+      category,
+    });
+    if (error) {
+      toast({ title: "Erro ao salvar foto", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    await loadPatientPhotos();
+    toast({ title: "Foto adicionada com sucesso" });
+  };
+
+  const deletePatientPhoto = async (id: string, url: string) => {
+    const { error } = await (supabase as any).from("patient_photos").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir foto", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    // Remove do storage (extrai o path da URL)
+    try {
+      const parts = url.split("/patient-photos/");
+      if (parts[1]) await supabase.storage.from("patient-photos").remove([parts[1]]);
+    } catch (_) { /* ignora erro de storage */ }
+    await loadPatientPhotos();
+    toast({ title: "Foto excluída" });
+  };
+
+  const updatePatientAvatar = async (patientId: string, file: File) => {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${patientId}/avatar.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("patient-photos")
+      .upload(path, file, { cacheControl: "3600", upsert: true });
+    if (uploadError) {
+      toast({ title: "Erro ao enviar foto", description: uploadError.message, variant: "destructive" });
+      throw uploadError;
+    }
+    const { data: { publicUrl } } = supabase.storage.from("patient-photos").getPublicUrl(path);
+    const avatarUrl = `${publicUrl}?t=${Date.now()}`;
+    await updatePatient(patientId, { avatarUrl } as any);
+  };
+
+  const getPhotosByPatientId = (patientId: string) =>
+    patientPhotos.filter((p) => p.patientId === patientId);
+
+  const loadOdontogramProcedures = async () => {
+    const { data, error } = await supabase
+      .from("odontogram_procedures")
+      .select("*")
+      .order("execution_date", { ascending: false });
+    if (error) { console.error("Error loading odontogram:", error); return; }
+    setOdontogramProcedures(
+      (data || []).map((r: any) => ({
+        id: r.id,
+        patientId: r.patient_id,
+        toothNumbers: r.tooth_numbers ?? [],
+        toothFaces: r.tooth_faces ?? [],
+        dentition: r.dentition,
+        procedureDescription: r.procedure_description,
+        status: r.status,
+        professionalId: r.professional_id,
+        executionDate: new Date(r.execution_date),
+        nextAppointmentDate: r.next_appointment_date ? new Date(r.next_appointment_date) : undefined,
+        notes: r.notes ?? undefined,
+        createdAt: new Date(r.created_at),
+      }))
+    );
+  };
+
+  const addOdontogramProcedure = async (proc: Omit<OdontogramProcedure, "id" | "createdAt">) => {
+    const { error } = await supabase.from("odontogram_procedures").insert({
+      patient_id: proc.patientId,
+      tooth_numbers: proc.toothNumbers,
+      tooth_faces: proc.toothFaces,
+      dentition: proc.dentition,
+      procedure_description: proc.procedureDescription,
+      status: proc.status,
+      professional_id: proc.professionalId,
+      execution_date: proc.executionDate.toISOString().split("T")[0],
+      next_appointment_date: proc.nextAppointmentDate?.toISOString().split("T")[0] ?? null,
+      notes: proc.notes ?? null,
+    } as any);
+    if (error) {
+      toast({ title: "Erro ao salvar procedimento", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    toast({ title: "Procedimento salvo com sucesso" });
+    await loadOdontogramProcedures();
+  };
+
+  const getOdontogramByPatientId = (patientId: string) =>
+    odontogramProcedures.filter((p) => p.patientId === patientId);
+
   const updateInstallment = async (id: string, data: Partial<Installment>) => {
     const updateData: any = {};
 
@@ -1068,6 +1238,14 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     linkAppointmentToSession,
     getSuggestedSessionsByPatientId,
     updateInstallment,
+    odontogramProcedures,
+    addOdontogramProcedure,
+    getOdontogramByPatientId,
+    patientPhotos,
+    addPatientPhoto,
+    deletePatientPhoto,
+    updatePatientAvatar,
+    getPhotosByPatientId,
   };
 
   if (loading) {

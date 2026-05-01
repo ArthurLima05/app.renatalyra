@@ -2,6 +2,8 @@ export type AppointmentStatus = 'agendado' | 'confirmado' | 'realizado' | 'cance
 export type SessionStatus = 'sugerido' | 'agendado' | 'realizado';
 export type SessionType = 'primeira_consulta' | 'consulta_avulsa' | 'retorno';
 export type PatientOrigin = 'Google Ads' | 'Instagram' | 'Indicação' | 'Outro';
+export type PatientGender = 'masculino' | 'feminino' | 'outro';
+export type MaritalStatus = 'casado' | 'solteiro' | 'divorciado' | 'viuvo';
 export type TransactionType = 'entrada' | 'saida';
 export type NotificationType = 'cancelamento' | 'falta' | 'agendamento' | 'feedback' | 'lembrete_consulta' | 'lembrete_feedback' | 'lembrete_prontuario' | 'lembrete_pagamento';
 export type PaymentStatus = 'pago' | 'em_aberto';
@@ -59,9 +61,26 @@ export interface Patient {
   phone: string;
   email?: string;
   birthDate?: Date;
+  nickname?: string;
+  gender?: PatientGender;
   cpf?: string;
+  rg?: string;
+  maritalStatus?: MaritalStatus;
+  education?: string;
   origin: PatientOrigin;
   notes?: string;
+  avatarUrl?: string;
+  createdAt: Date;
+}
+
+export type PhotoCategory = 'antes' | 'depois' | 'outro';
+
+export interface PatientPhoto {
+  id: string;
+  patientId: string;
+  url: string;
+  caption?: string;
+  category: PhotoCategory;
   createdAt: Date;
 }
 
@@ -77,6 +96,24 @@ export interface Session {
   paymentStatus: PaymentStatus;
   nextAppointment?: Date;
   professionalId?: string;
+}
+
+export type OdontogramStatus = 'a_realizar' | 'executado' | 'existente';
+export type Dentition = 'permanente' | 'decidua';
+
+export interface OdontogramProcedure {
+  id: string;
+  patientId: string;
+  toothNumbers: string[];
+  toothFaces: string[];
+  dentition: Dentition;
+  procedureDescription: string;
+  status: OdontogramStatus;
+  professionalId: string;
+  executionDate: Date;
+  nextAppointmentDate?: Date;
+  notes?: string;
+  createdAt: Date;
 }
 
 export interface Installment {

@@ -15,17 +15,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2 } from 'lucide-react';
-import { SessionStatus, PaymentStatus, SessionType } from '@/types';
+import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images } from 'lucide-react';
+import { Odontograma } from '@/components/Odontograma';
+import { PatientPhotos } from '@/components/PatientPhotos';
+import { SessionStatus, PaymentStatus, SessionType, PatientGender, MaritalStatus, PatientOrigin } from '@/types';
+import { useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="space-y-0.5">
+    <p className="text-xs text-muted-foreground">{label}</p>
+    {children}
+  </div>
+);
+
 const ProntuarioPaciente = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const {
     getPatientById,
     getSessionsByPatientId,
@@ -40,6 +51,7 @@ const ProntuarioPaciente = () => {
     updateInstallment,
     appointments,
     professionals,
+    updatePatientAvatar,
   } = useClinic();
 
   const patient = id ? getPatientById(id) : undefined;
@@ -77,6 +89,51 @@ const ProntuarioPaciente = () => {
   const timeSlots = generateTimeSlots();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [cadastroData, setCadastroData] = useState({
+    fullName: patient?.fullName ?? '',
+    phone: patient?.phone ?? '',
+    email: patient?.email ?? '',
+    birthDate: patient?.birthDate ? format(patient.birthDate, 'yyyy-MM-dd') : '',
+    nickname: patient?.nickname ?? '',
+    gender: patient?.gender ?? '' as PatientGender | '',
+    cpf: patient?.cpf ?? '',
+    rg: patient?.rg ?? '',
+    maritalStatus: patient?.maritalStatus ?? '' as MaritalStatus | '',
+    education: patient?.education ?? '',
+    origin: patient?.origin ?? 'Outro' as PatientOrigin,
+    notes: patient?.notes ?? '',
+  });
+  const [cadastroDirty, setCadastroDirty] = useState(false);
+  const [cadastroSaving, setCadastroSaving] = useState(false);
+
+  const handleCadastroChange = (field: string, value: string) => {
+    setCadastroData((prev) => ({ ...prev, [field]: value }));
+    setCadastroDirty(true);
+  };
+
+  const handleCadastroSave = async () => {
+    if (!id) return;
+    setCadastroSaving(true);
+    try {
+      await updatePatient(id, {
+        fullName: cadastroData.fullName,
+        phone: cadastroData.phone,
+        email: cadastroData.email || undefined,
+        birthDate: cadastroData.birthDate ? new Date(cadastroData.birthDate) : undefined,
+        nickname: cadastroData.nickname || undefined,
+        gender: cadastroData.gender || undefined,
+        cpf: cadastroData.cpf || undefined,
+        rg: cadastroData.rg || undefined,
+        maritalStatus: cadastroData.maritalStatus || undefined,
+        education: cadastroData.education || undefined,
+        origin: cadastroData.origin,
+        notes: cadastroData.notes || undefined,
+      });
+      setCadastroDirty(false);
+    } finally {
+      setCadastroSaving(false);
+    }
+  };
   const [isSessionOpen, setIsSessionOpen] = useState(false);
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
   const [editData, setEditData] = useState(patient || { fullName: '', phone: '', email: '', notes: '' });
@@ -128,7 +185,7 @@ const ProntuarioPaciente = () => {
       if (editingSessionId) {
         // Editar sessão existente
         updateSession(editingSessionId, {
-          date: new Date(sessionData.date),
+          date: new Date(sessionData.date + 'T12:00:00'),
           procedure: sessionData.procedure,
           notes: sessionData.notes,
           amount: parseFloat(sessionData.amount),
@@ -151,7 +208,7 @@ const ProntuarioPaciente = () => {
         
         addSession({
           patientId: id,
-          date: new Date(sessionData.date),
+          date: new Date(sessionData.date + 'T12:00:00'),
           procedure: sessionData.procedure,
           sessionType: sessionType,
           status: 'realizado',
@@ -226,7 +283,7 @@ const ProntuarioPaciente = () => {
         return;
       }
 
-      const appointmentDate = new Date(appointmentData.date);
+      const appointmentDate = new Date(appointmentData.date + 'T12:00:00');
       
       addAppointment({
         patientId: id,
@@ -312,8 +369,35 @@ const ProntuarioPaciente = () => {
         
         <CardHeader className="pr-12">
           <div className="flex flex-col gap-4">
-            <div className="space-y-2">
-              <CardTitle className="text-xl sm:text-2xl">{patient.fullName}</CardTitle>
+            <div className="flex items-start gap-4">
+              {/* Avatar clicável */}
+              <div className="relative flex-shrink-0 group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
+                  {patient.avatarUrl ? (
+                    <img src={patient.avatarUrl} alt={patient.fullName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xl font-bold text-muted-foreground">
+                      {patient.fullName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                  <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file && id) { await updatePatientAvatar(id, file); e.target.value = ""; }
+                }}
+              />
+
+              <div className="space-y-2 min-w-0">
+                <CardTitle className="text-xl sm:text-2xl">{patient.fullName}</CardTitle>
               <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Phone className="h-4 w-4" />
@@ -331,6 +415,7 @@ const ProntuarioPaciente = () => {
                 </div>
               </div>
             </div>
+            </div>{/* fecha flex avatar + info */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
               <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogTrigger asChild>
@@ -409,13 +494,13 @@ const ProntuarioPaciente = () => {
                             )}
                           >
                             <Calendar className="mr-2 h-4 w-4" />
-                            {appointmentData.date ? format(new Date(appointmentData.date), "PPP", { locale: ptBR }) : "Selecione a data"}
+                            {appointmentData.date ? format(new Date(appointmentData.date + 'T12:00:00'), "PPP", { locale: ptBR }) : "Selecione a data"}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <CalendarComponent
                             mode="single"
-                            selected={appointmentData.date ? new Date(appointmentData.date) : undefined}
+                            selected={appointmentData.date ? new Date(appointmentData.date + 'T12:00:00') : undefined}
                             onSelect={(date) => {
                               if (date) {
                                 setAppointmentData({
@@ -487,11 +572,18 @@ const ProntuarioPaciente = () => {
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="sessions" className="w-full mt-6">
+      <Tabs defaultValue="cadastro" className="w-full mt-6">
         <div className="border-b border-border">
           <TabsList className="inline-flex h-12 items-center justify-start gap-1 bg-transparent p-0 w-full overflow-x-auto">
-            <TabsTrigger 
-              value="sessions" 
+            <TabsTrigger
+              value="cadastro"
+              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              <UserCircle className="h-4 w-4" />
+              Cadastro
+            </TabsTrigger>
+            <TabsTrigger
+              value="sessions"
               className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
             >
               <Calendar className="h-4 w-4" />
@@ -504,8 +596,22 @@ const ProntuarioPaciente = () => {
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Financeiro
             </TabsTrigger>
-            <TabsTrigger 
-              value="notes" 
+            <TabsTrigger
+              value="fotos"
+              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              <Images className="h-4 w-4" />
+              Fotos
+            </TabsTrigger>
+            <TabsTrigger
+              value="odontograma"
+              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              <Stethoscope className="h-4 w-4" />
+              Odontograma
+            </TabsTrigger>
+            <TabsTrigger
+              value="notes"
               className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -513,6 +619,108 @@ const ProntuarioPaciente = () => {
             </TabsTrigger>
           </TabsList>
         </div>
+
+        {/* ── ABA CADASTRO ────────────────────────────────────────── */}
+        <TabsContent value="cadastro" className="mt-4">
+          <Card>
+            <CardContent className="pt-4 pb-4 space-y-3">
+              {/* Grid compacto — 3 colunas no desktop */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+                <Field label="Nome *">
+                  <Input className="h-8 text-sm" value={cadastroData.fullName} onChange={(e) => handleCadastroChange('fullName', e.target.value)} />
+                </Field>
+                <Field label="Apelido">
+                  <Input className="h-8 text-sm" value={cadastroData.nickname} placeholder="—" onChange={(e) => handleCadastroChange('nickname', e.target.value)} />
+                </Field>
+                <Field label="Data de Nascimento">
+                  <Input className="h-8 text-sm" type="date" value={cadastroData.birthDate} onChange={(e) => handleCadastroChange('birthDate', e.target.value)} />
+                </Field>
+                <Field label="Sexo">
+                  <Select value={cadastroData.gender} onValueChange={(v) => handleCadastroChange('gender', v)}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="masculino">Masculino</SelectItem>
+                      <SelectItem value="feminino">Feminino</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="CPF">
+                  <Input className="h-8 text-sm" value={cadastroData.cpf} placeholder="000.000.000-00" onChange={(e) => handleCadastroChange('cpf', e.target.value)} />
+                </Field>
+                <Field label="RG">
+                  <Input className="h-8 text-sm" value={cadastroData.rg} placeholder="00.000.000-0" onChange={(e) => handleCadastroChange('rg', e.target.value)} />
+                </Field>
+                <Field label="Estado Civil">
+                  <Select value={cadastroData.maritalStatus} onValueChange={(v) => handleCadastroChange('maritalStatus', v)}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="solteiro">Solteiro(a)</SelectItem>
+                      <SelectItem value="casado">Casado(a)</SelectItem>
+                      <SelectItem value="divorciado">Divorciado(a)</SelectItem>
+                      <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Escolaridade">
+                  <Select value={cadastroData.education} onValueChange={(v) => handleCadastroChange('education', v)}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fundamental_incompleto">Fundamental Incompleto</SelectItem>
+                      <SelectItem value="fundamental_completo">Fundamental Completo</SelectItem>
+                      <SelectItem value="medio_incompleto">Médio Incompleto</SelectItem>
+                      <SelectItem value="medio_completo">Médio Completo</SelectItem>
+                      <SelectItem value="superior_incompleto">Superior Incompleto</SelectItem>
+                      <SelectItem value="superior_completo">Superior Completo</SelectItem>
+                      <SelectItem value="pos_graduacao">Pós-graduação</SelectItem>
+                      <SelectItem value="mestrado">Mestrado</SelectItem>
+                      <SelectItem value="doutorado">Doutorado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Telefone">
+                  <Input className="h-8 text-sm" value={cadastroData.phone} placeholder="(00) 00000-0000" onChange={(e) => handleCadastroChange('phone', e.target.value)} />
+                </Field>
+                <Field label="E-mail">
+                  <Input className="h-8 text-sm" type="email" value={cadastroData.email} onChange={(e) => handleCadastroChange('email', e.target.value)} />
+                </Field>
+                <Field label="Como conheceu">
+                  <Select value={cadastroData.origin} onValueChange={(v) => handleCadastroChange('origin', v)}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Google Ads">Google Ads</SelectItem>
+                      <SelectItem value="Instagram">Instagram</SelectItem>
+                      <SelectItem value="Indicação">Indicação</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Cadastrado em">
+                  <Input className="h-8 text-sm bg-muted text-muted-foreground"
+                    value={patient?.createdAt ? format(patient.createdAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : ''}
+                    disabled />
+                </Field>
+              </div>
+
+              {/* Observações */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Observações</Label>
+                <Textarea className="text-sm resize-none" value={cadastroData.notes} rows={2}
+                  placeholder="Informações adicionais..."
+                  onChange={(e) => handleCadastroChange('notes', e.target.value)} />
+              </div>
+
+              {cadastroDirty && (
+                <div className="flex justify-end">
+                  <Button size="sm" className="gap-2" onClick={handleCadastroSave} disabled={cadastroSaving}>
+                    <Save className="h-3.5 w-3.5" />
+                    {cadastroSaving ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="sessions" className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -900,6 +1108,14 @@ const ProntuarioPaciente = () => {
             )}
           </div>
 
+        </TabsContent>
+
+        <TabsContent value="fotos">
+          {id && <PatientPhotos patientId={id} />}
+        </TabsContent>
+
+        <TabsContent value="odontograma">
+          {id && <Odontograma patientId={id} />}
         </TabsContent>
 
         <TabsContent value="notes" className="space-y-4">
