@@ -14,6 +14,7 @@ import Financeiro from "./pages/Financeiro";
 import Notificacoes from "./pages/Notificacoes";
 import Profissionais from "./pages/Profissionais";
 import Login from "./pages/Login";
+import AnamnesePaciente from "./pages/AnamnesePaciente";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/anamnese/:token" element={<AnamnesePaciente />} />
           <Route element={<ProtectedRoute><ClinicProvider><Layout /></ClinicProvider></ProtectedRoute>}>
             <Route path="/" element={<Agendamentos />} />
             <Route path="/dashboard" element={<Dashboard />} />

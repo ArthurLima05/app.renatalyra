@@ -1,0 +1,114 @@
+{
+  "name": "bot_anamnese",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-anamnese",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-240, 0],
+      "id": "webhook-anamnese",
+      "name": "Webhook",
+      "webhookId": "anamnese-send-link"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nconst patientName  = body.patientName  || 'Paciente';\nconst patientPhone = body.patientPhone || '';\nconst link         = body.link         || '';\nconst code         = body.code         || '';\n\nif (!patientPhone) {\n  return [{ json: { skip: true, reason: 'Telefone não cadastrado' } }];\n}\n\n// Formata o número: remove tudo que não é dígito\nconst phone = patientPhone.replace(/\\D/g, '');\n\nconst message =\n  `🦷 Olá, ${patientName}!\\n\\n` +\n  `A clínica solicitou o preenchimento da sua ficha de anamnese.\\n\\n` +\n  `📋 Acesse o formulário pelo link abaixo:\\n${link}\\n\\n` +\n  `🔑 Código de verificação: *${code}*\\n\\n` +\n  `O link é válido por 7 dias. Em caso de dúvidas, entre em contato conosco.`;\n\nreturn [{ json: { phone, message } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "id": "format-message",
+      "name": "Formatar Mensagem"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "check-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "notEquals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [240, 0],
+      "id": "check-phone",
+      "name": "Tem Telefone?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Formatar Mensagem').item.json.baileys_url ?? 'http://localhost:3000/send-text' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Formatar Mensagem').item.json.phone }}\",\n  \"text\": \"{{ $('Formatar Mensagem').item.json.message }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, -80],
+      "id": "send-baileys",
+      "name": "Enviar WhatsApp (Baileys)"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, phone: $('Formatar Mensagem').item.json.phone }) }}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, -80],
+      "id": "respond-success",
+      "name": "Resposta OK"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"reason\": \"Telefone não cadastrado\" }"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [480, 120],
+      "id": "respond-skip",
+      "name": "Resposta Sem Telefone"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Formatar Mensagem", "type": "main", "index": 0 }]]
+    },
+    "Formatar Mensagem": {
+      "main": [[{ "node": "Tem Telefone?", "type": "main", "index": 0 }]]
+    },
+    "Tem Telefone?": {
+      "main": [
+        [{ "node": "Enviar WhatsApp (Baileys)", "type": "main", "index": 0 }],
+        [{ "node": "Resposta Sem Telefone", "type": "main", "index": 0 }]
+      ]
+    },
+    "Enviar WhatsApp (Baileys)": {
+      "main": [[{ "node": "Resposta OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

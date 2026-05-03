@@ -98,6 +98,43 @@ export interface Session {
   professionalId?: string;
 }
 
+export type AnamneseQuestionType = 'descritivo' | 'sim_nao';
+
+export interface AnamneseQuestion {
+  id: string;
+  question: string;
+  sequence: number;
+  type: AnamneseQuestionType;
+  active: boolean;
+  createdAt: Date;
+}
+
+export interface AnamneseAnswerRecord {
+  id: string;
+  responseId: string;
+  questionId?: string;
+  questionText: string;
+  questionType: AnamneseQuestionType;
+  questionSequence: number;
+  answerBool?: boolean | null;
+  answerText?: string;
+}
+
+export type AnamneseStatus = 'sent' | 'completed';
+
+export interface AnamneseResponse {
+  id: string;
+  patientId: string;
+  status: AnamneseStatus;
+  token?: string;
+  code?: string;
+  answers: AnamneseAnswerRecord[];
+  completedAt?: Date;
+  signedName?: string;
+  signedAt?: Date;
+  createdAt: Date;
+}
+
 export type OdontogramStatus = 'a_realizar' | 'executado' | 'existente';
 export type Dentition = 'permanente' | 'decidua';
 

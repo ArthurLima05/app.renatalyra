@@ -12,6 +12,11 @@ import {
   OdontogramProcedure,
   PatientPhoto,
   PhotoCategory,
+  AnamneseQuestion,
+  AnamneseResponse,
+  AnamneseAnswerRecord,
+  AnamneseQuestionType,
+  AnamneseStatus,
 } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -51,6 +56,15 @@ interface ClinicContextType {
   odontogramProcedures: OdontogramProcedure[];
   addOdontogramProcedure: (proc: Omit<OdontogramProcedure, "id" | "createdAt">) => Promise<void>;
   getOdontogramByPatientId: (patientId: string) => OdontogramProcedure[];
+  anamneseQuestions: AnamneseQuestion[];
+  anamneseResponses: AnamneseResponse[];
+  addAnamneseQuestion: (question: string, type: AnamneseQuestionType, sequence: number) => Promise<void>;
+  updateAnamneseQuestion: (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active'>>) => Promise<void>;
+  deleteAnamneseQuestion: (id: string) => Promise<void>;
+  saveAnamneseResponse: (patientId: string, answers: Omit<AnamneseAnswerRecord, 'id' | 'responseId'>[]) => Promise<void>;
+  requestAnamneseForPatient: (patientId: string) => Promise<{ link: string; code: string }>;
+  sendAnamneseViaWhatsapp: (patientId: string, responseId: string, token: string, code: string) => Promise<void>;
+  getAnamneseByPatientId: (patientId: string) => AnamneseResponse[];
   patientPhotos: PatientPhoto[];
   addPatientPhoto: (patientId: string, file: File, caption: string, category: PhotoCategory) => Promise<void>;
   deletePatientPhoto: (id: string, url: string) => Promise<void>;
@@ -76,6 +90,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [odontogramProcedures, setOdontogramProcedures] = useState<OdontogramProcedure[]>([]);
   const [patientPhotos, setPatientPhotos] = useState<PatientPhoto[]>([]);
+  const [anamneseQuestions, setAnamneseQuestions] = useState<AnamneseQuestion[]>([]);
+  const [anamneseResponses, setAnamneseResponses] = useState<AnamneseResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const isCheckingNotifications = useRef(false);
@@ -304,6 +320,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loadInstallments(),
       loadOdontogramProcedures(),
       loadPatientPhotos(),
+      loadAnamneseData(),
     ]);
     setLoading(false);
   };
@@ -995,6 +1012,122 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: "Sessão excluída com sucesso" });
   };
 
+  const loadAnamneseData = async () => {
+    const [qRes, rRes, tRes] = await Promise.all([
+      (supabase as any).from("anamnese_questions").select("*").order("sequence"),
+      (supabase as any).from("anamnese_responses").select("*, anamnese_answers(*)").order("created_at", { ascending: false }),
+      (supabase as any).from("anamnese_tokens").select("response_id, token, code"),
+    ]);
+    if (!qRes.error) {
+      setAnamneseQuestions(
+        (qRes.data || []).map((q: any) => ({
+          id: q.id, question: q.question, sequence: q.sequence,
+          type: q.type, active: q.active, createdAt: new Date(q.created_at),
+        }))
+      );
+    }
+    const tokenMap: Record<string, { token: string; code: string }> = {};
+    for (const t of tRes.data || []) tokenMap[t.response_id] = { token: t.token, code: t.code };
+
+    if (!rRes.error) {
+      setAnamneseResponses(
+        (rRes.data || []).map((r: any) => ({
+          id: r.id,
+          patientId: r.patient_id,
+          status: (r.status ?? "sent") as AnamneseStatus,
+          token: tokenMap[r.id]?.token,
+          code: tokenMap[r.id]?.code,
+          completedAt: r.completed_at ? new Date(r.completed_at) : undefined,
+          signedName: r.patient_signed_name ?? undefined,
+          signedAt: r.signed_at ? new Date(r.signed_at) : undefined,
+          createdAt: new Date(r.created_at),
+          answers: (r.anamnese_answers || []).map((a: any) => ({
+            id: a.id, responseId: a.response_id, questionId: a.question_id ?? undefined,
+            questionText: a.question_text, questionType: a.question_type,
+            questionSequence: a.question_sequence,
+            answerBool: a.answer_bool ?? undefined,
+            answerText: a.answer_text ?? undefined,
+          })),
+        }))
+      );
+    }
+  };
+
+  const addAnamneseQuestion = async (question: string, type: AnamneseQuestionType, sequence: number) => {
+    const { error } = await (supabase as any).from("anamnese_questions").insert({ question, type, sequence, active: true });
+    if (error) { toast({ title: "Erro ao adicionar pergunta", description: error.message, variant: "destructive" }); throw error; }
+    await loadAnamneseData();
+  };
+
+  const updateAnamneseQuestion = async (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active'>>) => {
+    const { error } = await (supabase as any).from("anamnese_questions").update(data).eq("id", id);
+    if (error) { toast({ title: "Erro ao atualizar pergunta", description: error.message, variant: "destructive" }); throw error; }
+    await loadAnamneseData();
+  };
+
+  const deleteAnamneseQuestion = async (id: string) => {
+    const { error } = await (supabase as any).from("anamnese_questions").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir pergunta", description: error.message, variant: "destructive" }); throw error; }
+    await loadAnamneseData();
+    toast({ title: "Pergunta excluída" });
+  };
+
+  const saveAnamneseResponse = async (patientId: string, answers: Omit<AnamneseAnswerRecord, 'id' | 'responseId'>[]) => {
+    const { data: resp, error: respErr } = await (supabase as any)
+      .from("anamnese_responses").insert({ patient_id: patientId, completed_at: new Date().toISOString() }).select().single();
+    if (respErr) { toast({ title: "Erro ao salvar anamnese", description: respErr.message, variant: "destructive" }); throw respErr; }
+    const rows = answers.map((a) => ({
+      response_id: resp.id,
+      question_id: a.questionId ?? null,
+      question_text: a.questionText,
+      question_type: a.questionType,
+      question_sequence: a.questionSequence,
+      answer_bool: a.answerBool ?? null,
+      answer_text: a.answerText ?? null,
+    }));
+    const { error: ansErr } = await (supabase as any).from("anamnese_answers").insert(rows);
+    if (ansErr) { toast({ title: "Erro ao salvar respostas", description: ansErr.message, variant: "destructive" }); throw ansErr; }
+    await loadAnamneseData();
+    toast({ title: "Anamnese salva com sucesso" });
+  };
+
+  const requestAnamneseForPatient = async (patientId: string) => {
+    const { data: resp, error: respErr } = await (supabase as any)
+      .from("anamnese_responses")
+      .insert({ patient_id: patientId, status: "sent" })
+      .select().single();
+    if (respErr) { toast({ title: "Erro ao solicitar anamnese", description: respErr.message, variant: "destructive" }); throw respErr; }
+
+    const token = crypto.randomUUID();
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const { error: tokenErr } = await (supabase as any).from("anamnese_tokens").insert({
+      response_id: resp.id, patient_id: patientId,
+      token, code, expires_at: expiresAt.toISOString(),
+    });
+    if (tokenErr) { toast({ title: "Erro ao gerar token", description: tokenErr.message, variant: "destructive" }); throw tokenErr; }
+
+    await loadAnamneseData();
+    const link = `${window.location.origin}/anamnese/${token}`;
+    toast({ title: "Link gerado com sucesso" });
+    return { link, code };
+  };
+
+  const sendAnamneseViaWhatsapp = async (patientId: string, responseId: string, token: string, code: string) => {
+    const { error } = await supabase.functions.invoke("send-anamnese-link", {
+      body: { patientId, responseId, token, code },
+    });
+    if (error) {
+      toast({ title: "Erro ao enviar WhatsApp", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    toast({ title: "Mensagem enviada para o WhatsApp do paciente" });
+  };
+
+  const getAnamneseByPatientId = (patientId: string) =>
+    anamneseResponses.filter((r) => r.patientId === patientId);
+
   const loadPatientPhotos = async () => {
     const { data, error } = await (supabase as any)
       .from("patient_photos")
@@ -1241,6 +1374,15 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     odontogramProcedures,
     addOdontogramProcedure,
     getOdontogramByPatientId,
+    anamneseQuestions,
+    anamneseResponses,
+    addAnamneseQuestion,
+    updateAnamneseQuestion,
+    deleteAnamneseQuestion,
+    saveAnamneseResponse,
+    requestAnamneseForPatient,
+    sendAnamneseViaWhatsapp,
+    getAnamneseByPatientId,
     patientPhotos,
     addPatientPhoto,
     deletePatientPhoto,

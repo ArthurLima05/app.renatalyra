@@ -15,9 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList } from 'lucide-react';
 import { Odontograma } from '@/components/Odontograma';
 import { PatientPhotos } from '@/components/PatientPhotos';
+import { PatientAnamnese } from '@/components/PatientAnamnese';
 import { SessionStatus, PaymentStatus, SessionType, PatientGender, MaritalStatus, PatientOrigin } from '@/types';
 import { useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -597,6 +598,13 @@ const ProntuarioPaciente = () => {
               Financeiro
             </TabsTrigger>
             <TabsTrigger
+              value="anamnese"
+              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Anamnese
+            </TabsTrigger>
+            <TabsTrigger
               value="fotos"
               className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
             >
@@ -1108,6 +1116,10 @@ const ProntuarioPaciente = () => {
             )}
           </div>
 
+        </TabsContent>
+
+        <TabsContent value="anamnese">
+          {id && <PatientAnamnese patientId={id} patientName={patient.fullName} />}
         </TabsContent>
 
         <TabsContent value="fotos">
