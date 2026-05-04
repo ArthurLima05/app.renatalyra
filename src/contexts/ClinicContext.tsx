@@ -19,6 +19,10 @@ import {
   AnamneseStatus,
   PaymentMethod,
   ReturnAlert,
+  AppUser,
+  UserProfile,
+  AppModule,
+  UserPermission,
 } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +65,11 @@ interface ClinicContextType {
   sendReturnAlertWhatsApp: (id: string) => Promise<void>;
   clinicSettings: Record<string, string>;
   updateClinicSetting: (key: string, value: string) => Promise<void>;
+  appUsers: AppUser[];
+  userPermissions: UserPermission[];
+  inviteAppUser: (data: { email: string; fullName: string; phone?: string; profile: UserProfile }) => Promise<void>;
+  toggleAppUserActive: (id: string, active: boolean) => Promise<void>;
+  updateUserPermission: (userId: string, module: AppModule, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => Promise<void>;
   odontogramProcedures: OdontogramProcedure[];
   addOdontogramProcedure: (proc: Omit<OdontogramProcedure, "id" | "createdAt">) => Promise<void>;
   getOdontogramByPatientId: (patientId: string) => OdontogramProcedure[];
@@ -102,6 +111,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [anamneseResponses, setAnamneseResponses] = useState<AnamneseResponse[]>([]);
   const [returnAlerts, setReturnAlerts] = useState<ReturnAlert[]>([]);
   const [clinicSettings, setClinicSettings] = useState<Record<string, string>>({});
+  const [appUsers, setAppUsers] = useState<AppUser[]>([]);
+  const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const isCheckingNotifications = useRef(false);
@@ -320,6 +331,57 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
+  const loadAppUsers = async () => {
+    const { data, error } = await (supabase as any).from('app_users').select('*').order('full_name');
+    if (error) { console.error('Error loading app_users:', error); return; }
+    setAppUsers((data || []).map((u: any) => ({
+      id: u.id, email: u.email, fullName: u.full_name,
+      phone: u.phone ?? undefined, profile: u.profile, active: u.active,
+      createdAt: new Date(u.created_at),
+    })));
+  };
+
+  const loadUserPermissions = async () => {
+    const { data, error } = await (supabase as any).from('user_permissions').select('*');
+    if (error) { console.error('Error loading user_permissions:', error); return; }
+    setUserPermissions((data || []).map((p: any) => ({
+      id: p.id, userId: p.user_id, module: p.module,
+      canView: p.can_view, canCreate: p.can_create, canEdit: p.can_edit, canDelete: p.can_delete,
+    })));
+  };
+
+  const inviteAppUser = async (data: { email: string; fullName: string; phone?: string; profile: UserProfile }) => {
+    const { error } = await supabase.functions.invoke('invite-user', {
+      body: { email: data.email, fullName: data.fullName, phone: data.phone, profile: data.profile },
+    });
+    if (error) {
+      toast({ title: 'Erro ao convidar usuário', description: error.message, variant: 'destructive' });
+      throw error;
+    }
+    await loadAppUsers();
+    await loadUserPermissions();
+    toast({ title: 'Convite enviado', description: `${data.email} receberá um e-mail para definir a senha.` });
+  };
+
+  const toggleAppUserActive = async (id: string, active: boolean) => {
+    const { error } = await (supabase as any).from('app_users').update({ active }).eq('id', id);
+    if (error) { toast({ title: 'Erro ao atualizar usuário', description: error.message, variant: 'destructive' }); throw error; }
+    setAppUsers(prev => prev.map(u => u.id === id ? { ...u, active } : u));
+  };
+
+  const updateUserPermission = async (userId: string, module: AppModule, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => {
+    const colMap: Record<string, string> = { canView: 'can_view', canCreate: 'can_create', canEdit: 'can_edit', canDelete: 'can_delete' };
+    const { error } = await (supabase as any)
+      .from('user_permissions')
+      .update({ [colMap[field]]: value, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('module', module);
+    if (error) { toast({ title: 'Erro ao salvar permissão', description: error.message, variant: 'destructive' }); throw error; }
+    setUserPermissions(prev => prev.map(p =>
+      p.userId === userId && p.module === module ? { ...p, [field]: value } : p
+    ));
+  };
+
   const loadClinicSettings = async () => {
     const { data, error } = await (supabase as any).from("clinic_settings").select("key, value");
     if (error) { console.error("Error loading settings:", error); return; }
@@ -370,6 +432,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loadAnamneseData(),
       loadReturnAlerts(),
       loadClinicSettings(),
+      loadAppUsers(),
+      loadUserPermissions(),
     ]);
     setLoading(false);
   };
@@ -1511,6 +1575,11 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     sendReturnAlertWhatsApp,
     clinicSettings,
     updateClinicSetting,
+    appUsers,
+    userPermissions,
+    inviteAppUser,
+    toggleAppUserActive,
+    updateUserPermission,
     odontogramProcedures,
     addOdontogramProcedure,
     getOdontogramByPatientId,

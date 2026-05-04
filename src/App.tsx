@@ -16,6 +16,7 @@ import Profissionais from "./pages/Profissionais";
 import Configuracoes from "./pages/Configuracoes";
 import Login from "./pages/Login";
 import AnamnesePaciente from "./pages/AnamnesePaciente";
+import AceitarConvite from "./pages/AceitarConvite";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/aceitar-convite" element={<AceitarConvite />} />
           <Route path="/anamnese/:token" element={<AnamnesePaciente />} />
           <Route element={<ProtectedRoute><ClinicProvider><Layout /></ClinicProvider></ProtectedRoute>}>
             <Route path="/" element={<Agendamentos />} />

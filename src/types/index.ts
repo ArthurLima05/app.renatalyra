@@ -9,6 +9,43 @@ export type NotificationType = 'cancelamento' | 'falta' | 'agendamento' | 'feedb
 export type PaymentStatus = 'pago' | 'em_aberto';
 export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | 'boleto' | 'cheque';
 
+export type UserProfile =
+  | 'administrador'
+  | 'auxiliar_tecnico'
+  | 'profissional'
+  | 'financeiro'
+  | 'gestor_relacionamento'
+  | 'recepcionista';
+
+export type AppModule =
+  | 'agenda'
+  | 'dashboard'
+  | 'pacientes'
+  | 'financeiro'
+  | 'profissionais'
+  | 'notificacoes'
+  | 'configuracoes';
+
+export interface AppUser {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string;
+  profile: UserProfile;
+  active: boolean;
+  createdAt: Date;
+}
+
+export interface UserPermission {
+  id: string;
+  userId: string;
+  module: AppModule;
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
 export interface Professional {
   id: string;
   name: string;

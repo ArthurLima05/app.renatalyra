@@ -9,16 +9,15 @@ import {
   LogOut,
   Stethoscope,
   Settings,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import logoClinica from '@/assets/logo-clinica.jpg';
-import logoClinicaDark from '@/assets/logo-clinica-dark.png';
-import logoMobile from '@/assets/logo-mobile.png';
+import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/', icon: Calendar, label: 'Agendamentos' },
@@ -27,33 +26,34 @@ const navItems = [
   { to: '/profissionais', icon: Stethoscope, label: 'Profissionais' },
   { to: '/financeiro', icon: DollarSign, label: 'Financeiro' },
   { to: '/notificacoes', icon: Bell, label: 'Notificações' },
-  { to: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
 }
 
-export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
+export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: SidebarProps) => {
   const { notifications } = useClinic();
   const navigate = useNavigate();
   const { toast } = useToast();
   const unreadCount = notifications.filter(n => !n.read).length;
   const isMobile = useIsMobile();
 
+  const collapsed = !isMobile && isCollapsed;
+  const w = collapsed ? 'w-16' : 'w-64';
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast({
-      title: 'Logout realizado',
-      description: 'Você saiu do sistema com sucesso',
-    });
+    toast({ title: 'Logout realizado', description: 'Você saiu do sistema com sucesso' });
     navigate('/login');
   };
 
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay mobile */}
       {isOpen && isMobile && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -64,68 +64,108 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         />
       )}
 
-      {/* Sidebar */}
       <motion.aside
         initial={false}
         animate={isMobile ? { x: isOpen ? 0 : '-100%' } : { x: 0 }}
         transition={{ duration: 0.2 }}
-        className="fixed top-0 left-0 bottom-0 w-64 min-w-64 max-w-64 bg-card border-r border-border z-40 overflow-y-auto flex flex-col"
+        className={cn(
+          'fixed top-0 left-0 bottom-0 bg-card border-r border-border z-40 flex flex-col transition-all duration-200 overflow-hidden',
+          isMobile ? 'w-64' : w,
+        )}
       >
-        <div className="p-4 border-b border-border">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="flex justify-center"
-          >
-            <img
-              src={logoClinica}
-              alt="Clínica Renata Lyra"
-              className="h-16 w-auto object-contain xl:h-auto xl:w-full dark:hidden"
-            />
-            <img
-              src={logoClinicaDark}
-              alt="Clínica Renata Lyra"
-              className="h-16 w-auto object-contain xl:h-auto xl:w-full hidden dark:block"
-            />
-          </motion.div>
+        {/* Cabeçalho */}
+        <div className={cn(
+          'border-b border-border flex items-center transition-all duration-200',
+          collapsed ? 'px-0 py-4 justify-center' : 'px-4 py-4 gap-2',
+        )}>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground leading-tight truncate">
+                Plataforma Central
+              </p>
+              <p className="text-xs text-muted-foreground truncate">de Gestão</p>
+            </div>
+          )}
+          {/* Botão colapsar — apenas desktop */}
+          {!isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              title={isCollapsed ? 'Expandir menu' : 'Recolher menu'}
+            >
+              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </Button>
+          )}
         </div>
-        
-        <nav className="p-4 space-y-2 flex-1">
+
+        {/* Navegação */}
+        <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.to === '/'}
               onClick={() => setIsOpen(false)}
+              title={collapsed ? item.label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                cn(
+                  'flex items-center rounded-lg transition-all px-2 py-2.5 text-sm font-medium',
+                  collapsed ? 'justify-center' : 'gap-3',
                   isActive
                     ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'hover:bg-secondary text-foreground'
-                }`
+                    : 'hover:bg-secondary text-foreground',
+                )
               }
             >
-              <item.icon className="h-5 w-5" />
-              <span className="font-medium">{item.label}</span>
-              {item.label === 'Notificações' && unreadCount > 0 && (
+              <item.icon className="h-5 w-5 shrink-0" />
+              {!collapsed && (
+                <span className="flex-1 truncate">{item.label}</span>
+              )}
+              {!collapsed && item.label === 'Notificações' && unreadCount > 0 && (
                 <span className="ml-auto bg-destructive text-destructive-foreground text-xs rounded-full px-2 py-0.5">
                   {unreadCount}
                 </span>
               )}
+              {collapsed && item.label === 'Notificações' && unreadCount > 0 && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+              )}
             </NavLink>
           ))}
         </nav>
-        
-        <div className="p-4 border-t border-border space-y-2">
-          <div className="flex justify-center">
-            <ThemeToggle />
-          </div>
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3 text-foreground hover:bg-secondary"
-            onClick={handleLogout}
+
+        {/* Rodapé */}
+        <div className={cn('border-t border-border py-3 px-2 space-y-0.5')}>
+          <NavLink
+            to="/configuracoes"
+            onClick={() => setIsOpen(false)}
+            title={collapsed ? 'Configurações' : undefined}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center rounded-lg transition-all px-2 py-2.5 text-sm font-medium w-full',
+                collapsed ? 'justify-center' : 'gap-3',
+                isActive
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'hover:bg-secondary text-foreground',
+              )
+            }
           >
-            <LogOut className="h-5 w-5" />
-            <span className="font-medium">Sair</span>
-          </Button>
+            <Settings className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Configurações</span>}
+          </NavLink>
+
+          <button
+            onClick={handleLogout}
+            title={collapsed ? 'Sair' : undefined}
+            className={cn(
+              'flex items-center rounded-lg transition-all px-2 py-2.5 text-sm font-medium w-full hover:bg-secondary text-foreground',
+              collapsed ? 'justify-center' : 'gap-3',
+            )}
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Sair</span>}
+          </button>
         </div>
       </motion.aside>
     </>
