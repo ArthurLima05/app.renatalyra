@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClinic } from "@/contexts/ClinicContext";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,6 +20,8 @@ import {
   ExternalLink,
   Timer,
   Stethoscope,
+  Bell,
+  MessageCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -376,6 +378,10 @@ export default function Agendamentos() {
     linkAppointmentToSession,
     addSession,
     professionals,
+    returnAlerts,
+    deleteReturnAlert,
+    sendReturnAlertWhatsApp,
+    getPatientById,
   } = useClinic();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -424,6 +430,18 @@ export default function Agendamentos() {
   });
 
   const selectedPatient = patients.find((p) => p.id === formData.patientId);
+
+  const activeAlerts = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const in7Days = new Date(today); in7Days.setDate(today.getDate() + 7);
+    return returnAlerts
+      .filter(a => {
+        if (a.whatsappSent) return false;
+        const rd = new Date(a.returnDate); rd.setHours(0, 0, 0, 0);
+        return rd <= in7Days;
+      })
+      .sort((a, b) => a.returnDate.getTime() - b.returnDate.getTime());
+  }, [returnAlerts]);
 
   const activeAppointments = useMemo(() => {
     const now = new Date();
@@ -851,7 +869,9 @@ export default function Agendamentos() {
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="agendamentos" className="space-y-4 mt-6">
+        <TabsContent value="agendamentos" className="mt-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-start">
+          <div className="flex-1 min-w-0 space-y-4">
           {/* Toggle principal + sub-toggle */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3 flex-wrap">
@@ -1106,6 +1126,98 @@ export default function Agendamentos() {
               </div>
             </>
           )}
+          </div>{/* fim coluna principal */}
+
+          {/* ── Sidebar: alertas de retorno ────────────────────────────── */}
+          <div className="w-full lg:w-72 shrink-0">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-primary" />
+                  Alertas de Retorno
+                  {activeAlerts.length > 0 && (
+                    <span className="ml-auto text-xs font-normal bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+                      {activeAlerts.length}
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {activeAlerts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Nenhum alerta pendente</p>
+                ) : (
+                  <div className="space-y-3">
+                    {activeAlerts.map(alert => {
+                      const alertPatient = getPatientById(alert.patientId);
+                      if (!alertPatient) return null;
+                      const today = new Date(); today.setHours(0, 0, 0, 0);
+                      const rd = new Date(alert.returnDate); rd.setHours(0, 0, 0, 0);
+                      const diffDays = Math.round((rd.getTime() - today.getTime()) / 86400000);
+                      const isOverdue = diffDays < 0;
+                      const isUrgent = diffDays >= 0 && diffDays <= 14;
+                      return (
+                        <div key={alert.id} className={cn(
+                          "rounded-lg border p-3 space-y-2",
+                          isOverdue ? "border-destructive/50 bg-destructive/5"
+                            : isUrgent ? "border-orange-400/50 bg-orange-50 dark:bg-orange-950/20"
+                            : "border-border"
+                        )}>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{alertPatient.fullName}</p>
+                            <p className={cn("text-xs mt-0.5", isOverdue ? "text-destructive font-medium" : isUrgent ? "text-orange-600" : "text-muted-foreground")}>
+                              {isOverdue
+                                ? `Vencido há ${Math.abs(diffDays)} dia${Math.abs(diffDays) !== 1 ? 's' : ''}`
+                                : diffDays === 0 ? "Retorno hoje!"
+                                : `Em ${diffDays} dia${diffDays !== 1 ? 's' : ''}`}
+                              {" · "}{rd.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                            </p>
+                            {alert.notes && (
+                              <p className="text-xs text-muted-foreground mt-1 truncate">{alert.notes}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-1.5">
+                            <Button
+                              size="sm"
+                              className="flex-1 h-7 text-xs gap-1"
+                              onClick={() => sendReturnAlertWhatsApp(alert.id)}
+                            >
+                              <MessageCircle className="h-3 w-3" />
+                              Enviar WhatsApp
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir alerta</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Deseja excluir o alerta de retorno de {alertPatient.fullName}?
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteReturnAlert(alert.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          </div>{/* fim flex container */}
         </TabsContent>
 
         {/* ══ HISTÓRICO ════════════════════════════════════════════════════ */}

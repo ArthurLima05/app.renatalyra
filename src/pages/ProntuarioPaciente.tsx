@@ -15,11 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell } from 'lucide-react';
 import { Odontograma } from '@/components/Odontograma';
 import { PatientPhotos } from '@/components/PatientPhotos';
 import { PatientAnamnese } from '@/components/PatientAnamnese';
-import { SessionStatus, PaymentStatus, SessionType, PatientGender, MaritalStatus, PatientOrigin } from '@/types';
+import { PaymentStatus, PaymentMethod, PatientGender, MaritalStatus, PatientOrigin } from '@/types';
 import { useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -53,6 +53,8 @@ const ProntuarioPaciente = () => {
     appointments,
     professionals,
     updatePatientAvatar,
+    addReturnAlert,
+    returnAlerts,
   } = useClinic();
 
   const patient = id ? getPatientById(id) : undefined;
@@ -135,30 +137,59 @@ const ProntuarioPaciente = () => {
       setCadastroSaving(false);
     }
   };
-  const [isSessionOpen, setIsSessionOpen] = useState(false);
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
   const [editData, setEditData] = useState(patient || { fullName: '', phone: '', email: '', notes: '' });
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [isDeletingPatient, setIsDeletingPatient] = useState(false);
-  const [sessionData, setSessionData] = useState({
-    date: '',
-    procedure: '',
-    sessionTypeSelection: '' as 'primeira_consulta' | 'retorno' | 'outra' | '',
-    customType: '',
-    notes: '',
-    amount: '',
-    paymentStatus: 'em_aberto' as PaymentStatus,
-    nextAppointment: '',
-    installmentsCount: '',
-    firstPaymentDate: '',
-  });
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [appointmentData, setAppointmentData] = useState({
     date: '',
     time: '',
   });
   const [observations, setObservations] = useState(patient?.notes || '');
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+
+  // Dialog: Alerta de retorno
+  const [isReturnAlertOpen, setIsReturnAlertOpen] = useState(false);
+  const [returnAlertData, setReturnAlertData] = useState({ months: '6', customDate: '', notes: '' });
+  const patientReturnAlerts = id ? returnAlerts.filter(a => a.patientId === id) : [];
+  const activeReturnAlert = patientReturnAlerts.find(a => !a.whatsappSent);
+
+  const handleReturnAlertSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    let returnDate: Date;
+    if (returnAlertData.customDate) {
+      returnDate = new Date(returnAlertData.customDate + 'T12:00:00');
+    } else {
+      returnDate = new Date();
+      returnDate.setMonth(returnDate.getMonth() + parseInt(returnAlertData.months));
+    }
+    await addReturnAlert(id, returnDate, returnAlertData.notes || undefined);
+    setReturnAlertData({ months: '6', customDate: '', notes: '' });
+    setIsReturnAlertOpen(false);
+  };
+
+  // Dialog: Adicionar Lançamento
+  const [isLancamentoOpen, setIsLancamentoOpen] = useState(false);
+  const [lancamentoData, setLancamentoData] = useState({
+    description: '',
+    amount: '',
+    date: '',
+    paymentStatus: 'em_aberto' as PaymentStatus,
+    paymentMethod: '' as PaymentMethod | '',
+    professionalId: '',
+  });
+
+  // Dialog: Adicionar Plano Parcelado
+  const [isPlanoOpen, setIsPlanoOpen] = useState(false);
+  const [planoData, setPlanoData] = useState({
+    description: '',
+    amount: '',
+    installmentsCount: '',
+    firstPaymentDate: '',
+    paymentMethod: '' as PaymentMethod | '',
+    professionalId: '',
+  });
 
   if (!patient) {
     return (
@@ -180,86 +211,50 @@ const ProntuarioPaciente = () => {
     }
   };
 
-  const handleSessionSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (id) {
-      if (editingSessionId) {
-        // Editar sessão existente
-        updateSession(editingSessionId, {
-          date: new Date(sessionData.date + 'T12:00:00'),
-          procedure: sessionData.procedure,
-          notes: sessionData.notes,
-          amount: parseFloat(sessionData.amount),
-          paymentStatus: sessionData.paymentStatus,
-          nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
-        });
-      } else {
-        // Determinar o tipo de sessão baseado na seleção do usuário
-        let sessionType: SessionType;
-        if (sessionData.sessionTypeSelection === 'outra') {
-          sessionType = 'consulta_avulsa'; // Para "Outra", usar consulta_avulsa
-        } else {
-          sessionType = sessionData.sessionTypeSelection as 'primeira_consulta' | 'retorno';
-        }
-        
-        // Adicionar nova sessão
-        const finalNotes = sessionData.sessionTypeSelection === 'outra' && sessionData.customType
-          ? `Tipo de sessão: ${sessionData.customType}\n\n${sessionData.notes}`
-          : sessionData.notes;
-        
-        addSession({
-          patientId: id,
-          date: new Date(sessionData.date + 'T12:00:00'),
-          procedure: sessionData.procedure,
-          sessionType: sessionType,
-          status: 'realizado',
-          notes: finalNotes,
-          amount: parseFloat(sessionData.amount),
-          paymentStatus: sessionData.paymentStatus,
-          nextAppointment: sessionData.nextAppointment ? new Date(sessionData.nextAppointment) : undefined,
-          installmentsCount: sessionData.installmentsCount ? parseInt(sessionData.installmentsCount) : undefined,
-          firstPaymentDate: sessionData.firstPaymentDate ? new Date(sessionData.firstPaymentDate) : undefined,
-        });
-      }
-      setSessionData({
-        date: '',
-        procedure: '',
-        sessionTypeSelection: '',
-        customType: '',
-        notes: '',
-        amount: '',
-        paymentStatus: 'em_aberto',
-        nextAppointment: '',
-        installmentsCount: '',
-        firstPaymentDate: '',
-      });
-      setEditingSessionId(null);
-      setIsSessionOpen(false);
-    }
-  };
-
-  const handleEditSession = (session: any) => {
-    setEditingSessionId(session.id);
-    setSessionData({
-      date: session.date.toISOString().split('T')[0],
-      procedure: session.procedure,
-      sessionTypeSelection: '',
-      customType: '',
-      notes: session.notes || '',
-      amount: session.amount.toString(),
-      paymentStatus: session.paymentStatus,
-      nextAppointment: session.nextAppointment ? session.nextAppointment.toISOString().split('T')[0] : '',
-      installmentsCount: '',
-      firstPaymentDate: '',
-    });
-    setIsSessionOpen(true);
-  };
-
   const handleDeleteSession = async () => {
     if (deletingSessionId) {
       await deleteSession(deletingSessionId);
       setDeletingSessionId(null);
     }
+  };
+
+  const handleLancamentoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    await addSession({
+      patientId: id,
+      date: new Date((lancamentoData.date || new Date().toISOString().split('T')[0]) + 'T12:00:00'),
+      procedure: lancamentoData.description,
+      sessionType: 'consulta_avulsa',
+      status: 'realizado',
+      amount: parseFloat(lancamentoData.amount),
+      paymentStatus: lancamentoData.paymentStatus,
+      paymentMethod: lancamentoData.paymentMethod || undefined,
+      professionalId: lancamentoData.professionalId || undefined,
+    });
+    setLancamentoData({ description: '', amount: '', date: '', paymentStatus: 'em_aberto', paymentMethod: '', professionalId: '' });
+    setIsLancamentoOpen(false);
+  };
+
+  const handlePlanoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    const count = parseInt(planoData.installmentsCount);
+    await addSession({
+      patientId: id,
+      date: new Date(planoData.firstPaymentDate + 'T12:00:00'),
+      procedure: planoData.description,
+      sessionType: 'consulta_avulsa',
+      status: 'realizado',
+      amount: parseFloat(planoData.amount),
+      paymentStatus: 'em_aberto',
+      paymentMethod: planoData.paymentMethod || undefined,
+      professionalId: planoData.professionalId || undefined,
+      installmentsCount: count,
+      firstPaymentDate: new Date(planoData.firstPaymentDate + 'T12:00:00'),
+    });
+    setPlanoData({ description: '', amount: '', installmentsCount: '', firstPaymentDate: '', paymentMethod: '', professionalId: '' });
+    setIsPlanoOpen(false);
   };
 
   const handleDeletePatient = async () => {
@@ -317,27 +312,28 @@ const ProntuarioPaciente = () => {
   };
 
 
+  const patientInstallments = installments.filter(i => {
+    const session = sessions.find(s => s.id === i.sessionId);
+    return session?.patientId === id;
+  });
+
   const totalPaid = sessions
-    .filter(s => s.paymentStatus === 'pago')
-    .reduce((sum, s) => sum + s.amount, 0);
+    .filter(s => s.patientId === id && s.paymentStatus === 'pago')
+    .reduce((sum, s) => {
+      const hasInstallments = installments.some(i => i.sessionId === s.id);
+      return hasInstallments ? sum : sum + s.amount;
+    }, 0)
+    + patientInstallments.filter(i => i.paid).reduce((sum, i) => sum + i.amount, 0);
 
   const totalPending = sessions
-    .filter(s => s.paymentStatus === 'em_aberto')
-    .reduce((sum, s) => sum + s.amount, 0);
-
-  const getStatusBadge = (status: SessionStatus) => {
-    const variants: Record<SessionStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      sugerido: 'outline',
-      agendado: 'secondary',
-      realizado: 'outline',
-    };
-    const labels: Record<SessionStatus, string> = {
-      sugerido: '',
-      agendado: 'Agendado',
-      realizado: 'Realizado',
-    };
-    return status === 'sugerido' ? null : <Badge variant={variants[status]}>{labels[status]}</Badge>;
-  };
+    .filter(s => s.patientId === id && s.paymentStatus === 'em_aberto')
+    .reduce((sum, s) => {
+      const sessionInst = installments.filter(i => i.sessionId === s.id);
+      if (sessionInst.length > 0) {
+        return sum + sessionInst.filter(i => !i.paid).reduce((a, i) => a + i.amount, 0);
+      }
+      return sum + s.amount;
+    }, 0);
 
   const getPaymentBadge = (status: PaymentStatus) => {
     return (
@@ -417,7 +413,7 @@ const ProntuarioPaciente = () => {
               </div>
             </div>
             </div>{/* fecha flex avatar + info */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full" style={{gridTemplateColumns: 'repeat(3, minmax(0,1fr))' }}>
               <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" onClick={() => setEditData(patient)} className="w-full">
@@ -458,6 +454,82 @@ const ProntuarioPaciente = () => {
                 </DialogContent>
               </Dialog>
               
+              {/* Dialog: Alerta de retorno */}
+              <Dialog open={isReturnAlertOpen} onOpenChange={setIsReturnAlertOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant={activeReturnAlert ? 'default' : 'outline'} className="gap-2 w-full">
+                    <Bell className="h-4 w-4" />
+                    <span className="truncate">{activeReturnAlert ? 'Alerta ativo' : 'Alerta de Retorno'}</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Alerta de Retorno</DialogTitle>
+                    <DialogDescription>
+                      Defina quando {patient.fullName} deve retornar à clínica.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  {/* Alerta ativo existente */}
+                  {activeReturnAlert && (
+                    <div className="p-3 rounded-lg border border-primary/40 bg-primary/5 text-sm space-y-1">
+                      <p className="font-medium text-primary">Alerta ativo</p>
+                      <p className="text-muted-foreground">
+                        Retorno em {activeReturnAlert.returnDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      </p>
+                      {activeReturnAlert.notes && (
+                        <p className="text-xs text-muted-foreground">{activeReturnAlert.notes}</p>
+                      )}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleReturnAlertSubmit} className="space-y-4">
+                    <div>
+                      <Label>Retorno em quantos meses?</Label>
+                      <Select
+                        value={returnAlertData.months}
+                        onValueChange={(v) => setReturnAlertData({ ...returnAlertData, months: v, customDate: '' })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 mês</SelectItem>
+                          <SelectItem value="2">2 meses</SelectItem>
+                          <SelectItem value="3">3 meses</SelectItem>
+                          <SelectItem value="6">6 meses</SelectItem>
+                          <SelectItem value="12">1 ano</SelectItem>
+                          <SelectItem value="18">1 ano e meio</SelectItem>
+                          <SelectItem value="24">2 anos</SelectItem>
+                          <SelectItem value="custom">Data específica</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {returnAlertData.months === 'custom' && (
+                      <div>
+                        <Label>Data específica</Label>
+                        <Input
+                          type="date"
+                          value={returnAlertData.customDate}
+                          onChange={(e) => setReturnAlertData({ ...returnAlertData, customDate: e.target.value })}
+                          required
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <Label>Observação (opcional)</Label>
+                      <Input
+                        value={returnAlertData.notes}
+                        onChange={(e) => setReturnAlertData({ ...returnAlertData, notes: e.target.value })}
+                        placeholder="Ex: Revisão semestral..."
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button type="button" variant="outline" onClick={() => setIsReturnAlertOpen(false)}>Cancelar</Button>
+                      <Button type="submit">Criar Alerta</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
               <Dialog open={isAppointmentOpen} onOpenChange={setIsAppointmentOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="gap-2 w-full">
@@ -582,13 +654,6 @@ const ProntuarioPaciente = () => {
             >
               <UserCircle className="h-4 w-4" />
               Cadastro
-            </TabsTrigger>
-            <TabsTrigger
-              value="sessions"
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <Calendar className="h-4 w-4" />
-              Histórico
             </TabsTrigger>
             <TabsTrigger 
               value="financial" 
@@ -730,230 +795,12 @@ const ProntuarioPaciente = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="sessions" className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <h3 className="text-base sm:text-lg font-semibold">Histórico de Sessões</h3>
-            <Dialog open={isSessionOpen} onOpenChange={setIsSessionOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="w-full sm:w-auto" onClick={() => {
-                  setEditingSessionId(null);
-                  setSessionData({
-                    date: '',
-                    type: '',
-                    sessionTypeSelection: '',
-                    customType: '',
-                    notes: '',
-                    amount: '',
-                    paymentStatus: 'em_aberto',
-                    nextAppointment: '',
-                    installmentsCount: '',
-                    firstPaymentDate: '',
-                  });
-                }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Sessão
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingSessionId ? 'Editar Sessão' : 'Nova Sessão'}</DialogTitle>
-                  <DialogDescription>
-                    {editingSessionId ? 'Editar os dados da sessão' : 'Adicionar uma nova sessão com data sugerida para retorno'}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSessionSubmit} className="space-y-4">
-                  <div>
-                    <Label>Data da Sessão Realizada *</Label>
-                    <Input
-                      type="date"
-                      value={sessionData.date}
-                      onChange={(e) => setSessionData({ ...sessionData, date: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Tipo de Sessão *</Label>
-                    <Select 
-                      value={sessionData.sessionTypeSelection} 
-                      onValueChange={(value: 'primeira_consulta' | 'retorno' | 'outra') => 
-                        setSessionData({ ...sessionData, sessionTypeSelection: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="primeira_consulta">Primeira Consulta</SelectItem>
-                        <SelectItem value="retorno">Retorno</SelectItem>
-                        <SelectItem value="outra">Outra</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {sessionData.sessionTypeSelection === 'outra' && (
-                    <div>
-                      <Label>Especifique o Tipo de Sessão *</Label>
-                      <Input
-                        value={sessionData.customType}
-                        onChange={(e) => setSessionData({ ...sessionData, customType: e.target.value })}
-                        placeholder="Ex: Avaliação, Emergência..."
-                        required
-                      />
-                    </div>
-                  )}
-                  <div>
-                    <Label>Título do Atendimento *</Label>
-                    <Input
-                      value={sessionData.procedure}
-                      onChange={(e) => setSessionData({ ...sessionData, procedure: e.target.value })}
-                      placeholder="Ex: Limpeza, Botox, Laser..."
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Valor da Sessão *</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={sessionData.amount}
-                      onChange={(e) => setSessionData({ ...sessionData, amount: e.target.value })}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Status de Pagamento *</Label>
-                    <Select value={sessionData.paymentStatus} onValueChange={(value: PaymentStatus) => setSessionData({ ...sessionData, paymentStatus: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pago">Pago</SelectItem>
-                        <SelectItem value="em_aberto">Em aberto</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {!editingSessionId && parseFloat(sessionData.amount) > 0 && (
-                    <>
-                      <div>
-                        <Label>Parcelar Pagamento?</Label>
-                        <Input
-                          type="number"
-                          min="2"
-                          max="12"
-                          value={sessionData.installmentsCount}
-                          onChange={(e) => setSessionData({ ...sessionData, installmentsCount: e.target.value })}
-                          placeholder="Número de parcelas (deixe vazio para à vista)"
-                        />
-                      </div>
-                      {sessionData.installmentsCount && parseInt(sessionData.installmentsCount) > 1 && (
-                        <div>
-                          <Label>Data da Primeira Parcela *</Label>
-                          <Input
-                            type="date"
-                            value={sessionData.firstPaymentDate}
-                            onChange={(e) => setSessionData({ ...sessionData, firstPaymentDate: e.target.value })}
-                            required
-                          />
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <div>
-                    <Label>Comentários da Doutora</Label>
-                    <Textarea
-                      value={sessionData.notes}
-                      onChange={(e) => setSessionData({ ...sessionData, notes: e.target.value })}
-                      placeholder="Observações sobre o procedimento..."
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <Label>Próxima Data Sugerida</Label>
-                    <Input
-                      type="date"
-                      value={sessionData.nextAppointment}
-                      onChange={(e) => setSessionData({ ...sessionData, nextAppointment: e.target.value })}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">Salvar Sessão</Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="space-y-3">
-            {sessions.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhuma sessão registrada ainda.</p>
-            ) : (
-              sessions.map((session) => {
-                const sessionTypeLabels = {
-                  primeira_consulta: 'Primeira Consulta',
-                  consulta_avulsa: 'Consulta Avulsa',
-                  retorno: 'Retorno'
-                };
-                
-                return (
-                  <Card key={session.id}>
-                    <CardContent className="pt-4 sm:pt-6">
-                      <div className="flex flex-col gap-4">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm sm:text-base font-semibold">{session.procedure}</h4>
-                            <Badge variant="secondary" className="text-xs">{sessionTypeLabels[session.sessionType]}</Badge>
-                            {getStatusBadge(session.status)}
-                          </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            {session.date.toLocaleDateString('pt-BR', { 
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </p>
-                          {session.notes && (
-                            <p className="text-xs sm:text-sm mt-2 p-2 bg-muted rounded break-words">{session.notes}</p>
-                          )}
-                          {session.nextAppointment && (
-                            <p className="text-xs sm:text-sm text-primary font-medium">
-                              Próxima consulta sugerida: {session.nextAppointment.toLocaleDateString('pt-BR')}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleEditSession(session)}
-                            className="w-full sm:w-auto"
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Editar
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            onClick={() => setDeletingSessionId(session.id)}
-                            className="w-full sm:w-auto"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Excluir
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </div>
-        </TabsContent>
-
         <AlertDialog open={!!deletingSessionId} onOpenChange={(open) => !open && setDeletingSessionId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Excluir Sessão</AlertDialogTitle>
+              <AlertDialogTitle>Excluir Lançamento</AlertDialogTitle>
               <AlertDialogDescription>
-                Tem certeza que deseja excluir esta sessão? Esta ação não pode ser desfeita.
+                Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -981,9 +828,10 @@ const ProntuarioPaciente = () => {
         </AlertDialog>
 
         <TabsContent value="financial" className="space-y-4">
+          {/* Totais */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Pago</CardTitle>
               </CardHeader>
               <CardContent>
@@ -991,7 +839,7 @@ const ProntuarioPaciente = () => {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Pendente</CardTitle>
               </CardHeader>
               <CardContent>
@@ -1000,122 +848,362 @@ const ProntuarioPaciente = () => {
             </Card>
           </div>
 
-          <h3 className="text-base sm:text-lg font-semibold mt-6">Transações</h3>
-          <div className="space-y-2">
-            {sessions.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhuma transação registrada.</p>
-            ) : (
-              sessions.map((session) => {
-                const sessionInstallments = installments.filter(i => i.sessionId === session.id);
-                const hasInstallments = sessionInstallments.length > 0;
-                const isExpanded = expandedSessionId === session.id;
-                const allPaid = sessionInstallments.length > 0 && sessionInstallments.every(i => i.paid);
+          {/* Botões de ação */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Dialog: Lançamento avulso */}
+            <Dialog open={isLancamentoOpen} onOpenChange={setIsLancamentoOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" className="gap-2 w-full sm:w-auto">
+                  <DollarSign className="h-4 w-4" />
+                  Adicionar Lançamento
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Novo Lançamento</DialogTitle>
+                  <DialogDescription>Cobrança avulsa — à vista ou em aberto.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleLancamentoSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Valor (R$) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={lancamentoData.amount}
+                        onChange={(e) => setLancamentoData({ ...lancamentoData, amount: e.target.value })}
+                        placeholder="0,00"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label>Data *</Label>
+                      <Input
+                        type="date"
+                        value={lancamentoData.date}
+                        onChange={(e) => setLancamentoData({ ...lancamentoData, date: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Forma de Pagamento</Label>
+                      <Select
+                        value={lancamentoData.paymentMethod}
+                        onValueChange={(v) => setLancamentoData({ ...lancamentoData, paymentMethod: v as PaymentMethod })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pix">PIX</SelectItem>
+                          <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                          <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                          <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                          <SelectItem value="boleto">Boleto</SelectItem>
+                          <SelectItem value="cheque">Cheque</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Status *</Label>
+                      <Select
+                        value={lancamentoData.paymentStatus}
+                        onValueChange={(v) => setLancamentoData({ ...lancamentoData, paymentStatus: v as PaymentStatus })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pago">Pago</SelectItem>
+                          <SelectItem value="em_aberto">Em aberto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Dentista</Label>
+                    <Select
+                      value={lancamentoData.professionalId}
+                      onValueChange={(v) => setLancamentoData({ ...lancamentoData, professionalId: v === '__none__' ? '' : v })}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nenhum</SelectItem>
+                        {professionals.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Observação</Label>
+                    <Input
+                      value={lancamentoData.description}
+                      onChange={(e) => setLancamentoData({ ...lancamentoData, description: e.target.value })}
+                      placeholder="Ex: Clareamento, Extração..."
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button type="button" variant="outline" onClick={() => setIsLancamentoOpen(false)}>Cancelar</Button>
+                    <Button type="submit">Salvar</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
 
-                return (
-                  <Card key={`${session.id}-${sessionInstallments.length}-${sessionInstallments.filter(i => i.paid).length}`}>
-                    <CardContent className="pt-4 sm:pt-6">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className="flex-1">
-                          <p className="text-sm sm:text-base font-medium">{session.procedure}</p>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            {session.date.toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
-                          <p className="text-lg sm:text-xl font-bold">R$ {session.amount.toFixed(2)}</p>
-                          {allPaid && session.paymentStatus === 'em_aberto' ? getPaymentBadge('pago') : getPaymentBadge(session.paymentStatus)}
-                          {!allPaid && session.paymentStatus === 'em_aberto' && session.amount > 0 && (
-                            <>
-                              {hasInstallments ? (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
-                                  className="w-full sm:w-auto text-xs sm:text-sm"
-                                >
-                                  {isExpanded ? 'Ocultar' : 'Exibir'} Parcelas
-                                </Button>
-                              ) : (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => {
-                                    if (id) {
-                                      updateSession(session.id, { paymentStatus: 'pago' });
-                                    }
-                                  }}
-                                  className="w-full sm:w-auto text-xs sm:text-sm"
-                                >
-                                  Registrar Pagamento
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {isExpanded && hasInstallments && (
-                        <div className="mt-4 border-t pt-4">
-                          <h4 className="text-sm sm:text-base font-medium mb-2">Parcelas desta Sessão</h4>
-                          <div className="overflow-x-auto -mx-2 sm:mx-0">
-                          <Table className="min-w-full">
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="text-xs sm:text-sm">Parcela</TableHead>
-                                <TableHead className="text-xs sm:text-sm">Valor</TableHead>
-                                <TableHead className="text-xs sm:text-sm">Previsão</TableHead>
-                                <TableHead className="text-xs sm:text-sm">Status</TableHead>
-                                <TableHead className="text-xs sm:text-sm">Ações</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {sessionInstallments
-                                .sort((a, b) => a.installmentNumber - b.installmentNumber)
-                                .map((installment) => (
-                                  <TableRow key={installment.id}>
-                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
-                                      {installment.installmentNumber}/{installment.totalInstallments}
-                                    </TableCell>
-                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">R$ {installment.amount.toFixed(2)}</TableCell>
-                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
-                                      {installment.predictedDate.toLocaleDateString('pt-BR')}
-                                    </TableCell>
-                                    <TableCell className="text-xs sm:text-sm">
-                                      <Badge variant={installment.paid ? 'default' : 'secondary'} className="text-xs">
-                                        {installment.paid ? 'Pago' : 'Pendente'}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-xs sm:text-sm">
-                                      {!installment.paid && (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={async () => {
-                                            await updateInstallment(installment.id, {
-                                              paid: true,
-                                              paidDate: new Date(),
-                                            });
-                                          }}
-                                          className="text-xs whitespace-nowrap"
-                                        >
-                                          Marcar como pago
-                                        </Button>
-                                      )}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                            </TableBody>
-                          </Table>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
+            {/* Dialog: Plano parcelado */}
+            <Dialog open={isPlanoOpen} onOpenChange={setIsPlanoOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-2 w-full sm:w-auto">
+                  <CalendarRange className="h-4 w-4" />
+                  Adicionar Mensalidade
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Novo Plano Parcelado</DialogTitle>
+                  <DialogDescription>Divide o valor em até 72 parcelas mensais automáticas.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handlePlanoSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Valor Total (R$) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={planoData.amount}
+                        onChange={(e) => setPlanoData({ ...planoData, amount: e.target.value })}
+                        placeholder="0,00"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label>Nº de Parcelas *</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="72"
+                        value={planoData.installmentsCount}
+                        onChange={(e) => setPlanoData({ ...planoData, installmentsCount: e.target.value })}
+                        placeholder="Ex: 12"
+                        required
+                      />
+                    </div>
+                  </div>
+                  {planoData.amount && planoData.installmentsCount && parseInt(planoData.installmentsCount) > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {parseInt(planoData.installmentsCount)}x de R$ {(parseFloat(planoData.amount) / parseInt(planoData.installmentsCount)).toFixed(2)}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Forma de Pagamento</Label>
+                      <Select
+                        value={planoData.paymentMethod}
+                        onValueChange={(v) => setPlanoData({ ...planoData, paymentMethod: v as PaymentMethod })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pix">PIX</SelectItem>
+                          <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                          <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                          <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                          <SelectItem value="boleto">Boleto</SelectItem>
+                          <SelectItem value="cheque">Cheque</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Data da 1ª Parcela *</Label>
+                      <Input
+                        type="date"
+                        value={planoData.firstPaymentDate}
+                        onChange={(e) => setPlanoData({ ...planoData, firstPaymentDate: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Dentista</Label>
+                    <Select
+                      value={planoData.professionalId}
+                      onValueChange={(v) => setPlanoData({ ...planoData, professionalId: v === '__none__' ? '' : v })}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nenhum</SelectItem>
+                        {professionals.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Observação</Label>
+                    <Input
+                      value={planoData.description}
+                      onChange={(e) => setPlanoData({ ...planoData, description: e.target.value })}
+                      placeholder="Ex: Tratamento ortodôntico..."
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button type="button" variant="outline" onClick={() => setIsPlanoOpen(false)}>Cancelar</Button>
+                    <Button type="submit">Criar Plano</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
+          {/* Lista de lançamentos */}
+          <div className="space-y-2">
+            {sessions.filter(s => s.patientId === id).length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum lançamento registrado.</p>
+            ) : (
+              sessions
+                .filter(s => s.patientId === id)
+                .map((session) => {
+                  const sessionInstallments = installments.filter(i => i.sessionId === session.id);
+                  const hasInstallments = sessionInstallments.length > 0;
+                  const isExpanded = expandedSessionId === session.id;
+                  const paidCount = sessionInstallments.filter(i => i.paid).length;
+                  const allInstallmentsPaid = hasInstallments && paidCount === sessionInstallments.length;
+                  const effectiveStatus = allInstallmentsPaid ? 'pago' : session.paymentStatus;
+
+                  const paymentMethodLabels: Record<string, string> = {
+                    pix: 'PIX',
+                    dinheiro: 'Dinheiro',
+                    cartao_credito: 'Cartão de Crédito',
+                    cartao_debito: 'Cartão de Débito',
+                    boleto: 'Boleto',
+                    cheque: 'Cheque',
+                  };
+
+                  return (
+                    <Card key={`${session.id}-${paidCount}`}>
+                      <CardContent className="pt-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-medium truncate">{session.procedure}</p>
+                              {hasInstallments && (
+                                <Badge variant="outline" className="text-xs shrink-0">
+                                  {paidCount}/{sessionInstallments.length} parcelas
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                              <span className="text-xs text-muted-foreground">
+                                {session.date.toLocaleDateString('pt-BR')}
+                              </span>
+                              {session.paymentMethod && (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <CreditCard className="h-3 w-3" />
+                                  {paymentMethodLabels[session.paymentMethod] ?? session.paymentMethod}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 w-full sm:w-auto justify-between sm:justify-start">
+                            <p className="text-base sm:text-lg font-bold">R$ {session.amount.toFixed(2)}</p>
+                            <div className="flex items-center gap-2">
+                              {getPaymentBadge(effectiveStatus)}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeletingSessionId(session.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Ações para lançamento sem parcelas */}
+                        {!hasInstallments && effectiveStatus === 'em_aberto' && (
+                          <div className="mt-3 pt-3 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateSession(session.id, { paymentStatus: 'pago' })}
+                              className="text-xs"
+                            >
+                              <Banknote className="h-3.5 w-3.5 mr-1.5" />
+                              Registrar Pagamento
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Expand/collapse parcelas */}
+                        {hasInstallments && (
+                          <div className="mt-3 pt-3 border-t">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                              className="text-xs h-7 px-2"
+                            >
+                              {isExpanded ? 'Ocultar' : 'Ver'} parcelas
+                            </Button>
+
+                            {isExpanded && (
+                              <div className="mt-2 overflow-x-auto -mx-2 sm:mx-0">
+                                <Table className="min-w-full">
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="text-xs">Parcela</TableHead>
+                                      <TableHead className="text-xs">Valor</TableHead>
+                                      <TableHead className="text-xs">Vencimento</TableHead>
+                                      <TableHead className="text-xs">Status</TableHead>
+                                      <TableHead className="text-xs"></TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {sessionInstallments
+                                      .sort((a, b) => a.installmentNumber - b.installmentNumber)
+                                      .map((inst) => (
+                                        <TableRow key={inst.id}>
+                                          <TableCell className="text-xs whitespace-nowrap">
+                                            {inst.installmentNumber}/{inst.totalInstallments}
+                                          </TableCell>
+                                          <TableCell className="text-xs whitespace-nowrap">
+                                            R$ {inst.amount.toFixed(2)}
+                                          </TableCell>
+                                          <TableCell className="text-xs whitespace-nowrap">
+                                            {inst.predictedDate.toLocaleDateString('pt-BR')}
+                                          </TableCell>
+                                          <TableCell className="text-xs">
+                                            <Badge variant={inst.paid ? 'default' : 'secondary'} className="text-xs">
+                                              {inst.paid ? 'Pago' : inst.predictedDate < new Date() ? 'Vencido' : 'Pendente'}
+                                            </Badge>
+                                          </TableCell>
+                                          <TableCell className="text-xs">
+                                            {!inst.paid && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => updateInstallment(inst.id, { paid: true, paidDate: new Date() })}
+                                                className="text-xs whitespace-nowrap h-7"
+                                              >
+                                                Marcar pago
+                                              </Button>
+                                            )}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="anamnese">

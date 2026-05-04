@@ -7,6 +7,7 @@ export type MaritalStatus = 'casado' | 'solteiro' | 'divorciado' | 'viuvo';
 export type TransactionType = 'entrada' | 'saida';
 export type NotificationType = 'cancelamento' | 'falta' | 'agendamento' | 'feedback' | 'lembrete_consulta' | 'lembrete_feedback' | 'lembrete_prontuario' | 'lembrete_pagamento';
 export type PaymentStatus = 'pago' | 'em_aberto';
+export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | 'boleto' | 'cheque';
 
 export interface Professional {
   id: string;
@@ -94,6 +95,7 @@ export interface Session {
   notes?: string;
   amount: number;
   paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
   nextAppointment?: Date;
   professionalId?: string;
 }
@@ -150,6 +152,16 @@ export interface OdontogramProcedure {
   executionDate: Date;
   nextAppointmentDate?: Date;
   notes?: string;
+  createdAt: Date;
+}
+
+export interface ReturnAlert {
+  id: string;
+  patientId: string;
+  returnDate: Date;
+  notes?: string;
+  whatsappSent: boolean;
+  whatsappSentAt?: Date;
   createdAt: Date;
 }
 

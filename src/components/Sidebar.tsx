@@ -8,6 +8,7 @@ import {
   UserCircle,
   LogOut,
   Stethoscope,
+  Settings,
 } from 'lucide-react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -26,6 +27,7 @@ const navItems = [
   { to: '/profissionais', icon: Stethoscope, label: 'Profissionais' },
   { to: '/financeiro', icon: DollarSign, label: 'Financeiro' },
   { to: '/notificacoes', icon: Bell, label: 'Notificações' },
+  { to: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
 interface SidebarProps {

@@ -13,6 +13,7 @@ import ProntuarioPaciente from "./pages/ProntuarioPaciente";
 import Financeiro from "./pages/Financeiro";
 import Notificacoes from "./pages/Notificacoes";
 import Profissionais from "./pages/Profissionais";
+import Configuracoes from "./pages/Configuracoes";
 import Login from "./pages/Login";
 import AnamnesePaciente from "./pages/AnamnesePaciente";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/financeiro" element={<Financeiro />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
             <Route path="/profissionais" element={<Profissionais />} />
+            <Route path="/configuracoes" element={<Configuracoes />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

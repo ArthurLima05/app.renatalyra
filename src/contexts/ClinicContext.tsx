@@ -17,6 +17,8 @@ import {
   AnamneseAnswerRecord,
   AnamneseQuestionType,
   AnamneseStatus,
+  PaymentMethod,
+  ReturnAlert,
 } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -44,7 +46,7 @@ interface ClinicContextType {
   addPatient: (patient: Omit<Patient, "id" | "createdAt">) => Promise<void>;
   updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
   deletePatient: (id: string) => Promise<void>;
-  addSession: (session: Omit<Session, "id"> & { installmentsCount?: number; firstPaymentDate?: Date }) => Promise<void>;
+  addSession: (session: Omit<Session, "id"> & { installmentsCount?: number; firstPaymentDate?: Date; paymentMethod?: PaymentMethod }) => Promise<void>;
   updateSession: (id: string, session: Partial<Session>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   getPatientById: (id: string) => Patient | undefined;
@@ -53,6 +55,12 @@ interface ClinicContextType {
   linkAppointmentToSession: (sessionId: string, appointmentDate: Date, appointmentTime: string) => Promise<void>;
   getSuggestedSessionsByPatientId: (patientId: string) => Session[];
   updateInstallment: (id: string, data: Partial<Installment>) => Promise<void>;
+  returnAlerts: ReturnAlert[];
+  addReturnAlert: (patientId: string, returnDate: Date, notes?: string) => Promise<void>;
+  deleteReturnAlert: (id: string) => Promise<void>;
+  sendReturnAlertWhatsApp: (id: string) => Promise<void>;
+  clinicSettings: Record<string, string>;
+  updateClinicSetting: (key: string, value: string) => Promise<void>;
   odontogramProcedures: OdontogramProcedure[];
   addOdontogramProcedure: (proc: Omit<OdontogramProcedure, "id" | "createdAt">) => Promise<void>;
   getOdontogramByPatientId: (patientId: string) => OdontogramProcedure[];
@@ -92,6 +100,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [patientPhotos, setPatientPhotos] = useState<PatientPhoto[]>([]);
   const [anamneseQuestions, setAnamneseQuestions] = useState<AnamneseQuestion[]>([]);
   const [anamneseResponses, setAnamneseResponses] = useState<AnamneseResponse[]>([]);
+  const [returnAlerts, setReturnAlerts] = useState<ReturnAlert[]>([]);
+  const [clinicSettings, setClinicSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const isCheckingNotifications = useRef(false);
@@ -180,6 +190,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           status: payload.new.status as SessionStatus,
           amount: Number(payload.new.amount),
           paymentStatus: payload.new.payment_status,
+          paymentMethod: (payload.new as any).payment_method || undefined,
           nextAppointment: payload.new.next_appointment ? new Date(payload.new.next_appointment) : undefined,
           professionalId: payload.new.professional_id || undefined,
           notes: payload.new.notes || undefined,
@@ -196,6 +207,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           status: payload.new.status as SessionStatus,
           amount: Number(payload.new.amount),
           paymentStatus: payload.new.payment_status,
+          paymentMethod: (payload.new as any).payment_method || undefined,
           nextAppointment: payload.new.next_appointment ? new Date(payload.new.next_appointment) : undefined,
           professionalId: payload.new.professional_id || undefined,
           notes: payload.new.notes || undefined,
@@ -308,6 +320,41 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
+  const loadClinicSettings = async () => {
+    const { data, error } = await (supabase as any).from("clinic_settings").select("key, value");
+    if (error) { console.error("Error loading settings:", error); return; }
+    const map: Record<string, string> = {};
+    for (const row of data || []) map[row.key] = row.value;
+    setClinicSettings(map);
+  };
+
+  const updateClinicSetting = async (key: string, value: string) => {
+    const { error } = await (supabase as any)
+      .from("clinic_settings")
+      .upsert({ key, value, updated_at: new Date().toISOString() });
+    if (error) {
+      toast({ title: "Erro ao salvar configuração", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    setClinicSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const loadReturnAlerts = async () => {
+    const { data, error } = await (supabase as any).from("return_alerts").select("*").order("return_date", { ascending: true });
+    if (error) { console.error("Error loading return alerts:", error); return; }
+    setReturnAlerts(
+      (data || []).map((r: any) => ({
+        id: r.id,
+        patientId: r.patient_id,
+        returnDate: new Date(r.return_date + 'T12:00:00'),
+        notes: r.notes ?? undefined,
+        whatsappSent: r.whatsapp_sent,
+        whatsappSentAt: r.whatsapp_sent_at ? new Date(r.whatsapp_sent_at) : undefined,
+        createdAt: new Date(r.created_at),
+      }))
+    );
+  };
+
   const loadAllData = async () => {
     setLoading(true);
     await Promise.all([
@@ -321,6 +368,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loadOdontogramProcedures(),
       loadPatientPhotos(),
       loadAnamneseData(),
+      loadReturnAlerts(),
+      loadClinicSettings(),
     ]);
     setLoading(false);
   };
@@ -406,6 +455,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         notes: s.notes || undefined,
         amount: Number(s.amount),
         paymentStatus: s.payment_status as any,
+        paymentMethod: (s as any).payment_method || undefined,
         nextAppointment: s.next_appointment ? new Date(s.next_appointment) : undefined,
         professionalId: s.professional_id || undefined,
       })),
@@ -807,12 +857,25 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
 
-    if (loading || isCheckingNotifications.current) return;
+  if (loading || isCheckingNotifications.current) return;
     isCheckingNotifications.current = true;
     checkNotifications().finally(() => {
       isCheckingNotifications.current = false;
     });
   }, [appointments, sessions, installments, patients, loading]);
+
+  // Auto-envio de alertas de retorno vencidos ao carregar o app
+  useEffect(() => {
+    if (loading || returnAlerts.length === 0) return;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const overdue = returnAlerts.filter(a => {
+      if (a.whatsappSent) return false;
+      const rd = new Date(a.returnDate); rd.setHours(0, 0, 0, 0);
+      return rd <= today;
+    });
+    overdue.forEach(a => sendReturnAlertWhatsApp(a.id));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const addPatient = async (patient: Omit<Patient, "id" | "createdAt">) => {
     const { error } = await supabase.from("patients").insert({
@@ -875,7 +938,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: "Paciente excluído com sucesso" });
   };
 
-  const addSession = async (session: Omit<Session, "id"> & { installmentsCount?: number; firstPaymentDate?: Date }) => {
+  const addSession = async (session: Omit<Session, "id"> & { installmentsCount?: number; firstPaymentDate?: Date; paymentMethod?: PaymentMethod }) => {
     const { data, error } = await supabase
       .from("sessions")
       .insert({
@@ -887,9 +950,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         notes: session.notes,
         amount: session.amount,
         payment_status: session.paymentStatus,
+        payment_method: session.paymentMethod ?? null,
         next_appointment: session.nextAppointment?.toISOString(),
         professional_id: session.professionalId,
-      })
+      } as any)
       .select()
       .single();
 
@@ -1252,6 +1316,76 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const getOdontogramByPatientId = (patientId: string) =>
     odontogramProcedures.filter((p) => p.patientId === patientId);
 
+  const addReturnAlert = async (patientId: string, returnDate: Date, notes?: string) => {
+    const { data, error } = await (supabase as any).from("return_alerts").insert({
+      patient_id: patientId,
+      return_date: returnDate.toISOString().split('T')[0],
+      notes: notes ?? null,
+    }).select().single();
+    if (error) {
+      toast({ title: "Erro ao criar alerta", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    setReturnAlerts(prev => [...prev, {
+      id: data.id,
+      patientId: data.patient_id,
+      returnDate: new Date(data.return_date + 'T12:00:00'),
+      notes: data.notes ?? undefined,
+      whatsappSent: false,
+      createdAt: new Date(data.created_at),
+    }]);
+    toast({ title: "Alerta de retorno criado" });
+  };
+
+  const deleteReturnAlert = async (id: string) => {
+    const { error } = await (supabase as any).from("return_alerts").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir alerta", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    setReturnAlerts(prev => prev.filter(a => a.id !== id));
+  };
+
+  const sendReturnAlertWhatsApp = async (id: string) => {
+    const alert = returnAlerts.find(a => a.id === id);
+    if (!alert) return;
+    const patient = getPatientById(alert.patientId);
+    if (!patient) return;
+
+    const template = clinicSettings['msg_return_alert'] ?? 'Olá, {{nome_paciente}}! Aqui é a clínica Dra. Renata Lyra. Que tal agendar um retorno?';
+    const message = template.replace('{{nome_paciente}}', patient.fullName);
+
+    const webhookUrl = import.meta.env.VITE_N8N_RETURN_ALERT_WEBHOOK_URL as string | undefined;
+    if (webhookUrl) {
+      try {
+        await fetch(webhookUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patientName: patient.fullName,
+            patientPhone: patient.phone,
+            returnDate: alert.returnDate.toISOString().split('T')[0],
+            notes: alert.notes ?? '',
+            message,
+          }),
+        });
+      } catch (e) {
+        console.warn('Webhook de retorno falhou:', e);
+      }
+    } else {
+      console.warn('VITE_N8N_RETURN_ALERT_WEBHOOK_URL não configurado — WhatsApp não enviado');
+    }
+
+    const now = new Date();
+    await (supabase as any).from("return_alerts").update({
+      whatsapp_sent: true,
+      whatsapp_sent_at: now.toISOString(),
+    }).eq("id", id);
+    setReturnAlerts(prev => prev.map(a => a.id === id ? { ...a, whatsappSent: true, whatsappSentAt: now } : a));
+    toast({ title: "WhatsApp enviado", description: `Alerta de retorno enviado para ${patient.fullName}` });
+  };
+
   const updateInstallment = async (id: string, data: Partial<Installment>) => {
     const updateData: any = {};
 
@@ -1371,6 +1505,12 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     linkAppointmentToSession,
     getSuggestedSessionsByPatientId,
     updateInstallment,
+    returnAlerts,
+    addReturnAlert,
+    deleteReturnAlert,
+    sendReturnAlertWhatsApp,
+    clinicSettings,
+    updateClinicSetting,
     odontogramProcedures,
     addOdontogramProcedure,
     getOdontogramByPatientId,
