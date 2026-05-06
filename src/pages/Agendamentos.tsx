@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClinic } from "@/contexts/ClinicContext";
+import { usePermissionsCtx } from "@/contexts/PermissionsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { DENTIST_VARS, dentistStyle } from "@/lib/dentist-colors";
+import { usePermissionsCtx } from "@/contexts/PermissionsContext";
 
 type DateFilter = "dia" | "semana" | "mes" | "ano";
 type MainTab = "agendamentos" | "historico";
@@ -392,7 +394,7 @@ export default function Agendamentos() {
   const [showFilters, setShowFilters] = useState(false);
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
-  const [viewMode, setViewMode] = useState<ViewMode>("calendario");
+  const viewMode = (clinicSettings['agenda_view_mode'] ?? 'calendario') as ViewMode;
   const [calendarSubView, setCalendarSubView] = useState<CalendarSubView>("dia");
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
@@ -430,6 +432,9 @@ export default function Agendamentos() {
   });
 
   const selectedPatient = patients.find((p) => p.id === formData.patientId);
+
+  const { canCreate, canEdit, canDelete } = usePermissionsCtx();
+  const { clinicSettings } = useClinic();
 
   const activeAlerts = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -588,7 +593,7 @@ export default function Agendamentos() {
             onClick={() => setDetailAppointment(app)}
           >
             <div className="font-semibold truncate mb-0.5">
-              {compact ? app.patientName.split(" ")[0] : app.patientName}
+              {app.patientName}
             </div>
             {!compact && (
               <div className="opacity-75 text-xs flex items-center gap-0.5">
@@ -719,7 +724,7 @@ export default function Agendamentos() {
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2" disabled={!canCreate('agenda')}>
               <Plus className="h-5 w-5" />
               Novo Agendamento
             </Button>
@@ -875,16 +880,6 @@ export default function Agendamentos() {
           {/* Toggle principal + sub-toggle */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center border rounded-lg p-1 gap-1">
-                <Button variant={viewMode === "calendario" ? "secondary" : "ghost"} size="sm"
-                  onClick={() => setViewMode("calendario")} className="gap-2">
-                  <CalendarIcon className="h-4 w-4" /> Calendário
-                </Button>
-                <Button variant={viewMode === "lista" ? "secondary" : "ghost"} size="sm"
-                  onClick={() => setViewMode("lista")} className="gap-2">
-                  <List className="h-4 w-4" /> Lista
-                </Button>
-              </div>
               {viewMode === "lista" && (
                 <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="gap-2">
                   <Filter className="h-4 w-4" />
@@ -978,7 +973,7 @@ export default function Agendamentos() {
                           return (
                             <div key={app.id} className="text-xs rounded px-1 py-0.5 truncate"
                               style={dentistStyle(pro?.name)}>
-                              {app.time} {app.patientName.split(" ")[0]}
+                              {app.time} {app.patientName}
                             </div>
                           );
                         })}
@@ -1082,6 +1077,7 @@ export default function Agendamentos() {
                           </div>
                           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
                             <Select value={appointment.status}
+                              disabled={!canEdit('agenda')}
                               onValueChange={(v) => updateAppointmentStatus(appointment.id, v as AppointmentStatus)}>
                               <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
                               <SelectContent>
@@ -1094,7 +1090,7 @@ export default function Agendamentos() {
                             </Select>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <Button variant="ghost" size="icon" disabled={!canDelete('agenda')} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </AlertDialogTrigger>
@@ -1307,7 +1303,7 @@ export default function Agendamentos() {
                         {getStatusBadge(appointment.status)}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Button variant="ghost" size="icon" disabled={!canDelete('agenda')} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>

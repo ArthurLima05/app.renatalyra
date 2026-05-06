@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Bell, Calendar, X, FileText, DollarSign, Trash2, ExternalLink, MoreVertical, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationType } from '@/types';
+import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import {
@@ -33,6 +34,7 @@ type DateGroup = 'hoje' | 'ontem' | 'esta_semana' | 'mais_antigas';
 
 export default function Notificacoes() {
   const { notifications, markNotificationRead, deleteNotification } = useClinic();
+  const { canDelete } = usePermissionsCtx();
   const navigate = useNavigate();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabValue>('todas');
@@ -479,13 +481,15 @@ export default function Notificacoes() {
                                                 Marcar como lida
                                               </DropdownMenuItem>
                                             )}
-                                            <DropdownMenuItem 
+                                            {canDelete('notificacoes') && (
+                                            <DropdownMenuItem
                                               onClick={() => setDeleteConfirmId(notification.id)}
                                               className="text-destructive"
                                             >
                                               <Trash2 className="h-4 w-4 mr-2" />
                                               Excluir
                                             </DropdownMenuItem>
+                                            )}
                                           </DropdownMenuContent>
                                         </DropdownMenu>
                                       </div>

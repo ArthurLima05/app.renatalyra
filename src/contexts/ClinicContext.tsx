@@ -23,6 +23,9 @@ import {
   UserProfile,
   AppModule,
   UserPermission,
+  PatientDocument,
+  Lead,
+  LeadStage,
 } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +48,7 @@ interface ClinicContextType {
   deleteTransaction: (id: string) => Promise<void>;
   addProfessional: (professional: Omit<Professional, "id">) => Promise<void>;
   updateProfessional: (id: string, data: Partial<Omit<Professional, "id">>) => Promise<void>;
+  deleteProfessional: (id: string) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
   addPatient: (patient: Omit<Patient, "id" | "createdAt">) => Promise<void>;
@@ -87,6 +91,15 @@ interface ClinicContextType {
   deletePatientPhoto: (id: string, url: string) => Promise<void>;
   updatePatientAvatar: (patientId: string, file: File) => Promise<void>;
   getPhotosByPatientId: (patientId: string) => PatientPhoto[];
+  patientDocuments: PatientDocument[];
+  addPatientDocument: (patientId: string, file: File) => Promise<void>;
+  deletePatientDocument: (id: string, url: string) => Promise<void>;
+  getDocumentsByPatientId: (patientId: string) => PatientDocument[];
+  leads: Lead[];
+  addLead: (data: Omit<Lead, 'id' | 'stage' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateLead: (id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>) => Promise<void>;
+  moveLeadStage: (id: string, stage: LeadStage, extra?: { lostReason?: string }) => Promise<{ patientId?: string }>;
+  deleteLead: (id: string) => Promise<void>;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -107,6 +120,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [odontogramProcedures, setOdontogramProcedures] = useState<OdontogramProcedure[]>([]);
   const [patientPhotos, setPatientPhotos] = useState<PatientPhoto[]>([]);
+  const [patientDocuments, setPatientDocuments] = useState<PatientDocument[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [anamneseQuestions, setAnamneseQuestions] = useState<AnamneseQuestion[]>([]);
   const [anamneseResponses, setAnamneseResponses] = useState<AnamneseResponse[]>([]);
   const [returnAlerts, setReturnAlerts] = useState<ReturnAlert[]>([]);
@@ -434,6 +449,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loadClinicSettings(),
       loadAppUsers(),
       loadUserPermissions(),
+      loadPatientDocuments(),
+      loadLeads(),
     ]);
     setLoading(false);
   };
@@ -752,6 +769,15 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toast({ title: "Erro ao adicionar profissional", description: error.message, variant: "destructive" });
       throw error;
     }
+  };
+
+  const deleteProfessional = async (id: string) => {
+    const { error } = await supabase.from("professionals").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir profissional", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    toast({ title: "Profissional excluído" });
   };
 
   const updateProfessional = async (id: string, data: Partial<Omit<Professional, "id">>) => {
@@ -1332,6 +1358,174 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const getPhotosByPatientId = (patientId: string) =>
     patientPhotos.filter((p) => p.patientId === patientId);
 
+  const loadPatientDocuments = async () => {
+    const { data, error } = await (supabase as any)
+      .from("patient_documents")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) { console.error("Error loading documents:", error); return; }
+    setPatientDocuments(
+      (data || []).map((r: any) => ({
+        id: r.id,
+        patientId: r.patient_id,
+        name: r.name,
+        url: r.url,
+        fileType: r.file_type ?? undefined,
+        fileSize: r.file_size ?? undefined,
+        createdAt: new Date(r.created_at),
+      }))
+    );
+  };
+
+  const addPatientDocument = async (patientId: string, file: File) => {
+    const ext = file.name.split(".").pop() ?? "bin";
+    const path = `${patientId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error: uploadError } = await supabase.storage
+      .from("patient-documents")
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    if (uploadError) {
+      toast({ title: "Erro ao enviar documento", description: uploadError.message, variant: "destructive" });
+      throw uploadError;
+    }
+    const { data: { publicUrl } } = supabase.storage.from("patient-documents").getPublicUrl(path);
+    const { error } = await (supabase as any).from("patient_documents").insert({
+      patient_id: patientId,
+      name: file.name,
+      url: publicUrl,
+      file_type: file.type || ext,
+      file_size: file.size,
+    });
+    if (error) {
+      toast({ title: "Erro ao salvar documento", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    await loadPatientDocuments();
+    toast({ title: "Documento adicionado" });
+  };
+
+  const deletePatientDocument = async (id: string, url: string) => {
+    const { error } = await (supabase as any).from("patient_documents").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir documento", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    try {
+      const parts = url.split("/patient-documents/");
+      if (parts[1]) await supabase.storage.from("patient-documents").remove([parts[1]]);
+    } catch (_) { /* ignora erro de storage */ }
+    await loadPatientDocuments();
+    toast({ title: "Documento excluído" });
+  };
+
+  const getDocumentsByPatientId = (patientId: string) =>
+    patientDocuments.filter((d) => d.patientId === patientId);
+
+  // ── Leads (Funil de Vendas) ──────────────────────────────────────────────
+  const mapLead = (r: any): Lead => ({
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    email: r.email ?? undefined,
+    origin: r.origin,
+    treatmentInterest: r.treatment_interest ?? undefined,
+    stage: r.stage as LeadStage,
+    estimatedValue: r.estimated_value ? Number(r.estimated_value) : undefined,
+    notes: r.notes ?? undefined,
+    patientId: r.patient_id ?? undefined,
+    lostReason: r.lost_reason ?? undefined,
+    createdAt: new Date(r.created_at),
+    updatedAt: new Date(r.updated_at),
+  });
+
+  const loadLeads = async () => {
+    const { data, error } = await (supabase as any)
+      .from('leads').select('*').order('created_at', { ascending: false });
+    if (error) { console.error('Error loading leads:', error); return; }
+    setLeads((data || []).map(mapLead));
+  };
+
+  const addLead = async (data: Omit<Lead, 'id' | 'stage' | 'createdAt' | 'updatedAt'>) => {
+    const { error } = await (supabase as any).from('leads').insert({
+      name: data.name,
+      phone: data.phone,
+      email: data.email ?? null,
+      origin: data.origin,
+      treatment_interest: data.treatmentInterest ?? null,
+      estimated_value: data.estimatedValue ?? null,
+      notes: data.notes ?? null,
+    });
+    if (error) { toast({ title: 'Erro ao adicionar lead', description: error.message, variant: 'destructive' }); throw error; }
+    await loadLeads();
+    toast({ title: 'Lead adicionado ao funil' });
+  };
+
+  const updateLead = async (id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>) => {
+    const update: any = { updated_at: new Date().toISOString() };
+    if (data.name !== undefined) update.name = data.name;
+    if (data.phone !== undefined) update.phone = data.phone;
+    if (data.email !== undefined) update.email = data.email ?? null;
+    if (data.origin !== undefined) update.origin = data.origin;
+    if (data.treatmentInterest !== undefined) update.treatment_interest = data.treatmentInterest ?? null;
+    if (data.estimatedValue !== undefined) update.estimated_value = data.estimatedValue ?? null;
+    if (data.notes !== undefined) update.notes = data.notes ?? null;
+    if (data.stage !== undefined) update.stage = data.stage;
+    if (data.lostReason !== undefined) update.lost_reason = data.lostReason ?? null;
+    if (data.patientId !== undefined) update.patient_id = data.patientId ?? null;
+    const { error } = await (supabase as any).from('leads').update(update).eq('id', id);
+    if (error) { toast({ title: 'Erro ao atualizar lead', description: error.message, variant: 'destructive' }); throw error; }
+    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...data, updatedAt: new Date() } : l));
+  };
+
+  const moveLeadStage = async (id: string, stage: LeadStage, extra?: { lostReason?: string }): Promise<{ patientId?: string }> => {
+    const lead = leads.find(l => l.id === id);
+    if (!lead) return {};
+
+    let patientId = lead.patientId;
+
+    // Se está avançando para consulta agendada e ainda não tem paciente, cria paciente mínimo
+    if (stage === 'consulta_agendada' && !patientId) {
+      const { data: newPatient, error: patientError } = await supabase.from('patients').insert({
+        full_name: lead.name,
+        phone: lead.phone,
+        email: lead.email ?? null,
+        origin: lead.origin,
+      }).select().single();
+      if (patientError) {
+        toast({ title: 'Erro ao criar paciente', description: patientError.message, variant: 'destructive' });
+        throw patientError;
+      }
+      patientId = newPatient.id;
+    }
+
+    // Se convertido e ainda não tem paciente, cria agora
+    if (stage === 'convertido' && !patientId) {
+      const { data: newPatient, error: patientError } = await supabase.from('patients').insert({
+        full_name: lead.name,
+        phone: lead.phone,
+        email: lead.email ?? null,
+        origin: lead.origin,
+      }).select().single();
+      if (!patientError && newPatient) patientId = newPatient.id;
+    }
+
+    const update: any = { stage, updated_at: new Date().toISOString() };
+    if (patientId) update.patient_id = patientId;
+    if (extra?.lostReason) update.lost_reason = extra.lostReason;
+
+    await (supabase as any).from('leads').update(update).eq('id', id);
+    setLeads(prev => prev.map(l =>
+      l.id === id ? { ...l, stage, patientId: patientId ?? l.patientId, lostReason: extra?.lostReason ?? l.lostReason, updatedAt: new Date() } : l
+    ));
+    await loadPatients();
+    return { patientId };
+  };
+
+  const deleteLead = async (id: string) => {
+    const { error } = await (supabase as any).from('leads').delete().eq('id', id);
+    if (error) { toast({ title: 'Erro ao excluir lead', description: error.message, variant: 'destructive' }); throw error; }
+    setLeads(prev => prev.filter(l => l.id !== id));
+  };
+
   const loadOdontogramProcedures = async () => {
     const { data, error } = await supabase
       .from("odontogram_procedures")
@@ -1555,6 +1749,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     deleteTransaction,
     addProfessional,
     updateProfessional,
+    deleteProfessional,
     markNotificationRead,
     deleteNotification,
     addPatient,
@@ -1597,6 +1792,15 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     deletePatientPhoto,
     updatePatientAvatar,
     getPhotosByPatientId,
+    patientDocuments,
+    addPatientDocument,
+    deletePatientDocument,
+    getDocumentsByPatientId,
+    leads,
+    addLead,
+    updateLead,
+    moveLeadStage,
+    deleteLead,
   };
 
   if (loading) {

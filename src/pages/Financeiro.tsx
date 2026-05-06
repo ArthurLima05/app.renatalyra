@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, Legend, CartesianGrid } from 'recharts';
 import { TransactionType } from '@/types';
+import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -26,6 +27,7 @@ type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
   const { transactions, addTransaction, deleteTransaction, installments, updateInstallment, sessions, getPatientById, professionals } = useClinic();
+  const { canView, canCreate, canDelete } = usePermissionsCtx();
   const { role, isSecretaria, loading: roleLoading } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -399,7 +401,7 @@ export default function Financeiro() {
             </Popover>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2 w-full sm:w-auto">
+                <Button className="gap-2 w-full sm:w-auto" disabled={!canCreate('financeiro')}>
                   <Plus className="h-4 w-4" />
                   Novo Lançamento
                 </Button>
@@ -557,8 +559,8 @@ export default function Financeiro() {
         </div>
       </motion.div>
 
-      {/* Cards de Resumo - apenas para admin */}
-      {!isSecretaria && (
+      {/* Cards de Resumo - apenas para quem tem canView */}
+      {canView('financeiro') && !isSecretaria && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
@@ -637,8 +639,8 @@ export default function Financeiro() {
         </div>
       )}
 
-      {/* Tabs com Gráficos - apenas para admin */}
-      {!isSecretaria && (
+      {/* Tabs com Gráficos - apenas para quem tem canView */}
+      {canView('financeiro') && !isSecretaria && (
         <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -806,8 +808,13 @@ export default function Financeiro() {
         </motion.div>
       )}
 
-      {/* Filtros e Histórico */}
-      <motion.div
+      {/* Filtros e Histórico - apenas para quem tem canView */}
+      {!canView('financeiro') && canCreate('financeiro') && (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground text-sm">
+          Você tem permissão para criar lançamentos, mas não para visualizar o histórico financeiro.
+        </div>
+      )}
+      {canView('financeiro') && <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5 }}
@@ -901,6 +908,7 @@ export default function Financeiro() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            disabled={!canDelete('financeiro')}
                             onClick={() => {
                               setTransactionToDelete(transaction.id);
                               setDeleteDialogOpen(true);
@@ -918,7 +926,7 @@ export default function Financeiro() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </motion.div>}
 
       {/* Popup de detalhes da transação */}
       {detailTransaction && (() => {

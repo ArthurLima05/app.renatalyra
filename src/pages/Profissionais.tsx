@@ -4,7 +4,7 @@ import { useClinic } from "@/contexts/ClinicContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Mail, Phone, CalendarDays, ChevronDown, ChevronUp, Stethoscope, Pencil } from "lucide-react";
+import { Plus, Mail, Phone, CalendarDays, ChevronDown, ChevronUp, Stethoscope, Pencil, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +30,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { dentistStyle } from "@/lib/dentist-colors";
+import { usePermissionsCtx } from "@/contexts/PermissionsContext";
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
   agendado: "Agendado",
@@ -43,9 +54,11 @@ type FormData = { name: string; specialty: string; email: string; phone: string 
 const emptyForm = (): FormData => ({ name: "", specialty: "", email: "", phone: "" });
 
 export default function Profissionais() {
-  const { professionals, appointments, addProfessional, updateProfessional, updateAppointmentProfessional } = useClinic();
+  const { professionals, appointments, addProfessional, updateProfessional, deleteProfessional, updateAppointmentProfessional } = useClinic();
+  const { canCreate, canEdit, canDelete } = usePermissionsCtx();
 
   const [dialogMode, setDialogMode] = useState<"none" | "add" | "edit">("none");
+  const [deletingProId, setDeletingProId] = useState<string | null>(null);
   const [editingPro, setEditingPro] = useState<Professional | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(emptyForm());
@@ -112,7 +125,7 @@ export default function Profissionais() {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Profissionais</h1>
           <p className="text-sm text-muted-foreground">Equipe da clínica</p>
         </div>
-        <Button className="gap-2" onClick={openAdd}>
+        <Button className="gap-2" disabled={!canCreate('profissionais')} onClick={openAdd}>
           <Plus className="h-4 w-4" />
           Adicionar Profissional
         </Button>
@@ -208,10 +221,20 @@ export default function Profissionais() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        disabled={!canEdit('profissionais')}
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         onClick={() => openEdit(pro)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={!canDelete('profissionais')}
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeletingProId(pro.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -309,6 +332,31 @@ export default function Profissionais() {
           );
         })}
       </div>
+
+      <AlertDialog open={!!deletingProId} onOpenChange={(open) => !open && setDeletingProId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir profissional</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este profissional? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (deletingProId) {
+                  await deleteProfessional(deletingProId);
+                  setDeletingProId(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

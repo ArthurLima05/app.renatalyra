@@ -11,21 +11,24 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  TrendingUp,
 } from 'lucide-react';
 import { useClinic } from '@/contexts/ClinicContext';
+import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-const navItems = [
-  { to: '/', icon: Calendar, label: 'Agendamentos' },
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/pacientes', icon: UserCircle, label: 'Pacientes' },
-  { to: '/profissionais', icon: Stethoscope, label: 'Profissionais' },
-  { to: '/financeiro', icon: DollarSign, label: 'Financeiro' },
-  { to: '/notificacoes', icon: Bell, label: 'Notificações' },
+const NAV_ITEMS = [
+  { to: '/',              module: 'agenda',        icon: Calendar,       label: 'Agendamentos' },
+  { to: '/dashboard',     module: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/pacientes',     module: 'pacientes',     icon: UserCircle,     label: 'Pacientes' },
+  { to: '/profissionais', module: 'profissionais', icon: Stethoscope,    label: 'Profissionais' },
+  { to: '/financeiro',    module: 'financeiro',    icon: DollarSign,     label: 'Financeiro' },
+  { to: '/notificacoes',  module: 'notificacoes',  icon: Bell,           label: 'Notificações' },
+  { to: '/funil',         module: 'funil',         icon: TrendingUp,     label: 'Funil de Vendas' },
 ];
 
 interface SidebarProps {
@@ -37,10 +40,13 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: SidebarProps) => {
   const { notifications } = useClinic();
+  const { canView, isAdmin } = usePermissionsCtx();
   const navigate = useNavigate();
   const { toast } = useToast();
   const unreadCount = notifications.filter(n => !n.read).length;
   const isMobile = useIsMobile();
+
+  // Todos os itens aparecem; sem canView ficam cinzados visualmente
 
   const collapsed = !isMobile && isCollapsed;
   const w = collapsed ? 'w-16' : 'w-64';
@@ -102,7 +108,9 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
 
         {/* Navegação */}
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
-          {navItems.map((item) => (
+          {NAV_ITEMS.map((item) => {
+            const hasAccess = item.module === 'agenda' || canView(item.module);
+            return (
             <NavLink
               key={item.to}
               to={item.to}
@@ -116,6 +124,7 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
                   isActive
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'hover:bg-secondary text-foreground',
+                  !hasAccess && 'opacity-40',
                 )
               }
             >
@@ -132,7 +141,7 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
                 <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
               )}
             </NavLink>
-          ))}
+          );})}
         </nav>
 
         {/* Rodapé */}
@@ -148,6 +157,7 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
                 isActive
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'hover:bg-secondary text-foreground',
+                !canView('configuracoes') && 'opacity-40',
               )
             }
           >

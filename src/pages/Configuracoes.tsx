@@ -17,11 +17,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import {
   Save, RotateCcw, MessageSquare, Palette, ChevronRight, ArrowLeft, Info,
   Sun, Moon, Users, Plus, ChevronDown, ChevronUp, Mail, Phone, Shield,
+  SlidersHorizontal, CalendarDays, List,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser, UserProfile, AppModule, UserPermission } from '@/types';
+import { usePermissionsCtx } from '@/contexts/PermissionsContext';
+import { cn } from '@/lib/utils';
 
-type Section = null | 'aparencia' | 'mensagens' | 'usuarios';
+type Section = null | 'aparencia' | 'mensagens' | 'usuarios' | 'preferencias';
 type UserView = null | AppUser;
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -52,6 +55,7 @@ const MODULES: { id: AppModule; label: string; description: string }[] = [
   { id: 'profissionais', label: 'Profissionais',  description: 'Gestão de profissionais' },
   { id: 'notificacoes',  label: 'Notificações',   description: 'Central de notificações' },
   { id: 'configuracoes', label: 'Configurações',  description: 'Configurações do sistema' },
+  { id: 'funil' as AppModule,         label: 'Funil de Vendas', description: 'Leads e pipeline de conversão' },
 ];
 
 const MESSAGE_TEMPLATES = [
@@ -128,6 +132,7 @@ function AparenciaSection() {
 // ── Seção: Mensagens ──────────────────────────────────────────────────────────
 function MensagensSection() {
   const { clinicSettings, updateClinicSetting } = useClinic();
+  const { canEdit } = usePermissionsCtx();
   const { toast } = useToast();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
@@ -172,10 +177,11 @@ function MensagensSection() {
                   className="text-sm font-mono resize-none" />
                 <div className="flex gap-2 justify-end">
                   <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground"
+                    disabled={!canEdit('configuracoes')}
                     onClick={() => setDrafts(p => ({ ...p, [tpl.key]: tpl.defaultValue }))}>
                     <RotateCcw className="h-3.5 w-3.5" /> Restaurar
                   </Button>
-                  <Button size="sm" className="gap-1.5" disabled={!dirty || saving[tpl.key]} onClick={() => handleSave(tpl.key)}>
+                  <Button size="sm" className="gap-1.5" disabled={!dirty || saving[tpl.key] || !canEdit('configuracoes')} onClick={() => handleSave(tpl.key)}>
                     <Save className="h-3.5 w-3.5" />{saving[tpl.key] ? 'Salvando...' : 'Salvar'}
                   </Button>
                 </div>
@@ -190,11 +196,12 @@ function MensagensSection() {
 
 // ── Permissões por módulo (dentro do detalhe do usuário) ──────────────────────
 function ModulePermissionRow({
-  mod, perm, onChange,
+  mod, perm, onChange, isAdmin,
 }: {
   mod: typeof MODULES[0];
   perm: UserPermission | undefined;
   onChange: (field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => void;
+  isAdmin: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const checks: { field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete'; label: string }[] = [
@@ -221,10 +228,11 @@ function ModulePermissionRow({
       {open && (
         <div className="px-4 pb-4 pt-2 border-t bg-secondary/20 grid grid-cols-2 sm:grid-cols-4 gap-3">
           {checks.map(c => (
-            <label key={c.field} className="flex items-center gap-2 cursor-pointer select-none">
+            <label key={c.field} className={cn("flex items-center gap-2 select-none", isAdmin ? "cursor-pointer" : "cursor-default opacity-60")}>
               <Checkbox
                 checked={perm?.[c.field] ?? false}
-                onCheckedChange={v => onChange(c.field, !!v)}
+                disabled={!isAdmin}
+                onCheckedChange={v => isAdmin && onChange(c.field, !!v)}
               />
               <span className="text-sm">{c.label}</span>
             </label>
@@ -238,6 +246,7 @@ function ModulePermissionRow({
 // ── Detalhe do usuário ────────────────────────────────────────────────────────
 function UserDetail({ user, onBack }: { user: AppUser; onBack: () => void }) {
   const { userPermissions, updateUserPermission, toggleAppUserActive } = useClinic();
+  const { isAdmin } = usePermissionsCtx();
   const perms = userPermissions.filter(p => p.userId === user.id);
 
   return (
@@ -270,6 +279,7 @@ function UserDetail({ user, onBack }: { user: AppUser; onBack: () => void }) {
               <span className="text-xs text-muted-foreground">{user.active ? 'Ativo' : 'Inativo'}</span>
               <Switch
                 checked={user.active}
+                disabled={!isAdmin}
                 onCheckedChange={v => toggleAppUserActive(user.id, v)}
               />
             </div>
@@ -288,12 +298,74 @@ function UserDetail({ user, onBack }: { user: AppUser; onBack: () => void }) {
             <ModulePermissionRow
               key={mod.id}
               mod={mod}
+              isAdmin={isAdmin}
               perm={perms.find(p => p.module === mod.id)}
               onChange={(field, value) => updateUserPermission(user.id, mod.id, field, value)}
             />
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Seção: Preferências ───────────────────────────────────────────────────────
+function PreferenciasSection() {
+  const { clinicSettings, updateClinicSetting } = useClinic();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const current = (clinicSettings['agenda_view_mode'] ?? 'calendario') as 'calendario' | 'lista';
+
+  const handleChange = async (value: 'calendario' | 'lista') => {
+    setSaving(true);
+    try {
+      await updateClinicSetting('agenda_view_mode', value);
+      toast({ title: 'Preferência salva' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Preferências</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">Ajuste o comportamento padrão das páginas.</p>
+      </div>
+      <Card>
+        <CardContent className="pt-5 space-y-4">
+          <div>
+            <Label className="text-sm font-semibold">Visualização padrão da Agenda</Label>
+            <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+              Escolha como a agenda é exibida ao acessar a página.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { value: 'calendario', icon: CalendarDays, label: 'Calendário', description: 'Visão de calendário com dias e horários' },
+                { value: 'lista',      icon: List,         label: 'Lista',       description: 'Lista compacta de agendamentos' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.value}
+                  disabled={saving}
+                  onClick={() => handleChange(opt.value)}
+                  className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all text-left ${
+                    current === opt.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/40'
+                  }`}
+                >
+                  <opt.icon className={`h-6 w-6 ${current === opt.value ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div>
+                    <p className="text-sm font-medium">{opt.label}</p>
+                    <p className="text-xs text-muted-foreground">{opt.description}</p>
+                  </div>
+                  {current === opt.value && <Badge variant="default" className="text-xs">Ativo</Badge>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -427,9 +499,10 @@ function UsuariosSection() {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 const SECTIONS = [
-  { id: 'aparencia' as Section,  icon: Palette,       label: 'Aparência',                description: 'Tema claro ou escuro' },
-  { id: 'mensagens' as Section,  icon: MessageSquare, label: 'Mensagens WhatsApp',        description: 'Templates de mensagens automáticas' },
-  { id: 'usuarios'  as Section,  icon: Users,         label: 'Usuários e Permissões',     description: 'Quem acessa e o que pode fazer' },
+  { id: 'aparencia'    as Section, icon: Palette,           label: 'Aparência',              description: 'Tema claro ou escuro' },
+  { id: 'preferencias' as Section, icon: SlidersHorizontal, label: 'Preferências',           description: 'Visualização padrão da agenda' },
+  { id: 'mensagens'    as Section, icon: MessageSquare,     label: 'Mensagens WhatsApp',     description: 'Templates de mensagens automáticas' },
+  { id: 'usuarios'     as Section, icon: Users,             label: 'Usuários e Permissões',  description: 'Quem acessa e o que pode fazer' },
 ];
 
 export default function Configuracoes() {
@@ -465,8 +538,9 @@ export default function Configuracoes() {
                 <ArrowLeft className="h-4 w-4" /> Configurações
               </Button>
             )}
-            {section === 'aparencia'  && <AparenciaSection />}
-            {section === 'mensagens'  && <MensagensSection />}
+            {section === 'aparencia'    && <AparenciaSection />}
+            {section === 'preferencias' && <PreferenciasSection />}
+            {section === 'mensagens'    && <MensagensSection />}
             {section === 'usuarios'   && (
               <>
                 <Button variant="ghost" size="sm" className="gap-2 -ml-2 text-muted-foreground" onClick={() => setSection(null)}>

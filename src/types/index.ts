@@ -24,7 +24,8 @@ export type AppModule =
   | 'financeiro'
   | 'profissionais'
   | 'notificacoes'
-  | 'configuracoes';
+  | 'configuracoes'
+  | 'funil';
 
 export interface AppUser {
   id: string;
@@ -189,6 +190,41 @@ export interface OdontogramProcedure {
   executionDate: Date;
   nextAppointmentDate?: Date;
   notes?: string;
+  createdAt: Date;
+}
+
+export type LeadStage =
+  | 'novo_lead'
+  | 'em_contato'
+  | 'consulta_agendada'
+  | 'avaliacao_realizada'
+  | 'proposta_enviada'
+  | 'convertido'
+  | 'perdido';
+
+export interface Lead {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  origin: PatientOrigin;
+  treatmentInterest?: string;
+  stage: LeadStage;
+  estimatedValue?: number;
+  notes?: string;
+  patientId?: string;
+  lostReason?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PatientDocument {
+  id: string;
+  patientId: string;
+  name: string;
+  url: string;
+  fileType?: string;
+  fileSize?: number;
   createdAt: Date;
 }
 

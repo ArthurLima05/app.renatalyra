@@ -12,10 +12,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Phone, Calendar } from 'lucide-react';
 import { PatientOrigin } from '@/types';
+import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 
 const Pacientes = () => {
   const navigate = useNavigate();
   const { patients, sessions, addPatient } = useClinic();
+  const { canCreate } = usePermissionsCtx();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -77,7 +79,7 @@ const Pacientes = () => {
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2" disabled={!canCreate('pacientes')}>
               <Plus className="h-4 w-4" />
               Adicionar Paciente
             </Button>

@@ -15,12 +15,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen } from 'lucide-react';
 import { Odontograma } from '@/components/Odontograma';
 import { PatientPhotos } from '@/components/PatientPhotos';
 import { PatientAnamnese } from '@/components/PatientAnamnese';
+import { PatientDocuments } from '@/components/PatientDocuments';
 import { PaymentStatus, PaymentMethod, PatientGender, MaritalStatus, PatientOrigin } from '@/types';
 import { useRef } from 'react';
+import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -57,6 +59,7 @@ const ProntuarioPaciente = () => {
     returnAlerts,
   } = useClinic();
 
+  const { canEdit, canDelete, canCreate } = usePermissionsCtx();
   const patient = id ? getPatientById(id) : undefined;
   const sessions = id ? getSessionsByPatientId(id) : [];
   const transactions = id ? getTransactionsByPatientId(id) : [];
@@ -355,9 +358,10 @@ const ProntuarioPaciente = () => {
       </Button>
 
       <Card className="relative">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
+          disabled={!canDelete('pacientes')}
           onClick={() => setIsDeletingPatient(true)}
           className="absolute top-4 right-4 h-8 w-8 text-muted-foreground hover:text-destructive transition-colors z-10"
         >
@@ -416,7 +420,7 @@ const ProntuarioPaciente = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full" style={{gridTemplateColumns: 'repeat(3, minmax(0,1fr))' }}>
               <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => setEditData(patient)} className="w-full">
+                  <Button variant="outline" size="sm" disabled={!canEdit('pacientes')} onClick={() => setEditData(patient)} className="w-full">
                     <Edit className="h-4 w-4 mr-2" />
                     <span>Editar Dados</span>
                   </Button>
@@ -684,6 +688,13 @@ const ProntuarioPaciente = () => {
               Odontograma
             </TabsTrigger>
             <TabsTrigger
+              value="documentos"
+              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              <FolderOpen className="h-4 w-4" />
+              Documentos
+            </TabsTrigger>
+            <TabsTrigger
               value="notes"
               className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
             >
@@ -785,7 +796,7 @@ const ProntuarioPaciente = () => {
 
               {cadastroDirty && (
                 <div className="flex justify-end">
-                  <Button size="sm" className="gap-2" onClick={handleCadastroSave} disabled={cadastroSaving}>
+                  <Button size="sm" className="gap-2" onClick={handleCadastroSave} disabled={cadastroSaving || !canEdit('pacientes')}>
                     <Save className="h-3.5 w-3.5" />
                     {cadastroSaving ? 'Salvando...' : 'Salvar'}
                   </Button>
@@ -853,7 +864,7 @@ const ProntuarioPaciente = () => {
             {/* Dialog: Lançamento avulso */}
             <Dialog open={isLancamentoOpen} onOpenChange={setIsLancamentoOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="gap-2 w-full sm:w-auto">
+                <Button size="sm" variant="outline" disabled={!canCreate('financeiro')} className="gap-2 w-full sm:w-auto">
                   <DollarSign className="h-4 w-4" />
                   Adicionar Lançamento
                 </Button>
@@ -953,7 +964,7 @@ const ProntuarioPaciente = () => {
             {/* Dialog: Plano parcelado */}
             <Dialog open={isPlanoOpen} onOpenChange={setIsPlanoOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="gap-2 w-full sm:w-auto">
+                <Button size="sm" disabled={!canCreate('financeiro')} className="gap-2 w-full sm:w-auto">
                   <CalendarRange className="h-4 w-4" />
                   Adicionar Mensalidade
                 </Button>
@@ -1218,6 +1229,11 @@ const ProntuarioPaciente = () => {
           {id && <Odontograma patientId={id} />}
         </TabsContent>
 
+        <TabsContent value="documentos" className="space-y-4">
+          <h3 className="text-base sm:text-lg font-semibold">Documentos do Paciente</h3>
+          {id && <PatientDocuments patientId={id} />}
+        </TabsContent>
+
         <TabsContent value="notes" className="space-y-4">
           <h3 className="text-base sm:text-lg font-semibold">Prontuário Livre</h3>
           <Card>
@@ -1229,7 +1245,7 @@ const ProntuarioPaciente = () => {
                 rows={10}
                 className="mb-4 text-sm"
               />
-              <Button onClick={handleSaveObservations} className="w-full sm:w-auto">Salvar Observações</Button>
+              <Button onClick={handleSaveObservations} disabled={!canEdit('pacientes')} className="w-full sm:w-auto">Salvar Observações</Button>
             </CardContent>
           </Card>
         </TabsContent>
