@@ -5,7 +5,7 @@ export type PatientOrigin = 'Google Ads' | 'Instagram' | 'Indicação' | 'Outro'
 export type PatientGender = 'masculino' | 'feminino' | 'outro';
 export type MaritalStatus = 'casado' | 'solteiro' | 'divorciado' | 'viuvo';
 export type TransactionType = 'entrada' | 'saida';
-export type NotificationType = 'cancelamento' | 'falta' | 'agendamento' | 'feedback' | 'lembrete_consulta' | 'lembrete_feedback' | 'lembrete_prontuario' | 'lembrete_pagamento';
+export type NotificationType = 'cancelamento' | 'falta' | 'agendamento' | 'feedback' | 'lembrete_consulta' | 'lembrete_feedback' | 'lembrete_prontuario' | 'lembrete_pagamento' | 'erro_whatsapp';
 export type PaymentStatus = 'pago' | 'em_aberto';
 export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | 'boleto' | 'cheque';
 

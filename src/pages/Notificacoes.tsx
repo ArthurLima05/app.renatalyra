@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { Bell, Calendar, X, FileText, DollarSign, Trash2, ExternalLink, MoreVertical, CheckCircle2 } from 'lucide-react';
+import { Bell, Calendar, X, FileText, DollarSign, Trash2, ExternalLink, MoreVertical, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationType } from '@/types';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
@@ -56,6 +56,7 @@ export default function Notificacoes() {
       case 'cancelamento':
         return hoursDiff < 24;
       case 'lembrete_pagamento':
+      case 'erro_whatsapp':
         return true;
       default:
         return false;
@@ -153,6 +154,8 @@ export default function Notificacoes() {
         return <FileText className="h-5 w-5 text-primary" />;
       case 'lembrete_pagamento':
         return <DollarSign className="h-5 w-5 text-yellow-500" />;
+      case 'erro_whatsapp':
+        return <AlertTriangle className="h-5 w-5 text-destructive" />;
       default:
         return <Bell className="h-5 w-5 text-primary" />;
     }
@@ -455,7 +458,9 @@ export default function Notificacoes() {
                                             )}
                                           </div>
                                           <p className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">
-                                            {notification.message}
+                                            {notification.type === 'erro_whatsapp'
+                                              ? 'Não foi possível enviar a mensagem pelo WhatsApp. Verifique a conexão e tente novamente.'
+                                              : notification.message}
                                           </p>
                                           <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
                                             {notification.date.toLocaleString('pt-BR', { 

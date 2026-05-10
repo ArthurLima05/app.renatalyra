@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,14 +17,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import {
   Save, RotateCcw, MessageSquare, Palette, ChevronRight, ArrowLeft, Info,
   Sun, Moon, Users, Plus, ChevronDown, ChevronUp, Mail, Phone, Shield,
-  SlidersHorizontal, CalendarDays, List,
+  SlidersHorizontal, CalendarDays, List, Upload, FileSpreadsheet,
+  CheckCircle2, XCircle, AlertCircle, Loader2,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser, UserProfile, AppModule, UserPermission } from '@/types';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { cn } from '@/lib/utils';
 
-type Section = null | 'aparencia' | 'mensagens' | 'usuarios' | 'preferencias';
+type Section = null | 'aparencia' | 'mensagens' | 'usuarios' | 'preferencias' | 'importar';
 type UserView = null | AppUser;
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -497,12 +500,353 @@ function UsuariosSection() {
   );
 }
 
+// ── Campos do sistema ─────────────────────────────────────────────────────────
+const PATIENT_FIELDS = [
+  { key: 'full_name',      label: 'Nome completo',      required: true },
+  { key: 'phone',          label: 'Telefone',           required: false },
+  { key: 'email',          label: 'E-mail',             required: false },
+  { key: 'birth_date',     label: 'Data de nascimento', required: false },
+  { key: 'cpf',            label: 'CPF',                required: false },
+  { key: 'rg',             label: 'RG',                 required: false },
+  { key: 'gender',         label: 'Sexo',               required: false },
+  { key: 'marital_status', label: 'Estado civil',       required: false },
+  { key: 'notes',          label: 'Observações',        required: false },
+];
+
+// ── Seção: Importar Pacientes ─────────────────────────────────────────────────
+function ImportarSection() {
+  const { toast } = useToast();
+  const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'done'>('upload');
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [importing, setImporting] = useState(false);
+  type SkippedRow = { row: Record<string, string>; reason: string };
+  const [result, setResult] = useState<{ imported: number; skipped: number; errors: string[]; skippedRows: SkippedRow[] } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '' });
+        if (json.length === 0) { toast({ title: 'Arquivo vazio', variant: 'destructive' }); return; }
+        const hdrs = Object.keys(json[0]);
+        setHeaders(hdrs);
+        setRows(json);
+
+        // Auto-mapping por similaridade
+        const auto: Record<string, string> = {};
+        const lowerHdrs = hdrs.map(h => h.toLowerCase());
+        PATIENT_FIELDS.forEach(f => {
+          const idx = lowerHdrs.findIndex(h =>
+            h.includes('nome') && f.key === 'full_name' ||
+            (h.includes('fone') || h.includes('celular') || h.includes('tel')) && f.key === 'phone' ||
+            h.includes('email') && f.key === 'email' ||
+            (h.includes('nasc') || h.includes('birth')) && f.key === 'birth_date' ||
+            h.includes('cpf') && f.key === 'cpf' ||
+            h === 'rg' && f.key === 'rg' ||
+            (h.includes('sex') || h.includes('gên') || h.includes('gen')) && f.key === 'gender' ||
+            (h.includes('civil') || h.includes('estado')) && f.key === 'marital_status' ||
+            (h.includes('obs') || h.includes('note')) && f.key === 'notes'
+          );
+          if (idx !== -1) auto[f.key] = hdrs[idx];
+        });
+        setMapping(auto);
+        setStep('mapping');
+      } catch {
+        toast({ title: 'Erro ao ler o arquivo', description: 'Certifique-se que é um arquivo .xlsx ou .csv válido.', variant: 'destructive' });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const parseDate = (val: string): string | null => {
+    if (!val) return null;
+    // Tenta formatos comuns: DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY
+    const clean = val.trim();
+    const dmy = clean.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    if (dmy) {
+      const [, d, m, y] = dmy;
+      const year = y.length === 2 ? `20${y}` : y;
+      return `${year}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    const ymd = clean.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+    if (ymd) return clean.replace(/[\/\.]/g, '-');
+    return null;
+  };
+
+  const handleImport = async () => {
+    setImporting(true);
+    let imported = 0;
+    const errors: string[] = [];
+    const skippedRows: SkippedRow[] = [];
+    const nameCol = mapping['full_name'];
+    const phoneCol = mapping['phone'];
+    const cpfCol = mapping['cpf'];
+
+    for (const row of rows) {
+      const name = nameCol ? row[nameCol]?.trim() : '';
+      const rawPhone = phoneCol ? row[phoneCol]?.toString().replace(/\D/g, '') : '';
+      const phone = rawPhone && !rawPhone.startsWith('55') && rawPhone.length >= 8
+        ? '55' + rawPhone
+        : rawPhone;
+      const cpf = cpfCol ? row[cpfCol]?.toString().replace(/\D/g, '') : '';
+
+      if (!name) {
+        skippedRows.push({ row, reason: 'Nome vazio' });
+        continue;
+      }
+
+      const record: Record<string, unknown> = {
+        full_name: name,
+        phone: phone || '',
+        origin: 'Outro',
+      };
+
+      if (cpf) record.cpf = cpf;
+      if (mapping['email'] && row[mapping['email']]) record.email = row[mapping['email']].trim();
+      if (mapping['rg'] && row[mapping['rg']]) record.rg = row[mapping['rg']].toString().trim();
+      if (mapping['birth_date'] && row[mapping['birth_date']]) {
+        const d = parseDate(row[mapping['birth_date']].toString());
+        if (d) record.birth_date = d;
+      }
+      if (mapping['gender'] && row[mapping['gender']]) {
+        const g = row[mapping['gender']].toLowerCase();
+        if (g.includes('fem') || g === 'f') record.gender = 'feminino';
+        else if (g.includes('mas') || g === 'm') record.gender = 'masculino';
+      }
+      if (mapping['marital_status'] && row[mapping['marital_status']]) {
+        const ms = row[mapping['marital_status']].toLowerCase();
+        if (ms.includes('cas')) record.marital_status = 'casado';
+        else if (ms.includes('solt')) record.marital_status = 'solteiro';
+        else if (ms.includes('div')) record.marital_status = 'divorciado';
+        else if (ms.includes('vi')) record.marital_status = 'viuvo';
+      }
+      if (mapping['notes'] && row[mapping['notes']]) record.notes = row[mapping['notes']].trim();
+
+      const { error } = await supabase.from('patients').insert(record as any);
+      if (error) {
+        skippedRows.push({ row, reason: `Erro: ${error.message}` });
+        errors.push(`${name}: ${error.message}`);
+      } else {
+        imported++;
+      }
+    }
+
+    setResult({ imported, skipped: skippedRows.length, errors, skippedRows });
+    setImporting(false);
+    setStep('done');
+    if (imported > 0) toast({ title: `${imported} pacientes importados com sucesso` });
+  };
+
+  const exportSkipped = (skippedRows: SkippedRow[]) => {
+    const data = skippedRows.map(s => ({ ...s.row, MOTIVO_IGNORADO: s.reason }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Ignorados');
+    XLSX.writeFile(wb, 'pacientes_ignorados.xlsx');
+  };
+
+  const reset = () => { setStep('upload'); setRows([]); setHeaders([]); setMapping({}); setResult(null); };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Importar Pacientes</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Importe pacientes de outro sistema via arquivo <strong>.xlsx</strong> ou <strong>.csv</strong>.
+        </p>
+      </div>
+
+      {/* PASSO 1: Upload */}
+      {step === 'upload' && (
+        <div
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-border rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
+        >
+          <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+          <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+          <p className="font-medium">Clique ou arraste o arquivo aqui</p>
+          <p className="text-sm text-muted-foreground mt-1">Suporta .xlsx, .xls e .csv</p>
+        </div>
+      )}
+
+      {/* PASSO 2: Mapeamento de colunas */}
+      {step === 'mapping' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              <strong>{rows.length}</strong> linhas encontradas. Mapeie as colunas do arquivo para os campos do sistema.
+            </p>
+            <Button variant="ghost" size="sm" onClick={reset}>Trocar arquivo</Button>
+          </div>
+          <Card>
+            <CardContent className="pt-5 space-y-3">
+              {PATIENT_FIELDS.map(f => (
+                <div key={f.key} className="grid grid-cols-2 gap-3 items-center">
+                  <div>
+                    <p className="text-sm font-medium">{f.label}</p>
+                    {f.required && <p className="text-xs text-destructive">obrigatório</p>}
+                  </div>
+                  <Select
+                    value={mapping[f.key] ?? '__skip__'}
+                    onValueChange={v => setMapping(p => ({ ...p, [f.key]: v === '__skip__' ? '' : v }))}
+                  >
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__skip__">— Ignorar —</SelectItem>
+                      {headers.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={reset}>Cancelar</Button>
+            <Button
+              disabled={!mapping['full_name']}
+              onClick={() => setStep('preview')}
+            >
+              Ver prévia →
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* PASSO 3: Prévia */}
+      {step === 'preview' && (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Prévia dos primeiros registros. Duplicatas (mesmo telefone) serão ignoradas automaticamente.
+          </p>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="min-w-full text-xs">
+              <thead className="bg-muted">
+                <tr>
+                  {PATIENT_FIELDS.filter(f => mapping[f.key]).map(f => (
+                    <th key={f.key} className="px-3 py-2 text-left font-medium">{f.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.slice(0, 8).map((row, i) => (
+                  <tr key={i} className="hover:bg-muted/40">
+                    {PATIENT_FIELDS.filter(f => mapping[f.key]).map(f => (
+                      <td key={f.key} className="px-3 py-1.5 max-w-[140px] truncate">
+                        {row[mapping[f.key]] ?? '—'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {rows.length > 8 && (
+            <p className="text-xs text-muted-foreground text-center">... e mais {rows.length - 8} registros</p>
+          )}
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setStep('mapping')}>← Voltar</Button>
+            <Button onClick={handleImport} disabled={importing} className="gap-2">
+              {importing
+                ? <><Loader2 className="h-4 w-4 animate-spin" />Importando...</>
+                : <><Upload className="h-4 w-4" />Importar {rows.length} pacientes</>
+              }
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* PASSO 4: Resultado */}
+      {step === 'done' && result && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <Card className="border-green-200 dark:border-green-800">
+              <CardContent className="pt-4 pb-4 flex flex-col items-center gap-1">
+                <CheckCircle2 className="h-6 w-6 text-green-500" />
+                <p className="text-2xl font-bold">{result.imported}</p>
+                <p className="text-xs text-muted-foreground">Importados</p>
+              </CardContent>
+            </Card>
+            <Card className="border-amber-200 dark:border-amber-800">
+              <CardContent className="pt-4 pb-4 flex flex-col items-center gap-1">
+                <AlertCircle className="h-6 w-6 text-amber-500" />
+                <p className="text-2xl font-bold">{result.skipped}</p>
+                <p className="text-xs text-muted-foreground">Ignorados</p>
+              </CardContent>
+            </Card>
+            <Card className="border-destructive/30">
+              <CardContent className="pt-4 pb-4 flex flex-col items-center gap-1">
+                <XCircle className="h-6 w-6 text-destructive" />
+                <p className="text-2xl font-bold">{result.errors.length}</p>
+                <p className="text-xs text-muted-foreground">Erros</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tabela de ignorados */}
+          {result.skippedRows.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Linhas ignoradas ({result.skippedRows.length})</p>
+                <Button variant="outline" size="sm" className="gap-1.5"
+                  onClick={() => exportSkipped(result.skippedRows)}>
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  Baixar Excel
+                </Button>
+              </div>
+              <div className="rounded-lg border overflow-hidden">
+                <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                  <table className="min-w-full text-xs">
+                    <thead className="bg-muted sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium w-40">Motivo</th>
+                        {headers.slice(0, 4).map(h => (
+                          <th key={h} className="px-3 py-2 text-left font-medium max-w-[120px]">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {result.skippedRows.map((s, i) => (
+                        <tr key={i} className={s.reason.startsWith('Erro') ? 'bg-destructive/5' : 'hover:bg-muted/40'}>
+                          <td className="px-3 py-1.5 text-amber-600 dark:text-amber-400 font-medium whitespace-nowrap">
+                            {s.reason}
+                          </td>
+                          {headers.slice(0, 4).map(h => (
+                            <td key={h} className="px-3 py-1.5 max-w-[120px] truncate text-muted-foreground">
+                              {s.row[h] ?? '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Button className="w-full" onClick={reset}>Importar outro arquivo</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 const SECTIONS = [
-  { id: 'aparencia'    as Section, icon: Palette,           label: 'Aparência',              description: 'Tema claro ou escuro' },
+  { id: 'aparencia'    as Section, icon: Palette,            label: 'Aparência',              description: 'Tema claro ou escuro' },
   { id: 'preferencias' as Section, icon: SlidersHorizontal, label: 'Preferências',           description: 'Visualização padrão da agenda' },
-  { id: 'mensagens'    as Section, icon: MessageSquare,     label: 'Mensagens WhatsApp',     description: 'Templates de mensagens automáticas' },
-  { id: 'usuarios'     as Section, icon: Users,             label: 'Usuários e Permissões',  description: 'Quem acessa e o que pode fazer' },
+  { id: 'mensagens'    as Section, icon: MessageSquare,      label: 'Mensagens WhatsApp',     description: 'Templates de mensagens automáticas' },
+  { id: 'importar'     as Section, icon: Upload,             label: 'Importar Pacientes',     description: 'Importe de outro sistema via Excel ou CSV' },
+  { id: 'usuarios'     as Section, icon: Users,              label: 'Usuários e Permissões',  description: 'Quem acessa e o que pode fazer' },
 ];
 
 export default function Configuracoes() {
@@ -541,6 +885,7 @@ export default function Configuracoes() {
             {section === 'aparencia'    && <AparenciaSection />}
             {section === 'preferencias' && <PreferenciasSection />}
             {section === 'mensagens'    && <MensagensSection />}
+            {section === 'importar'     && <ImportarSection />}
             {section === 'usuarios'   && (
               <>
                 <Button variant="ghost" size="sm" className="gap-2 -ml-2 text-muted-foreground" onClick={() => setSection(null)}>

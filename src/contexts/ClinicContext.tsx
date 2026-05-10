@@ -470,13 +470,28 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const loadPatients = async () => {
-    const { data, error } = await supabase.from("patients").select("*");
-    if (error) {
-      console.error("Error loading patients:", error);
-      return;
+    // Carrega em lotes de 1000 até buscar todos os pacientes
+    const PAGE = 1000;
+    let from = 0;
+    let allData: any[] = [];
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("patients")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(from, from + PAGE - 1);
+
+      if (error) { console.error("Error loading patients:", error); break; }
+      if (!data || data.length === 0) break;
+
+      allData = allData.concat(data);
+      if (data.length < PAGE) break; // última página
+      from += PAGE;
     }
+
     setPatients(
-      (data || []).map((p: any) => ({
+      allData.map((p: any) => ({
         ...p,
         fullName: p.full_name,
         birthDate: p.birth_date ? new Date(p.birth_date) : undefined,
@@ -1609,6 +1624,15 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!alert) return;
     const patient = getPatientById(alert.patientId);
     if (!patient) return;
+
+    if (!patient.phone || patient.phone.trim() === '') {
+      toast({
+        title: 'Telefone não cadastrado',
+        description: `Cadastre o telefone de ${patient.fullName} antes de enviar o WhatsApp.`,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const template = clinicSettings['msg_return_alert'] ?? 'Olá, {{nome_paciente}}! Aqui é a clínica Dra. Renata Lyra. Que tal agendar um retorno?';
     const message = template.replace('{{nome_paciente}}', patient.fullName);

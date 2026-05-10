@@ -48,9 +48,20 @@ const Pacientes = () => {
     setIsOpen(false);
   };
 
-  const filteredPatients = patients.filter(patient =>
-    patient.fullName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const LIMIT = 100;
+  const searching = searchTerm.trim().length > 0;
+
+  const filteredPatients = searching
+    ? patients
+        .filter(p => p.fullName.toLowerCase().includes(searchTerm.toLowerCase()))
+        .slice(0, LIMIT)
+    : [...patients]
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, 50);
+
+  const totalMatch = searching
+    ? patients.filter(p => p.fullName.toLowerCase().includes(searchTerm.toLowerCase())).length
+    : patients.length;
 
   const getLastAppointment = (patientId: string) => {
     const patientSessions = sessions.filter(s => s.patientId === patientId && s.status === 'realizado');
@@ -167,14 +178,22 @@ const Pacientes = () => {
         </Dialog>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar paciente por nome..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar paciente por nome..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground px-1">
+          {searching
+            ? `${filteredPatients.length} de ${totalMatch} resultado${totalMatch !== 1 ? 's' : ''} para "${searchTerm}"${totalMatch > LIMIT ? ` — refine a busca para ver mais` : ''}`
+            : `Exibindo os 50 mais recentes de ${patients.length} pacientes — use a busca para encontrar outros`
+          }
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -190,42 +209,44 @@ const Pacientes = () => {
               whileHover={{ scale: 1.02 }}
               transition={{ duration: 0.2 }}
             >
-              <Card 
-                className="cursor-pointer hover:shadow-lg transition-shadow"
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow h-44 flex flex-col"
                 onClick={() => navigate(`/pacientes/${patient.id}`)}
               >
-                <CardHeader>
-                  <CardTitle>
-                    <span className="text-lg">{patient.fullName}</span>
+                <CardHeader className="pb-2 flex-none">
+                  <CardTitle className="text-base leading-tight line-clamp-1">
+                    {patient.fullName}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="h-4 w-4" />
-                    <span>{patient.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{patient.origin}</Badge>
-                  </div>
-                  {lastAppointment && (
+                <CardContent className="flex-1 flex flex-col justify-between text-sm pt-0">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-xs">
-                        Última consulta: {lastAppointment.date.toLocaleDateString('pt-BR')}
-                      </span>
+                      <Phone className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate text-xs">{patient.phone}</span>
                     </div>
-                  )}
-                  {nextAppointment && (
-                    <div className="flex items-center gap-2 text-primary">
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-xs font-medium">
-                        Próxima: {nextAppointment.date.toLocaleDateString('pt-BR')}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">{patient.origin}</Badge>
                     </div>
-                  )}
-                  {!nextAppointment && !lastAppointment && (
-                    <p className="text-xs text-muted-foreground italic">Nenhuma consulta registrada</p>
-                  )}
+                  </div>
+                  <div className="mt-2">
+                    {nextAppointment ? (
+                      <div className="flex items-center gap-1.5 text-primary">
+                        <Calendar className="h-3.5 w-3.5 shrink-0" />
+                        <span className="text-xs font-medium truncate">
+                          Próxima: {nextAppointment.date.toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    ) : lastAppointment ? (
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5 shrink-0" />
+                        <span className="text-xs truncate">
+                          Última: {lastAppointment.date.toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">Sem consultas registradas</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -233,9 +254,9 @@ const Pacientes = () => {
         })}
       </div>
 
-      {filteredPatients.length === 0 && (
+      {filteredPatients.length === 0 && searching && (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Nenhum paciente encontrado.</p>
+          <p className="text-muted-foreground">Nenhum paciente encontrado para "{searchTerm}".</p>
         </div>
       )}
     </motion.div>

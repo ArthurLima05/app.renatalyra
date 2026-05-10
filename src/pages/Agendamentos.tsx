@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClinic } from "@/contexts/ClinicContext";
-import { usePermissionsCtx } from "@/contexts/PermissionsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -384,6 +383,7 @@ export default function Agendamentos() {
     deleteReturnAlert,
     sendReturnAlertWhatsApp,
     getPatientById,
+    clinicSettings,
   } = useClinic();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -434,7 +434,6 @@ export default function Agendamentos() {
   const selectedPatient = patients.find((p) => p.id === formData.patientId);
 
   const { canCreate, canEdit, canDelete } = usePermissionsCtx();
-  const { clinicSettings } = useClinic();
 
   const activeAlerts = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);

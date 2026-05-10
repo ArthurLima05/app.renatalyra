@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History } from 'lucide-react';
 import { Odontograma } from '@/components/Odontograma';
 import { PatientPhotos } from '@/components/PatientPhotos';
 import { PatientAnamnese } from '@/components/PatientAnamnese';
@@ -314,6 +314,19 @@ const ProntuarioPaciente = () => {
     }
   };
 
+
+  const patientAppointments = appointments
+    .filter(a => a.patientId === id)
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  const apptStatusConfig: Record<string, { label: string; className: string }> = {
+    agendado:   { label: 'Agendado',   className: 'border-border text-foreground' },
+    confirmado: { label: 'Confirmado', className: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300' },
+    realizado:  { label: 'Realizado',  className: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300' },
+    cancelado:  { label: 'Cancelado',  className: 'bg-destructive/10 text-destructive border-destructive/20' },
+    falta:      { label: 'Falta',      className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300' },
+    sugerido:   { label: 'Sugerido',   className: 'border-border text-muted-foreground' },
+  };
 
   const patientInstallments = installments.filter(i => {
     const session = sessions.find(s => s.id === i.sessionId);
@@ -665,6 +678,13 @@ const ProntuarioPaciente = () => {
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Financeiro
+            </TabsTrigger>
+            <TabsTrigger
+              value="historico"
+              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              <History className="h-4 w-4" />
+              Histórico
             </TabsTrigger>
             <TabsTrigger
               value="anamnese"
@@ -1215,6 +1235,86 @@ const ProntuarioPaciente = () => {
                 })
             )}
           </div>
+        </TabsContent>
+
+        {/* ── ABA HISTÓRICO DE AGENDAMENTOS ──────────────────────────── */}
+        <TabsContent value="historico" className="space-y-4 mt-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-2xl font-bold">{patientAppointments.length}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">Realizados</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {patientAppointments.filter(a => a.status === 'realizado').length}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">Cancelamentos</p>
+                <p className="text-2xl font-bold text-muted-foreground">
+                  {patientAppointments.filter(a => a.status === 'cancelado').length}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">Faltas</p>
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                  {patientAppointments.filter(a => a.status === 'falta').length}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {patientAppointments.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Nenhum agendamento registrado para este paciente.</p>
+          ) : (
+            <div className="space-y-2">
+              {patientAppointments.map((appt) => {
+                const professional = professionals.find(p => p.id === appt.professionalId);
+                const config = apptStatusConfig[appt.status] ?? { label: appt.status, className: 'border-border text-foreground' };
+                return (
+                  <Card key={appt.id}>
+                    <CardContent className="py-3 px-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="text-center min-w-[44px]">
+                            <p className="text-sm font-semibold leading-tight">
+                              {appt.date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{appt.date.getFullYear()}</p>
+                          </div>
+                          <div className="w-px h-8 bg-border shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium">{appt.time}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {professional?.name ?? 'Profissional não identificado'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className={config.className}>
+                            {config.label}
+                          </Badge>
+                          {appt.notes && (
+                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                              {appt.notes}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="anamnese">
