@@ -447,15 +447,6 @@ export default function Financeiro() {
                 />
               </div>
               <div>
-                <Label htmlFor="category">Categoria</Label>
-                <Input
-                  id="category"
-                  value={transactionData.category}
-                  onChange={(e) => setTransactionData({ ...transactionData, category: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
                 <Label>Data</Label>
                 <div className="flex items-center gap-2">
                   <Select value={dateOption} onValueChange={(value) => setDateOption(value as 'hoje' | 'personalizado')}>
@@ -832,17 +823,6 @@ export default function Financeiro() {
                     <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="entrada">Entradas</SelectItem>
                     <SelectItem value="saida">Saídas</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue placeholder="Categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    {allCategories.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </div>

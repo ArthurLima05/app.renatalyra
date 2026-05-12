@@ -16,9 +16,10 @@ export const MetricCard = ({ title, value, icon: Icon, trend, delay = 0 }: Metri
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay }}
+      className="h-full"
     >
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardContent className="p-6">
+      <Card className="h-full hover:shadow-lg transition-shadow">
+        <CardContent className="p-6 h-full">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <p className="text-sm text-muted-foreground mb-1">{title}</p>

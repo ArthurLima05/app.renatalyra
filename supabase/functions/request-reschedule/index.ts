@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     let patient = null
     
     // Tenta primeiro com o telefone exato
-    let { data } = await supabase
+    const { data } = await supabase
       .from('patients')
       .select('id, full_name, phone')
       .eq('phone', phone)
@@ -69,19 +69,34 @@ Deno.serve(async (req) => {
         .eq('id', appointmentId)
         .eq('patient_id', patient.id)
         .maybeSingle()
-      
+
       appointment = appointmentData
     } else {
-      const { data: appointmentData } = await supabase
+      // Prioriza o próximo agendamento confirmado/agendado (paciente quer remarcar antes de ser cancelado)
+      const { data: agendado } = await supabase
         .from('appointments')
         .select('id, date, time, status')
         .eq('patient_id', patient.id)
-        .eq('status', 'cancelado')
-        .order('date', { ascending: false })
+        .in('status', ['agendado', 'confirmado'])
+        .order('date', { ascending: true })
         .limit(1)
         .maybeSingle()
-      
-      appointment = appointmentData
+
+      if (agendado) {
+        appointment = agendado
+      } else {
+        // Fallback: consulta mais recente cancelada
+        const { data: cancelado } = await supabase
+          .from('appointments')
+          .select('id, date, time, status')
+          .eq('patient_id', patient.id)
+          .eq('status', 'cancelado')
+          .order('date', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        appointment = cancelado
+      }
     }
 
     // 3. Cria notificação urgente de remarcação

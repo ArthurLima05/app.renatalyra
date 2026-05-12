@@ -530,6 +530,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         notes: a.notes || undefined,
         createdAt: new Date(a.created_at),
         sessionId: a.session_id || undefined,
+        deletedAt: (a as any).deleted_at ? new Date((a as any).deleted_at) : undefined,
       })),
     );
   };
@@ -682,10 +683,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           try {
             await fetch("https://testetecchclin.app.n8n.cloud/webhook/enviar-feedback", {
               method: "POST",
-              mode: "no-cors", // Necessário para evitar erro de CORS
-              headers: {
-                "Content-Type": "application/json",
-              },
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 patientId: patient.id,
                 patientName: patient.fullName,
@@ -697,10 +696,20 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 status: "realizado",
               }),
             });
-
-            console.log("Webhook enviado com sucesso para n8n");
           } catch (error) {
             console.error("Erro ao enviar para webhook n8n:", error);
+            await supabase.from("notifications").insert({
+              type: "erro_whatsapp",
+              title: "Falha no WhatsApp",
+              message: `Não foi possível enviar o link de avaliação para ${patient.fullName}. Verifique a conexão com o n8n.`,
+              patient_id: patient.id,
+              appointment_id: appointment.id,
+            });
+            toast({
+              title: "WhatsApp não enviado",
+              description: `Não foi possível enviar o link de avaliação para ${patient.fullName}.`,
+              variant: "destructive",
+            });
           }
         }
       }
@@ -734,13 +743,19 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteAppointment = async (id: string) => {
-    const { error } = await supabase.from("appointments").delete().eq("id", id);
+    const { error } = await supabase
+      .from("appointments")
+      .update({ deleted_at: new Date().toISOString() } as any)
+      .eq("id", id);
 
     if (error) {
       toast({ title: "Erro ao excluir agendamento", description: error.message, variant: "destructive" });
       throw error;
     }
 
+    setAppointments((prev) =>
+      prev.map((a) => a.id === id ? { ...a, deletedAt: new Date() } : a)
+    );
     toast({ title: "Agendamento excluído com sucesso" });
   };
 
@@ -909,22 +924,29 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
 
       for (const apt of appointmentsWithoutNotes) {
-        // Verificar se já existe QUALQUER notificação (lida ou não) para evitar duplicatas
         const existingNotification = notifications.find(
           (n) => n.type === "lembrete_prontuario" && n.appointmentId === apt.id,
         );
 
         if (!existingNotification) {
-          const patient = patients.find((p) => p.id === apt.patientId);
-          await createNotification({
-            type: "lembrete_prontuario",
-            title: "Atualizar Prontuário",
-            message: `Prontuário de ${patient?.fullName || apt.patientName} precisa ser atualizado`,
-            date: now,
-            read: false,
-            patientId: apt.patientId,
-            appointmentId: apt.id,
-          });
+          const { count, error: existsError } = await supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("type", "lembrete_prontuario")
+            .eq("appointment_id", apt.id);
+
+          if (!existsError && (count ?? 0) === 0) {
+            const patient = patients.find((p) => p.id === apt.patientId);
+            await createNotification({
+              type: "lembrete_prontuario",
+              title: "Atualizar Prontuário",
+              message: `Prontuário de ${patient?.fullName || apt.patientName} precisa ser atualizado`,
+              date: now,
+              read: false,
+              patientId: apt.patientId,
+              appointmentId: apt.id,
+            });
+          }
         }
       }
 
@@ -1044,90 +1066,48 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addSession = async (session: Omit<Session, "id"> & { installmentsCount?: number; firstPaymentDate?: Date; paymentMethod?: PaymentMethod }) => {
-    const { data, error } = await supabase
-      .from("sessions")
-      .insert({
-        patient_id: session.patientId,
-        date: session.date.toISOString(),
-        type: session.procedure,
-        session_type: session.sessionType,
-        status: "sugerido",
-        notes: session.notes,
-        amount: session.amount,
-        payment_status: session.paymentStatus,
-        payment_method: session.paymentMethod ?? null,
-        next_appointment: session.nextAppointment?.toISOString(),
-        professional_id: session.professionalId,
-      } as any)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc("create_session_with_installments", {
+      p_patient_id:         session.patientId,
+      p_date:               session.date.toISOString(),
+      p_type:               session.procedure,
+      p_session_type:       session.sessionType,
+      p_notes:              session.notes ?? null,
+      p_amount:             session.amount,
+      p_payment_status:     session.paymentStatus,
+      p_payment_method:     session.paymentMethod ?? null,
+      p_next_appointment:   session.nextAppointment?.toISOString() ?? null,
+      p_professional_id:    session.professionalId ?? null,
+      p_installments_count: session.installmentsCount ?? 1,
+      p_first_payment_date: session.firstPaymentDate?.toISOString() ?? null,
+    });
 
     if (error) {
-      toast({ title: "Erro ao adicionar sessão", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao adicionar lançamento", description: error.message, variant: "destructive" });
       throw error;
     }
 
-    // Se houver parcelamento, criar as parcelas
-    if (session.installmentsCount && session.installmentsCount > 1 && session.firstPaymentDate) {
-      const installmentAmount = session.amount / session.installmentsCount;
-      const installmentsToCreate = [];
-
-      for (let i = 0; i < session.installmentsCount; i++) {
-        const predictedDate = new Date(session.firstPaymentDate);
-        predictedDate.setMonth(predictedDate.getMonth() + i);
-
-        installmentsToCreate.push({
-          session_id: data.id,
-          installment_number: i + 1,
-          total_installments: session.installmentsCount,
-          amount: installmentAmount,
-          predicted_date: predictedDate.toISOString(),
-          paid: false,
-        });
-      }
-
-      const { data: insData, error: installmentsError } = await supabase
-        .from("installments")
-        .insert(installmentsToCreate)
-        .select("*");
-
-      if (installmentsError) {
-        console.error("Error creating installments:", installmentsError);
-        toast({ title: "Erro ao criar parcelas", description: installmentsError.message, variant: "destructive" });
-      } else {
-        const mapped = (insData || []).map((i) => ({
-          id: i.id,
-          transactionId: i.transaction_id || undefined,
-          sessionId: i.session_id || undefined,
-          installmentNumber: i.installment_number,
-          totalInstallments: i.total_installments,
-          amount: Number(i.amount),
-          predictedDate: new Date(i.predicted_date),
-          paid: i.paid,
-          paidDate: i.paid_date ? new Date(i.paid_date) : undefined,
-          createdAt: new Date(i.created_at),
-        }));
-        setInstallments((prev) => {
-          const newOnes = mapped.filter((n) => !prev.some((p) => p.id === n.id));
-          return [...prev, ...newOnes];
-        });
-      }
-    }
-
-    // Se a sessão foi paga, criar transação
-    if (session.paymentStatus === "pago" && session.amount > 0) {
-      await supabase.from("transactions").insert({
-        type: "entrada",
-        description: `Pagamento - ${session.procedure}`,
-        amount: session.amount,
-        date: session.date.toISOString(),
-        category: "Consulta",
-        patient_id: session.patientId,
-        session_id: data.id,
+    // Atualizar parcelas no estado local imediatamente (realtime também as captura)
+    const rawInstallments: any[] = data?.installments ?? [];
+    if (rawInstallments.length > 0) {
+      const mapped = rawInstallments.map((i) => ({
+        id: i.id,
+        transactionId: i.transaction_id || undefined,
+        sessionId: i.session_id || undefined,
+        installmentNumber: i.installment_number,
+        totalInstallments: i.total_installments,
+        amount: Number(i.amount),
+        predictedDate: new Date(i.predicted_date),
+        paid: i.paid,
+        paidDate: i.paid_date ? new Date(i.paid_date) : undefined,
+        createdAt: new Date(i.created_at),
+      }));
+      setInstallments((prev) => {
+        const newOnes = mapped.filter((n) => !prev.some((p) => p.id === n.id));
+        return [...prev, ...newOnes];
       });
     }
 
-    toast({ title: "Sessão adicionada com sucesso" });
+    toast({ title: "Lançamento adicionado com sucesso" });
   };
 
   const updateSession = async (id: string, session: Partial<Session>) => {
@@ -1638,25 +1618,36 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const message = template.replace('{{nome_paciente}}', patient.fullName);
 
     const webhookUrl = import.meta.env.VITE_N8N_RETURN_ALERT_WEBHOOK_URL as string | undefined;
-    if (webhookUrl) {
-      try {
-        await fetch(webhookUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patientName: patient.fullName,
-            patientPhone: patient.phone,
-            returnDate: alert.returnDate.toISOString().split('T')[0],
-            notes: alert.notes ?? '',
-            message,
-          }),
-        });
-      } catch (e) {
-        console.warn('Webhook de retorno falhou:', e);
-      }
-    } else {
-      console.warn('VITE_N8N_RETURN_ALERT_WEBHOOK_URL não configurado — WhatsApp não enviado');
+    if (!webhookUrl) {
+      toast({
+        title: "WhatsApp não configurado",
+        description: "URL do webhook de retorno não está configurada.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientName: patient.fullName,
+          patientPhone: patient.phone,
+          returnDate: alert.returnDate.toISOString().split('T')[0],
+          notes: alert.notes ?? '',
+          message,
+        }),
+      });
+    } catch (e) {
+      console.warn('Webhook de retorno falhou:', e);
+      toast({
+        title: "WhatsApp não enviado",
+        description: `Não foi possível enviar a mensagem de retorno para ${patient.fullName}.`,
+        variant: "destructive",
+      });
+      return;
     }
 
     const now = new Date();

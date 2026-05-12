@@ -1,0 +1,610 @@
+{
+  "name": "bot_confirmação",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "seconds", "secondsInterval": 15 }]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1200, 200],
+      "id": "bc01-schedule",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://hmjrgrrosyinblpzntkw.supabase.co/functions/v1/get-pending-confirmations",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1000, 200],
+      "id": "bc02-get-appointments",
+      "name": "Buscar Agendamentos"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "appointments",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [-800, 200],
+      "id": "bc03-split",
+      "name": "Split Agendamentos"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(i => {\n  const item = i.json;\n  const datePart = item.date.split('T')[0];\n  const appointmentStr = `${datePart}T${item.time}:00-03:00`;\n  const appointmentDate = new Date(appointmentStr);\n  const now = new Date();\n  const hoursUntil = (appointmentDate - now) / (1000 * 60 * 60);\n  return { ...item, hoursUntil: Math.round(hoursUntil) };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 200],
+      "id": "bc04-calc-hours",
+      "name": "Calcular Horas"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            { "id": "c24h-gte", "leftValue": "={{ $json.hoursUntil }}", "rightValue": 23, "operator": { "type": "number", "operation": "gte" } },
+            { "id": "c24h-lte", "leftValue": "={{ $json.hoursUntil }}", "rightValue": 25, "operator": { "type": "number", "operation": "lte" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-400, 200],
+      "id": "bc05-if-24h",
+      "name": "24h Antes?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const baseMsg = $('Buscar Agendamentos').first().json.confirmationMessage\n  || 'Olá {{nome_paciente}}, tudo bem? Sua consulta está marcada para {{data}} às {{hora}}.';\n\nconst instruction = '\\n\\nResponda:\\n✅ *SIM* para confirmar\\n❌ *NÃO* para cancelar\\n🔄 *REMARCAR* para remarcar';\n\nreturn $('24h Antes?').all().map(item => {\n  const patient = item.json.patients;\n  if (!patient?.phone) return { json: { skip: true } };\n  const datePart = item.json.date.split('T')[0];\n  const dateStr = new Date(datePart + 'T12:00:00').toLocaleDateString('pt-BR');\n  const msg = baseMsg\n    .replace(/\\{\\{nome_paciente\\}\\}/g, patient.full_name)\n    .replace(/\\{\\{data\\}\\}/g, dateStr)\n    .replace(/\\{\\{hora\\}\\}/g, item.json.time)\n    + instruction;\n  return { json: { jsonBody: { number: patient.phone, text: msg } } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, 50],
+      "id": "bc06-build-24h",
+      "name": "Montar Mensagem 24h"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "apikey", "value": "32E4894EF913-499C-BDBE-FEA9EF1A644A" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.jsonBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [100, 50],
+      "id": "bc07-send-24h",
+      "name": "Enviar WhatsApp 24h"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            { "id": "c12h-gte", "leftValue": "={{ $('Calcular Horas').item.json.hoursUntil }}", "rightValue": 11, "operator": { "type": "number", "operation": "gte" } },
+            { "id": "c12h-lte", "leftValue": "={{ $('Calcular Horas').item.json.hoursUntil }}", "rightValue": 13, "operator": { "type": "number", "operation": "lte" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-160, 320],
+      "id": "bc08-if-12h",
+      "name": "12h Antes?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const baseMsg = $('Buscar Agendamentos').first().json.confirmationMessage\n  || 'Olá {{nome_paciente}}, sua consulta está marcada para {{data}} às {{hora}}.';\n\nconst prefix = '📋 Ainda aguardamos sua confirmação.\\n\\n';\nconst instruction = '\\n\\nResponda:\\n✅ *SIM* para confirmar\\n❌ *NÃO* para cancelar\\n🔄 *REMARCAR* para remarcar';\n\nreturn $('12h Antes?').all().map(item => {\n  const patient = item.json.patients;\n  if (!patient?.phone) return { json: { skip: true } };\n  const datePart = item.json.date.split('T')[0];\n  const dateStr = new Date(datePart + 'T12:00:00').toLocaleDateString('pt-BR');\n  const msg = prefix + baseMsg\n    .replace(/\\{\\{nome_paciente\\}\\}/g, patient.full_name)\n    .replace(/\\{\\{data\\}\\}/g, dateStr)\n    .replace(/\\{\\{hora\\}\\}/g, item.json.time)\n    + instruction;\n  return { json: { jsonBody: { number: patient.phone, text: msg } } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [80, 320],
+      "id": "bc09-build-12h",
+      "name": "Montar Mensagem 12h"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "apikey", "value": "32E4894EF913-499C-BDBE-FEA9EF1A644A" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.jsonBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [320, 320],
+      "id": "bc10-send-12h",
+      "name": "Enviar WhatsApp 12h"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            { "id": "c3h-gte", "leftValue": "={{ $('Calcular Horas').item.json.hoursUntil }}", "rightValue": 2, "operator": { "type": "number", "operation": "gte" } },
+            { "id": "c3h-lte", "leftValue": "={{ $('Calcular Horas').item.json.hoursUntil }}", "rightValue": 4, "operator": { "type": "number", "operation": "lte" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [80, 500],
+      "id": "bc11-if-3h",
+      "name": "3h Antes?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('3h Antes?').all().map(item => {\n  const patient = item.json.patients;\n  if (!patient) return { json: { skip: true } };\n  return {\n    json: {\n      jsonBody: {\n        type: 'lembrete_consulta',\n        title: '⚠️ Sem resposta — Tentar contato urgente',\n        message: `${patient.full_name} (${patient.phone || 'sem telefone'}) não confirmou a consulta de hoje às ${item.json.time}. Entre em contato.`\n      }\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 500],
+      "id": "bc12-prep-notif-3h",
+      "name": "Preparar Notificação 3h"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hmjrgrrosyinblpzntkw.supabase.co/functions/v1/create-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtanJncnJvc3lpbmJscHpudGt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MzYzOTAsImV4cCI6MjA3NTUxMjM5MH0.VukfnENSS4dgv5X3_n5Qz9jFW0iZgp66AN9jkME3TvQ" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.jsonBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [560, 500],
+      "id": "bc13-notif-3h",
+      "name": "Notificação Urgente 3h"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-resposta",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-1200, 800],
+      "id": "bc14-webhook",
+      "name": "Webhook Resposta",
+      "webhookId": "9bd352d7-32a4-4af6-86fe-5565d1260ad1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.item.json;\nconst body = input.body || input;\n\nconst fromMe = body.data?.key?.fromMe ?? false;\n\n// Ignorar mensagens enviadas pelo próprio bot\nif (fromMe) return [];\n\n// Nova versão do Evolution API fornece senderPn com o número real do remetente\nconst senderPn = body.data?.key?.senderPn || '';\nlet phone = senderPn.replace('@s.whatsapp.net', '').replace(/\\D/g, '');\n\n// Fallback: tenta remoteJid se senderPn não estiver disponível\nif (!phone) {\n  const remoteJid = body.data?.key?.remoteJid || '';\n  phone = remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/\\D/g, '');\n}\n\n// Adicionar 9 após DDD para números brasileiros sem o dígito (12 → 13 dígitos)\n// Ex: 558185916795 → 5581985916795\nif (phone.length === 12 && phone.startsWith('55')) {\n  phone = phone.slice(0, 4) + '9' + phone.slice(4);\n}\n\nconst rawText =\n  body.data?.message?.conversation ||\n  body.data?.message?.extendedTextMessage?.text ||\n  body.message?.conversation ||\n  body.text ||\n  '';\n\nconst text = rawText\n  .toLowerCase()\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .trim();\n\nlet action = 'none';\n\nif (/^(sim|s|yes|ok|pode|confirmo|confirmado|confirmar|claro|com certeza|topo|1)$/.test(text)) {\n  action = 'confirm';\n} else if (/^(nao|n|no|nope|cancela|cancelar|cancelado|2)$/.test(text)) {\n  action = 'cancel';\n} else if (\n  /^(remarcar|remarco|reagendar|reagendo|mudar|alterar|trocar|3)$/.test(text) ||\n  text.includes('remarc') ||\n  text.includes('reagend') ||\n  text.includes('outro dia') ||\n  text.includes('outro horario')\n) {\n  action = 'remarcar';\n}\n\nreturn [{ json: { action, phone, rawText } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, 800],
+      "id": "bc15-parse-text",
+      "name": "Interpretar Resposta"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "sw-confirm", "leftValue": "={{ $json.action }}", "rightValue": "confirm", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Confirmar"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "sw-cancel", "leftValue": "={{ $json.action }}", "rightValue": "cancel", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cancelar"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "sw-remarcar", "leftValue": "={{ $json.action }}", "rightValue": "remarcar", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Remarcar"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [-780, 800],
+      "id": "bc16-switch",
+      "name": "Roteador de Ação"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hmjrgrrosyinblpzntkw.supabase.co/functions/v1/process-whatsapp-response",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtanJncnJvc3lpbmJscHpudGt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MzYzOTAsImV4cCI6MjA3NTUxMjM5MH0.VukfnENSS4dgv5X3_n5Qz9jFW0iZgp66AN9jkME3TvQ" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"buttonId\": \"confirmar\",\n  \"phone\": \"{{ $('Interpretar Resposta').item.json.phone }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-540, 640],
+      "id": "bc17-confirm-api",
+      "name": "Confirmar no Sistema"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hmjrgrrosyinblpzntkw.supabase.co/functions/v1/create-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtanJncnJvc3lpbmJscHpudGt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MzYzOTAsImV4cCI6MjA3NTUxMjM5MH0.VukfnENSS4dgv5X3_n5Qz9jFW0iZgp66AN9jkME3TvQ" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"agendamento\",\n  \"title\": \"✅ Consulta confirmada pelo paciente\",\n  \"message\": \"{{ $('Confirmar no Sistema').item.json.patient?.full_name || 'Paciente' }} confirmou a consulta via WhatsApp.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-300, 640],
+      "id": "bc32-notif-confirmed",
+      "name": "Notificação Confirmação"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-confirmed",
+              "name": "message",
+              "value": "Sua consulta foi confirmada! ✅\n\nEstamos te esperando no dia e horário agendados. Até logo! 👋",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-60, 640],
+      "id": "bc18-msg-confirmed",
+      "name": "Mensagem Confirmado"
+    },
+    {
+      "parameters": {
+        "jsCode": "const phone = $('Interpretar Resposta').item.json.phone;\nconst message = $input.first().json.message;\nreturn [{ json: { jsonBody: { number: phone, text: message } } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-60, 640],
+      "id": "bc19-build-send-confirmed",
+      "name": "Montar Envio Confirmação"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "apikey", "value": "32E4894EF913-499C-BDBE-FEA9EF1A644A" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.jsonBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [180, 640],
+      "id": "bc20-send-confirmed",
+      "name": "Enviar WhatsApp Confirmado"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hmjrgrrosyinblpzntkw.supabase.co/functions/v1/process-whatsapp-response",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtanJncnJvc3lpbmJscHpudGt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MzYzOTAsImV4cCI6MjA3NTUxMjM5MH0.VukfnENSS4dgv5X3_n5Qz9jFW0iZgp66AN9jkME3TvQ" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"buttonId\": \"cancelar\",\n  \"phone\": \"{{ $('Interpretar Resposta').item.json.phone }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-540, 840],
+      "id": "bc21-cancel-api",
+      "name": "Cancelar no Sistema"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-cancelled",
+              "name": "message",
+              "value": "Sua consulta foi cancelada. ❌\n\nCaso queira remarcar, é só nos avisar! 😊",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-300, 840],
+      "id": "bc22-msg-cancelled",
+      "name": "Mensagem Cancelamento"
+    },
+    {
+      "parameters": {
+        "jsCode": "const phone = $('Interpretar Resposta').item.json.phone;\nconst message = $input.first().json.message;\nreturn [{ json: { jsonBody: { number: phone, text: message } } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-60, 840],
+      "id": "bc23-build-send-cancelled",
+      "name": "Montar Envio Cancelamento"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "apikey", "value": "32E4894EF913-499C-BDBE-FEA9EF1A644A" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.jsonBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [180, 840],
+      "id": "bc24-send-cancelled",
+      "name": "Enviar WhatsApp Cancelamento"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hmjrgrrosyinblpzntkw.supabase.co/functions/v1/create-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtanJncnJvc3lpbmJscHpudGt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MzYzOTAsImV4cCI6MjA3NTUxMjM5MH0.VukfnENSS4dgv5X3_n5Qz9jFW0iZgp66AN9jkME3TvQ" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"cancelamento\",\n  \"title\": \"⚠️ Cancelamento via WhatsApp\",\n  \"message\": \"{{ $('Cancelar no Sistema').item.json.patient?.full_name || 'Paciente' }} cancelou a consulta pelo WhatsApp. Entre em contato.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 840],
+      "id": "bc25-notif-cancel",
+      "name": "Notificação Urgente Cancelamento"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hmjrgrrosyinblpzntkw.supabase.co/functions/v1/request-reschedule",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtanJncnJvc3lpbmJscHpudGt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MzYzOTAsImV4cCI6MjA3NTUxMjM5MH0.VukfnENSS4dgv5X3_n5Qz9jFW0iZgp66AN9jkME3TvQ" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"phone\": \"{{ $('Interpretar Resposta').item.json.phone }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-540, 1040],
+      "id": "bc26-remarcar-api",
+      "name": "Remarcar no Sistema"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-remarcar",
+              "name": "message",
+              "value": "Tudo certo! 🔄\n\nSeu pedido de remarcação foi recebido. Nossa equipe entrará em contato em breve para confirmar a nova data. 😊",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-300, 1040],
+      "id": "bc27-msg-remarcar",
+      "name": "Mensagem Remarcação"
+    },
+    {
+      "parameters": {
+        "jsCode": "const phone = $('Interpretar Resposta').item.json.phone;\nconst message = $input.first().json.message;\nreturn [{ json: { jsonBody: { number: phone, text: message } } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-60, 1040],
+      "id": "bc28-build-send-remarcar",
+      "name": "Montar Envio Remarcação"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "apikey", "value": "32E4894EF913-499C-BDBE-FEA9EF1A644A" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.jsonBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [180, 1040],
+      "id": "bc29-send-remarcar",
+      "name": "Enviar WhatsApp Remarcação"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Buscar Agendamentos", "type": "main", "index": 0 }]]
+    },
+    "Buscar Agendamentos": {
+      "main": [[{ "node": "Split Agendamentos", "type": "main", "index": 0 }]]
+    },
+    "Split Agendamentos": {
+      "main": [[{ "node": "Calcular Horas", "type": "main", "index": 0 }]]
+    },
+    "Calcular Horas": {
+      "main": [[{ "node": "24h Antes?", "type": "main", "index": 0 }]]
+    },
+    "24h Antes?": {
+      "main": [
+        [{ "node": "Montar Mensagem 24h", "type": "main", "index": 0 }],
+        [{ "node": "12h Antes?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Montar Mensagem 24h": {
+      "main": [[{ "node": "Enviar WhatsApp 24h", "type": "main", "index": 0 }]]
+    },
+    "12h Antes?": {
+      "main": [
+        [{ "node": "Montar Mensagem 12h", "type": "main", "index": 0 }],
+        [{ "node": "3h Antes?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Montar Mensagem 12h": {
+      "main": [[{ "node": "Enviar WhatsApp 12h", "type": "main", "index": 0 }]]
+    },
+    "3h Antes?": {
+      "main": [
+        [{ "node": "Preparar Notificação 3h", "type": "main", "index": 0 }]
+      ]
+    },
+    "Preparar Notificação 3h": {
+      "main": [[{ "node": "Notificação Urgente 3h", "type": "main", "index": 0 }]]
+    },
+    "Webhook Resposta": {
+      "main": [[{ "node": "Interpretar Resposta", "type": "main", "index": 0 }]]
+    },
+    "Interpretar Resposta": {
+      "main": [[{ "node": "Roteador de Ação", "type": "main", "index": 0 }]]
+    },
+    "Roteador de Ação": {
+      "main": [
+        [{ "node": "Confirmar no Sistema", "type": "main", "index": 0 }],
+        [{ "node": "Cancelar no Sistema", "type": "main", "index": 0 }],
+        [{ "node": "Remarcar no Sistema", "type": "main", "index": 0 }]
+      ]
+    },
+    "Confirmar no Sistema": {
+      "main": [[{ "node": "Notificação Confirmação", "type": "main", "index": 0 }]]
+    },
+    "Notificação Confirmação": {
+      "main": [[{ "node": "Mensagem Confirmado", "type": "main", "index": 0 }]]
+    },
+    "Mensagem Confirmado": {
+      "main": [[{ "node": "Montar Envio Confirmação", "type": "main", "index": 0 }]]
+    },
+    "Montar Envio Confirmação": {
+      "main": [[{ "node": "Enviar WhatsApp Confirmado", "type": "main", "index": 0 }]]
+    },
+    "Cancelar no Sistema": {
+      "main": [[{ "node": "Mensagem Cancelamento", "type": "main", "index": 0 }]]
+    },
+    "Mensagem Cancelamento": {
+      "main": [[{ "node": "Montar Envio Cancelamento", "type": "main", "index": 0 }]]
+    },
+    "Montar Envio Cancelamento": {
+      "main": [[{ "node": "Enviar WhatsApp Cancelamento", "type": "main", "index": 0 }]]
+    },
+    "Enviar WhatsApp Cancelamento": {
+      "main": [[{ "node": "Notificação Urgente Cancelamento", "type": "main", "index": 0 }]]
+    },
+    "Remarcar no Sistema": {
+      "main": [[{ "node": "Mensagem Remarcação", "type": "main", "index": 0 }]]
+    },
+    "Mensagem Remarcação": {
+      "main": [[{ "node": "Montar Envio Remarcação", "type": "main", "index": 0 }]]
+    },
+    "Montar Envio Remarcação": {
+      "main": [[{ "node": "Enviar WhatsApp Remarcação", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c113f691-5338-43dd-ab3e-66dd1b8143c8",
+  "meta": {
+    "instanceId": "8fc96216b55d8509079c818d5243cb874ec34786f2c6ffb51935ad321aa2c130"
+  },
+  "id": "horblXIbH4Fws0KS",
+  "tags": []
+}

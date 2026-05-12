@@ -68,6 +68,7 @@ export interface Appointment {
   notes?: string;
   createdAt: Date;
   sessionId?: string;
+  deletedAt?: Date;
 }
 
 export interface Transaction {

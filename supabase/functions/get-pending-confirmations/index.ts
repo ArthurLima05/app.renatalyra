@@ -48,11 +48,22 @@ Deno.serve(async (req) => {
 
     console.log(`Encontrados ${appointments?.length || 0} agendamentos pendentes de confirmação`)
 
+    // Busca o template de mensagem configurado na clínica
+    const { data: setting } = await supabase
+      .from('clinic_settings')
+      .select('value')
+      .eq('key', 'msg_appointment_confirmation')
+      .maybeSingle()
+
+    const confirmationMessage = setting?.value
+      ?? 'Olá {{nome_paciente}}, tudo bem? Sua consulta está marcada para {{data}} às {{hora}}. Por favor, confirme sua presença.'
+
     return new Response(
       JSON.stringify({
         success: true,
         appointments: appointments || [],
-        count: appointments?.length || 0
+        count: appointments?.length || 0,
+        confirmationMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

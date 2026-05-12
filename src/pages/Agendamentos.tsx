@@ -89,12 +89,22 @@ const durationLabel = (d: number) => DURATION_OPTIONS.find((o) => o.value === d)
 
 // Cores de status ainda usadas na lista e badges
 const STATUS_COLORS: Record<AppointmentStatus, string> = {
-  agendado: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  agendado: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
   confirmado: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  realizado: "bg-gray-100 text-gray-700 dark:bg-gray-700/40 dark:text-gray-300",
+  realizado: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   cancelado: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
   falta: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
-  sugerido: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
+  sugerido: "bg-gray-100 text-gray-600 dark:bg-gray-700/40 dark:text-gray-400",
+};
+
+// Semáforo: ponto colorido por status
+const SEMAPHORE_DOT: Record<AppointmentStatus, string> = {
+  agendado: "bg-yellow-400",
+  confirmado: "bg-green-500",
+  realizado: "bg-blue-500",
+  cancelado: "bg-red-500",
+  falta: "bg-orange-500",
+  sugerido: "bg-gray-400",
 };
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
@@ -150,7 +160,8 @@ function AppointmentDetailCard({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
-  const { patients, professionals, appointments: allAppointments, updateAppointmentStatus, updateAppointmentTime, updateAppointmentProfessional } = useClinic();
+  const { patients, professionals, appointments: allAppointments, updateAppointmentStatus, updateAppointmentTime, updateAppointmentProfessional, deleteAppointment } = useClinic();
+  const { canDelete } = usePermissionsCtx();
   const patient = patients.find((p) => p.id === appointment.patientId);
   const professional = professionals.find((p) => p.id === appointment.professionalId);
   const proStyle = dentistStyle(professional?.name);
@@ -199,9 +210,12 @@ function AppointmentDetailCard({
             </div>
           )}
         </div>
-        <span className={cn("text-xs px-2 py-1 rounded-full font-medium flex-shrink-0", STATUS_COLORS[appointment.status])}>
-          {STATUS_LABELS[appointment.status]}
-        </span>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className={cn("inline-block w-2.5 h-2.5 rounded-full", SEMAPHORE_DOT[appointment.status])} />
+          <span className={cn("text-xs px-2 py-1 rounded-full font-medium", STATUS_COLORS[appointment.status])}>
+            {STATUS_LABELS[appointment.status]}
+          </span>
+        </div>
       </div>
 
       {/* Dentista */}
@@ -362,6 +376,34 @@ function AppointmentDetailCard({
         <ExternalLink className="h-3.5 w-3.5" />
         Ver perfil do paciente
       </Button>
+
+      {/* Excluir */}
+      {canDelete('agenda') && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10">
+              <Trash2 className="h-3.5 w-3.5" />
+              Excluir agendamento
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o agendamento de {appointment.patientName}? O registro será mantido nas métricas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => { await deleteAppointment(appointment.id); onClose(); }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
@@ -451,6 +493,7 @@ export default function Agendamentos() {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return appointments.filter((app) => {
+      if (app.deletedAt) return false;
       const appDate = new Date(app.date);
       const appDay = new Date(appDate.getFullYear(), appDate.getMonth(), appDate.getDate());
       if (appDay < today) return false;
@@ -481,6 +524,7 @@ export default function Agendamentos() {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return appointments
       .filter((app) => {
+        if (app.deletedAt) return false;
         const appDate = new Date(app.date);
         const appDay = new Date(appDate.getFullYear(), appDate.getMonth(), appDate.getDate());
         if (appDay >= today) return false;
@@ -574,7 +618,12 @@ export default function Agendamentos() {
       agendado: "outline", confirmado: "default", realizado: "secondary",
       cancelado: "destructive", falta: "destructive", sugerido: "outline",
     };
-    return <Badge variant={variants[status]}>{STATUS_LABELS[status]}</Badge>;
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className={cn("inline-block w-2.5 h-2.5 rounded-full flex-shrink-0", SEMAPHORE_DOT[status])} />
+        <Badge variant={variants[status]}>{STATUS_LABELS[status]}</Badge>
+      </div>
+    );
   };
 
   // ── Pill clicável ─────────────────────────────────────────────────────────
@@ -591,7 +640,8 @@ export default function Agendamentos() {
             style={dentistStyle(pro?.name)}
             onClick={() => setDetailAppointment(app)}
           >
-            <div className="font-semibold truncate mb-0.5">
+            <div className="font-semibold truncate mb-0.5 flex items-center gap-1">
+              <span className={cn("inline-block w-2 h-2 rounded-full flex-shrink-0", SEMAPHORE_DOT[app.status])} />
               {app.patientName}
             </div>
             {!compact && (
@@ -970,8 +1020,9 @@ export default function Agendamentos() {
                         {dayApps.slice(0, 3).map((app) => {
                           const pro = professionals.find((p) => p.id === app.professionalId);
                           return (
-                            <div key={app.id} className="text-xs rounded px-1 py-0.5 truncate"
+                            <div key={app.id} className="text-xs rounded px-1 py-0.5 truncate flex items-center gap-1"
                               style={dentistStyle(pro?.name)}>
+                              <span className={cn("inline-block w-1.5 h-1.5 rounded-full flex-shrink-0", SEMAPHORE_DOT[app.status])} />
                               {app.time} {app.patientName}
                             </div>
                           );

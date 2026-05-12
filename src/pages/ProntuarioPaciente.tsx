@@ -304,7 +304,7 @@ const ProntuarioPaciente = () => {
         description: 'Agendamento criado com sucesso'
       });
       
-      navigate('/agendamentos');
+      navigate('/');
     }
   };
 

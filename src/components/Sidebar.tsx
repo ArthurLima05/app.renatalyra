@@ -22,13 +22,13 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { to: '/',              module: 'agenda',        icon: Calendar,       label: 'Agendamentos' },
+  { to: '/',              module: 'agenda',        icon: Calendar,        label: 'Agendamentos' },
+  { to: '/pacientes',     module: 'pacientes',     icon: UserCircle,      label: 'Pacientes' },
+  { to: '/profissionais', module: 'profissionais', icon: Stethoscope,     label: 'Profissionais' },
+  { to: '/financeiro',    module: 'financeiro',    icon: DollarSign,      label: 'Financeiro' },
+  { to: '/notificacoes',  module: 'notificacoes',  icon: Bell,            label: 'Notificações' },
   { to: '/dashboard',     module: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/pacientes',     module: 'pacientes',     icon: UserCircle,     label: 'Pacientes' },
-  { to: '/profissionais', module: 'profissionais', icon: Stethoscope,    label: 'Profissionais' },
-  { to: '/financeiro',    module: 'financeiro',    icon: DollarSign,     label: 'Financeiro' },
-  { to: '/notificacoes',  module: 'notificacoes',  icon: Bell,           label: 'Notificações' },
-  { to: '/funil',         module: 'funil',         icon: TrendingUp,     label: 'Funil de Vendas' },
+  { to: '/funil',         module: 'funil',         icon: TrendingUp,      label: 'Funil de Vendas' },
 ];
 
 interface SidebarProps {

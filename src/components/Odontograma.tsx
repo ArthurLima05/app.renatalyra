@@ -59,9 +59,22 @@ const STATUS_BADGE: Record<OdontogramStatus, "default" | "secondary" | "outline"
   existente: "secondary",
 };
 
-// Dentes decíduos para a vista simplificada
+// Dentes decíduos — usados no seletor do formulário
 const DEC_UPPER = [55, 54, 53, 52, 51, 61, 62, 63, 64, 65];
 const DEC_LOWER = [85, 84, 83, 82, 81, 71, 72, 73, 74, 75];
+
+// Mapeamento FDI permanente (biblioteca) ↔ FDI decíduo
+// A biblioteca usa quadrantes 1-4; decídua usa 5-8 (mesmo dígito de posição)
+// ex: "11" → 51,  "25" → 65,  "41" → 81
+const permToDecFDI = (permFdi: string): number => {
+  const n = parseInt(permFdi, 10);
+  return (Math.floor(n / 10) + 4) * 10 + (n % 10);
+};
+const decToPermId = (decFdi: number): string => {
+  const q = Math.floor(decFdi / 10) - 4; // 5→1, 6→2, 7→3, 8→4
+  const pos = decFdi % 10;
+  return `teeth-${q}${pos}`;
+};
 
 const emptyForm = () => ({
   executionDate: format(new Date(), "yyyy-MM-dd"),
@@ -81,18 +94,15 @@ export function Odontograma({ patientId }: { patientId: string }) {
 
   const [dentitionView, setDentitionView] = useState<Dentition>("permanente");
   const [selectedToothNums, setSelectedToothNums] = useState<string[]>([]);
-  // Resetar a seleção da lib trocando o key
   const [chartKey, setChartKey] = useState(0);
+  const [decChartKey, setDecChartKey] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
-
-  // Deciduous selection (simple toggle)
   const [selectedDecTeeth, setSelectedDecTeeth] = useState<Set<number>>(new Set());
 
-  // Constrói teethConditions para colorir os dentes com procedimentos existentes
+  // Condições para o gráfico permanente
   const teethConditions = useMemo(() => {
-    // Pega o status mais recente de cada dente
     const toothStatus = new Map<string, OdontogramStatus>();
     const sorted = [...procedures].sort(
       (a, b) => b.executionDate.getTime() - a.executionDate.getTime()
@@ -118,12 +128,46 @@ export function Odontograma({ patientId }: { patientId: string }) {
       }));
   }, [procedures]);
 
+  // Condições para o gráfico decíduo (remapeia FDI decíduo → ID interno da lib)
+  const decTeethConditions = useMemo(() => {
+    const toothStatus = new Map<string, OdontogramStatus>();
+    const sorted = [...procedures].sort(
+      (a, b) => b.executionDate.getTime() - a.executionDate.getTime()
+    );
+    for (const proc of sorted) {
+      for (const tn of proc.toothNumbers) {
+        const n = parseInt(tn, 10);
+        const q = Math.floor(n / 10);
+        if (q < 5 || q > 8) continue; // só decíduos
+        const permId = decToPermId(n);
+        if (!toothStatus.has(permId)) toothStatus.set(permId, proc.status);
+      }
+    }
+    const groups: Record<OdontogramStatus, string[]> = {
+      a_realizar: [], executado: [], existente: [],
+    };
+    toothStatus.forEach((status, id) => groups[status].push(id));
+    return (["a_realizar", "executado", "existente"] as OdontogramStatus[])
+      .filter((s) => groups[s].length > 0)
+      .map((s) => ({
+        label: STATUS_LABEL[s],
+        teeth: groups[s],
+        fillColor: STATUS_FILL[s].fill,
+        outlineColor: STATUS_FILL[s].outline,
+      }));
+  }, [procedures]);
+
   const handleOdontogramChange = (selected: ToothDetail[]) => {
     setSelectedToothNums(selected.map((t) => t.notations.fdi));
   };
 
+  const handleDecOdontogramChange = (selected: ToothDetail[]) => {
+    setSelectedDecTeeth(new Set(selected.map((t) => permToDecFDI(t.notations.fdi))));
+  };
+
   const clearSelection = () => {
     setChartKey((k) => k + 1);
+    setDecChartKey((k) => k + 1);
     setSelectedToothNums([]);
     setSelectedDecTeeth(new Set());
   };
@@ -273,61 +317,52 @@ export function Odontograma({ patientId }: { patientId: string }) {
         </Card>
       )}
 
-      {/* ── Vista Decídua: grade simples ── */}
+      {/* ── Vista Decídua: react-odontogram com maxTeeth=5 ── */}
       {dentitionView === "decidua" && (
         <Card>
-          <CardContent className="pt-4 pb-4 space-y-4">
-            {[
-              { label: "Superior", teeth: DEC_UPPER },
-              { label: "Inferior", teeth: DEC_LOWER },
-            ].map(({ label, teeth }) => (
-              <div key={label} className="space-y-1">
-                <p className="text-xs text-muted-foreground text-center">{label}</p>
-                <div className="flex gap-1 justify-center flex-wrap">
-                  {teeth.map((num) => {
-                    const sel = selectedDecTeeth.has(num);
-                    const procStatus = (() => {
-                      for (const proc of [...procedures].sort(
-                        (a, b) => b.executionDate.getTime() - a.executionDate.getTime()
-                      )) {
-                        if (proc.toothNumbers.includes(String(num))) return proc.status;
-                      }
-                      return null;
-                    })();
-                    return (
-                      <button
-                        key={num}
-                        onClick={() =>
-                          setSelectedDecTeeth((prev) => {
-                            const next = new Set(prev);
-                            next.has(num) ? next.delete(num) : next.add(num);
-                            return next;
-                          })
-                        }
-                        style={
-                          procStatus && !sel
-                            ? { backgroundColor: STATUS_FILL[procStatus].fill, borderColor: STATUS_FILL[procStatus].outline }
-                            : undefined
-                        }
-                        className={cn(
-                          "w-9 h-9 rounded text-xs font-medium border-2 transition-colors",
-                          sel
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : procStatus
-                            ? "border-current"
-                            : "bg-card border-border hover:bg-muted",
-                        )}
-                      >
-                        {num}
-                      </button>
-                    );
-                  })}
-                </div>
+          <CardContent className="pt-3 pb-3">
+            <div className="max-w-[540px] mx-auto space-y-0.5">
+              {/*
+                A biblioteca usa 8 posições fixas por quadrante no SVG.
+                Com maxTeeth=5, os 3 dentes mais posteriores (16,17,18) ficam
+                vazios — por isso usamos 16 colunas com espaços em branco nessas
+                posições, igual ao gráfico permanente.
+                Layout: [vazio×3, 55,54,53,52,51, 61,62,63,64,65, vazio×3]
+              */}
+              <div
+                className="text-center text-[9px] font-mono text-muted-foreground"
+                style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)" }}
+              >
+                {["", "", "", 55, 54, 53, 52, 51, 61, 62, 63, 64, 65, "", "", ""].map((n, i) => (
+                  <span key={i}>{n}</span>
+                ))}
               </div>
-            ))}
+
+              <OdontogramChart
+                key={decChartKey}
+                onChange={handleDecOdontogramChange}
+                teethConditions={decTeethConditions}
+                showLabels={false}
+                notation="FDI"
+                layout="square"
+                maxTeeth={5}
+                styles={{ maxWidth: "100%" }}
+              />
+
+              {/* Layout inferior: [vazio×3, 85,84,83,82,81, 71,72,73,74,75, vazio×3] */}
+              <div
+                className="text-center text-[9px] font-mono text-muted-foreground"
+                style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)" }}
+              >
+                {["", "", "", 85, 84, 83, 82, 81, 71, 72, 73, 74, 75, "", "", ""].map((n, i) => (
+                  <span key={i}>{n}</span>
+                ))}
+              </div>
+            </div>
+
             {selectedDecTeeth.size > 0 && (
-              <p className="text-xs text-center text-muted-foreground">
-                Selecionado(s): {Array.from(selectedDecTeeth).join(", ")}
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                Selecionado(s): {Array.from(selectedDecTeeth).sort((a, b) => a - b).join(", ")}
               </p>
             )}
           </CardContent>
