@@ -19,16 +19,19 @@ export const MetricCard = ({ title, value, icon: Icon, trend, delay = 0 }: Metri
       className="h-full"
     >
       <Card className="h-full hover:shadow-lg transition-shadow">
-        <CardContent className="p-6 h-full">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground mb-1">{title}</p>
-              <h3 className="text-3xl font-bold text-foreground mb-2">{value}</h3>
-              {trend && (
-                <p className="text-sm text-muted-foreground">{trend}</p>
-              )}
+        <CardContent className="p-3 sm:p-6 h-full">
+          {/* Mobile: linha compacta — ícone | título+valor | (sem coluna) */}
+          {/* Desktop: título+valor à esquerda, ícone grande à direita */}
+          <div className="flex items-center gap-3 sm:items-start sm:justify-between">
+            <div className="bg-primary/10 p-2 rounded-lg shrink-0 sm:hidden">
+              <Icon className="h-5 w-5 text-primary" />
             </div>
-            <div className="bg-primary/10 p-3 rounded-lg">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm text-muted-foreground leading-snug break-words">{title}</p>
+              <h3 className="text-lg sm:text-3xl font-bold text-foreground mt-0.5">{value}</h3>
+              {trend && <p className="text-xs text-muted-foreground mt-0.5">{trend}</p>}
+            </div>
+            <div className="hidden sm:flex bg-primary/10 p-3 rounded-lg shrink-0">
               <Icon className="h-6 w-6 text-primary" />
             </div>
           </div>

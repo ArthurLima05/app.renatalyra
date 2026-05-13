@@ -643,14 +643,11 @@ export default function Financeiro() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="distribuicao" className="w-full">
-              <div className="w-full overflow-x-auto pb-2 -mx-2 px-2">
-                <TabsList className="grid w-full min-w-[400px] sm:min-w-0 grid-cols-4 h-auto">
-                  <TabsTrigger value="distribuicao" className="text-xs sm:text-sm py-2">Distribuição</TabsTrigger>
-                  <TabsTrigger value="categorias" className="text-xs sm:text-sm py-2">Categorias</TabsTrigger>
-                  <TabsTrigger value="evolucao" className="text-xs sm:text-sm py-2">Evolução</TabsTrigger>
-                  <TabsTrigger value="previsoes" className="text-xs sm:text-sm py-2">Previsões</TabsTrigger>
-                </TabsList>
-              </div>
+              <TabsList className="grid w-full grid-cols-3 h-auto">
+                <TabsTrigger value="distribuicao" className="text-xs sm:text-sm py-2">Distribuição</TabsTrigger>
+                <TabsTrigger value="evolucao" className="text-xs sm:text-sm py-2">Evolução</TabsTrigger>
+                <TabsTrigger value="previsoes" className="text-xs sm:text-sm py-2">Previsões</TabsTrigger>
+              </TabsList>
               
               <TabsContent value="distribuicao" className="mt-4">
                 <ResponsiveContainer width="100%" height={250}>
@@ -674,19 +671,6 @@ export default function Financeiro() {
                 </ResponsiveContainer>
               </TabsContent>
 
-              <TabsContent value="categorias" className="mt-4">
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={categoryChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Legend wrapperStyle={{ fontSize: '10px' }} />
-                    <Bar dataKey="Entradas" fill="#10b981" />
-                    <Bar dataKey="Saídas" fill="#ef4444" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </TabsContent>
 
               <TabsContent value="evolucao" className="mt-4">
                 <ResponsiveContainer width="100%" height={250}>

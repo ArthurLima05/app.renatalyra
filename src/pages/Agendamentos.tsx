@@ -55,6 +55,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { DENTIST_VARS, dentistStyle } from "@/lib/dentist-colors";
 import { usePermissionsCtx } from "@/contexts/PermissionsContext";
+import { useToast } from "@/hooks/use-toast";
 
 type DateFilter = "dia" | "semana" | "mes" | "ano";
 type MainTab = "agendamentos" | "historico";
@@ -94,7 +95,7 @@ const STATUS_COLORS: Record<AppointmentStatus, string> = {
   realizado: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   cancelado: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
   falta: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
-  sugerido: "bg-gray-100 text-gray-600 dark:bg-gray-700/40 dark:text-gray-400",
+  sugerido: "bg-gray-500 text-white dark:bg-gray-600 dark:text-white",
 };
 
 // Semáforo: ponto colorido por status
@@ -149,6 +150,113 @@ function slotsOverlap(
   bStart: number, bDuration: number
 ) {
   return aStart < bStart + bDuration && aStart + aDuration > bStart;
+}
+
+// ─── Dialog de exclusão com opção de notificar ───────────────────────────────
+function DeleteAppointmentDialog({
+  appointment,
+  trigger,
+  onDeleted,
+}: {
+  appointment: Appointment;
+  trigger: React.ReactNode;
+  onDeleted?: () => void;
+}) {
+  const { deleteAppointment, patients, clinicSettings } = useClinic();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState<"delete" | "notify" | null>(null);
+  const patient = patients.find((p) => p.id === appointment.patientId);
+
+  const doDelete = async () => {
+    await deleteAppointment(appointment.id);
+    setOpen(false);
+    onDeleted?.();
+  };
+
+  const handleDelete = async () => {
+    setLoading("delete");
+    try { await doDelete(); } finally { setLoading(null); }
+  };
+
+  const handleDeleteAndNotify = async () => {
+    setLoading("notify");
+    try {
+      await doDelete();
+
+      if (!patient?.phone) {
+        toast({ title: "Sem telefone", description: "Agendamento excluído, mas o paciente não tem telefone cadastrado.", variant: "destructive" });
+        return;
+      }
+
+      const template = clinicSettings["msg_appointment_cancellation"]
+        ?? "Olá, {{nome_paciente}}! Sua consulta do dia *{{data}}* foi cancelada. Entre em contato para reagendar. 📞";
+      const dateStr = format(new Date(appointment.date), "dd/MM/yyyy", { locale: ptBR });
+      const message = template
+        .replace(/\{\{nome_paciente\}\}/g, appointment.patientName)
+        .replace(/\{\{data\}\}/g, dateStr);
+
+      const webhookUrl = (import.meta.env.VITE_N8N_CANCELAMENTO_WEBHOOK_URL as string | undefined)
+        ?? "http://localhost:5678/webhook-test/cancelar-consulta";
+
+      try {
+        await fetch(webhookUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            patientName: appointment.patientName,
+            phone: patient.phone,
+            appointmentDate: appointment.date.toISOString(),
+            appointmentTime: appointment.time,
+            message,
+          }),
+        });
+        toast({ title: "Paciente notificado", description: `Mensagem de cancelamento enviada para ${appointment.patientName}.` });
+      } catch {
+        toast({ title: "WhatsApp não enviado", description: "Agendamento excluído, mas a mensagem não foi enviada.", variant: "destructive" });
+      }
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-xl">
+        <DialogHeader>
+          <DialogTitle>Excluir agendamento</DialogTitle>
+          <DialogDescription>
+            Agendamento de <strong>{appointment.patientName}</strong> em{" "}
+            {format(new Date(appointment.date), "dd/MM/yyyy", { locale: ptBR })} às {appointment.time}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2 pt-1">
+          <Button
+            variant="destructive"
+            onClick={handleDeleteAndNotify}
+            disabled={!!loading}
+            className="w-full gap-2"
+          >
+            <MessageCircle className="h-4 w-4" />
+            {loading === "notify" ? "Enviando..." : "Excluir e avisar paciente"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDelete}
+            disabled={!!loading}
+            className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            {loading === "delete" ? "Excluindo..." : "Excluir sem notificar"}
+          </Button>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={!!loading} className="w-full">
+            Cancelar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ─── Card de detalhes do agendamento ────────────────────────────────────────
@@ -379,30 +487,16 @@ function AppointmentDetailCard({
 
       {/* Excluir */}
       {canDelete('agenda') && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
+        <DeleteAppointmentDialog
+          appointment={appointment}
+          onDeleted={onClose}
+          trigger={
             <Button variant="ghost" size="sm" className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10">
               <Trash2 className="h-3.5 w-3.5" />
               Excluir agendamento
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja excluir o agendamento de {appointment.patientName}? O registro será mantido nas métricas.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => { await deleteAppointment(appointment.id); onClose(); }}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Excluir
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          }
+        />
       )}
     </div>
   );
@@ -468,8 +562,8 @@ export default function Agendamentos() {
 
   const [historyFilters, setHistoryFilters] = useState({
     patientName: "",
-    date: "",
-    time: "",
+    dateFrom: "",
+    dateTo: "",
     status: "all" as AppointmentStatus | "all",
   });
 
@@ -529,11 +623,14 @@ export default function Agendamentos() {
         const appDay = new Date(appDate.getFullYear(), appDate.getMonth(), appDate.getDate());
         if (appDay >= today) return false;
         if (historyFilters.patientName && !app.patientName.toLowerCase().includes(historyFilters.patientName.toLowerCase())) return false;
-        if (historyFilters.date) {
-          const fd = new Date(historyFilters.date);
-          if (appDay.getTime() !== new Date(fd.getFullYear(), fd.getMonth(), fd.getDate()).getTime()) return false;
+        if (historyFilters.dateFrom) {
+          const from = new Date(historyFilters.dateFrom + "T00:00:00");
+          if (appDay < new Date(from.getFullYear(), from.getMonth(), from.getDate())) return false;
         }
-        if (historyFilters.time && app.time !== historyFilters.time) return false;
+        if (historyFilters.dateTo) {
+          const to = new Date(historyFilters.dateTo + "T00:00:00");
+          if (appDay > new Date(to.getFullYear(), to.getMonth(), to.getDate())) return false;
+        }
         if (historyFilters.status !== "all" && app.status !== historyFilters.status) return false;
         return true;
       })
@@ -652,7 +749,7 @@ export default function Agendamentos() {
             )}
           </div>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-[420px] rounded-xl">
           <DialogHeader>
             <DialogTitle>Detalhes do Agendamento</DialogTitle>
             <DialogDescription>Consulta do dia {format(new Date(app.date), "dd/MM/yyyy", { locale: ptBR })}</DialogDescription>
@@ -765,20 +862,20 @@ export default function Agendamentos() {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        className="flex flex-col items-center sm:flex-row sm:items-center sm:justify-between gap-4"
       >
-        <div>
+        <div className="text-center sm:text-left">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Agendamentos</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Gerencie todas as consultas</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2" disabled={!canCreate('agenda')}>
+            <Button className="gap-2 w-full sm:w-auto" disabled={!canCreate('agenda')}>
               <Plus className="h-5 w-5" />
               Novo Agendamento
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-[500px] rounded-xl">
             <DialogHeader>
               <DialogTitle>Novo Agendamento</DialogTitle>
               <DialogDescription>Selecione paciente, data, duração e horário.</DialogDescription>
@@ -854,7 +951,7 @@ export default function Agendamentos() {
                       disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       initialFocus locale={ptBR} className="p-3 pointer-events-auto"
                       modifiers={{ today: new Date() }}
-                      modifiersClassNames={{ today: "bg-gray-200 text-black font-semibold rounded-md" }}
+                      modifiersClassNames={{ today: "bg-gray-500 text-white font-semibold rounded-md" }}
                     />
                   </PopoverContent>
                 </Popover>
@@ -918,7 +1015,7 @@ export default function Agendamentos() {
       </motion.div>
 
       <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as MainTab)}>
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto sm:mx-0">
           <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
@@ -943,6 +1040,7 @@ export default function Agendamentos() {
               )}
             </div>
             {viewMode === "calendario" && (
+              <div className="flex justify-center sm:justify-start">
               <div className="flex items-center border rounded-lg p-1 gap-1 w-fit">
                 {(["dia", "semana", "mes"] as CalendarSubView[]).map((sv) => (
                   <Button key={sv} variant={calendarSubView === sv ? "secondary" : "ghost"} size="sm"
@@ -950,6 +1048,7 @@ export default function Agendamentos() {
                     {sv.charAt(0).toUpperCase() + sv.slice(1)}
                   </Button>
                 ))}
+              </div>
               </div>
             )}
           </div>
@@ -974,8 +1073,8 @@ export default function Agendamentos() {
                 <span className="font-medium text-sm capitalize">{weekRangeLabel}</span>
                 <Button variant="outline" size="sm" onClick={() => navigateWeek(1)}><ChevronRight className="h-4 w-4" /></Button>
               </div>
-              <div className="overflow-x-auto pb-2">
-                <div className="min-w-[700px]">
+              <div className="overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div style={{ minWidth: 720 }}>
                   <TimeGrid days={weekDays} />
                 </div>
               </div>
@@ -1000,23 +1099,31 @@ export default function Agendamentos() {
                   <div key={n} className="text-center text-xs font-medium text-muted-foreground py-2">{n}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                 {monthGrid.map((day, idx) => {
-                  if (!day) return <div key={`e-${idx}`} className="min-h-[80px]" />;
+                  if (!day) return <div key={`e-${idx}`} className="min-h-[44px] sm:min-h-[80px]" />;
                   const dayApps = getAppointmentsForDay(day);
                   const today = isToday(day);
                   return (
                     <button key={idx}
                       onClick={() => { setCalendarDate(day); setCalendarSubView("dia"); }}
                       className={cn(
-                        "min-h-[80px] p-1 rounded-lg border text-left transition-colors hover:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50",
+                        "min-h-[44px] sm:min-h-[80px] p-0.5 sm:p-1 rounded-lg border text-left transition-colors hover:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50",
                         today ? "border-primary bg-primary/5" : "border-border",
                       )}
                     >
                       <div className={cn("text-sm font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full", today && "bg-primary text-primary-foreground")}>
                         {day.getDate()}
                       </div>
-                      <div className="space-y-0.5">
+                      {/* Mobile: só mostra ponto indicador se tiver consultas */}
+                      {dayApps.length > 0 && (
+                        <div className="flex gap-0.5 flex-wrap sm:hidden mt-0.5">
+                          {dayApps.slice(0, 3).map((app) => (
+                            <span key={app.id} className={cn("inline-block w-1.5 h-1.5 rounded-full", SEMAPHORE_DOT[app.status])} />
+                          ))}
+                        </div>
+                      )}
+                      <div className="space-y-0.5 hidden sm:block">
                         {dayApps.slice(0, 3).map((app) => {
                           const pro = professionals.find((p) => p.id === app.professionalId);
                           return (
@@ -1110,7 +1217,7 @@ export default function Agendamentos() {
                                     {appointment.patientName}
                                   </h3>
                                 </DialogTrigger>
-                                <DialogContent className="sm:max-w-[420px]">
+                                <DialogContent className="w-[calc(100%-2rem)] max-w-[420px] rounded-xl">
                                   <DialogHeader>
                                     <DialogTitle>Detalhes do Agendamento</DialogTitle>
                                     <DialogDescription>Consulta do dia {format(new Date(appointment.date), "dd/MM/yyyy", { locale: ptBR })}</DialogDescription>
@@ -1129,7 +1236,7 @@ export default function Agendamentos() {
                             <Select value={appointment.status}
                               disabled={!canEdit('agenda')}
                               onValueChange={(v) => updateAppointmentStatus(appointment.id, v as AppointmentStatus)}>
-                              <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="agendado">Agendado</SelectItem>
                                 <SelectItem value="confirmado">Confirmado</SelectItem>
@@ -1138,28 +1245,14 @@ export default function Agendamentos() {
                                 <SelectItem value="cancelado">Cancelado</SelectItem>
                               </SelectContent>
                             </Select>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" disabled={!canDelete('agenda')} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja excluir o agendamento de {appointment.patientName}?
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => deleteAppointment(appointment.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    Excluir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                              <DeleteAppointmentDialog
+                                appointment={appointment}
+                                trigger={
+                                  <Button variant="ghost" size="icon" disabled={!canDelete('agenda')} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                }
+                              />
                           </div>
                         </div>
                       </CardContent>
@@ -1208,7 +1301,10 @@ export default function Agendamentos() {
                             : isUrgent ? "border-orange-400/50 bg-orange-50 dark:bg-orange-950/20"
                             : "border-border"
                         )}>
-                          <div className="min-w-0">
+                          <div
+                            className="min-w-0 cursor-pointer hover:opacity-75 transition-opacity"
+                            onClick={() => navigate(`/pacientes/${alertPatient.id}`)}
+                          >
                             <p className="text-sm font-medium truncate">{alertPatient.fullName}</p>
                             <p className={cn("text-xs mt-0.5", isOverdue ? "text-destructive font-medium" : isUrgent ? "text-orange-600" : "text-muted-foreground")}>
                               {isOverdue
@@ -1267,14 +1363,14 @@ export default function Agendamentos() {
         </TabsContent>
 
         {/* ══ HISTÓRICO ════════════════════════════════════════════════════ */}
-        <TabsContent value="historico" className="space-y-6 mt-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Filter className="h-5 w-5 text-muted-foreground" />
-                <h3 className="font-semibold">Filtros</h3>
+        <TabsContent value="historico" className="space-y-4 mt-6">
+          <Card className="overflow-hidden">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm">Filtros</h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="filter-patient">Nome do Paciente</Label>
                   <Input id="filter-patient" placeholder="Buscar por nome..."
@@ -1282,14 +1378,15 @@ export default function Agendamentos() {
                     onChange={(e) => setHistoryFilters({ ...historyFilters, patientName: e.target.value })} />
                 </div>
                 <div>
-                  <Label htmlFor="filter-date">Data</Label>
-                  <Input id="filter-date" type="date" value={historyFilters.date}
-                    onChange={(e) => setHistoryFilters({ ...historyFilters, date: e.target.value })} />
+                  <Label htmlFor="filter-date-from">De</Label>
+                  <Input id="filter-date-from" type="date" value={historyFilters.dateFrom}
+                    onChange={(e) => setHistoryFilters({ ...historyFilters, dateFrom: e.target.value })} />
                 </div>
                 <div>
-                  <Label htmlFor="filter-time">Horário</Label>
-                  <Input id="filter-time" type="time" value={historyFilters.time}
-                    onChange={(e) => setHistoryFilters({ ...historyFilters, time: e.target.value })} />
+                  <Label htmlFor="filter-date-to">Até</Label>
+                  <Input id="filter-date-to" type="date" value={historyFilters.dateTo}
+                    min={historyFilters.dateFrom || undefined}
+                    onChange={(e) => setHistoryFilters({ ...historyFilters, dateTo: e.target.value })} />
                 </div>
                 <div>
                   <Label htmlFor="filter-status">Status</Label>
@@ -1307,34 +1404,41 @@ export default function Agendamentos() {
                   </Select>
                 </div>
               </div>
-              {(historyFilters.patientName || historyFilters.date || historyFilters.time || historyFilters.status !== "all") && (
-                <Button variant="outline" size="sm" className="mt-4"
-                  onClick={() => setHistoryFilters({ patientName: "", date: "", time: "", status: "all" })}>
+              {(historyFilters.patientName || historyFilters.dateFrom || historyFilters.dateTo || historyFilters.status !== "all") && (
+                <Button variant="outline" size="sm" className="mt-3 w-full sm:w-auto"
+                  onClick={() => setHistoryFilters({ patientName: "", dateFrom: "", dateTo: "", status: "all" })}>
                   Limpar Filtros
                 </Button>
               )}
             </CardContent>
           </Card>
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {historyAppointments.map((appointment, index) => (
               <motion.div key={appointment.id} initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: index * 0.05 }}>
                 <Card>
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      <div className="flex items-start gap-3 sm:gap-4 flex-1">
-                        <div className="bg-primary/10 p-2 sm:p-3 rounded-lg flex-shrink-0">
-                          <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                        </div>
-                        <div className="min-w-0 flex-1">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Ícone */}
+                      <div className="bg-primary/10 p-2 rounded-lg flex-shrink-0 mt-0.5">
+                        <CalendarIcon className="h-4 w-4 text-primary" />
+                      </div>
+
+                      {/* Conteúdo principal */}
+                      <div className="flex-1 min-w-0">
+
+                        {/* Nome + lixeira */}
+                        <div className="flex items-start justify-between gap-2">
                           <Dialog open={detailAppointment?.id === appointment.id}
                             onOpenChange={(open) => !open && setDetailAppointment(null)}>
                             <DialogTrigger asChild>
-                              <h3 className="font-semibold text-base sm:text-lg truncate cursor-pointer hover:text-primary transition-colors"
-                                onClick={() => setDetailAppointment(appointment)}>
+                              <h3
+                                className="font-semibold text-sm leading-snug cursor-pointer hover:text-primary transition-colors break-words"
+                                onClick={() => setDetailAppointment(appointment)}
+                              >
                                 {appointment.patientName}
                               </h3>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-[420px]">
+                            <DialogContent className="w-[calc(100%-2rem)] max-w-[420px] rounded-xl">
                               <DialogHeader>
                                 <DialogTitle>Detalhes do Agendamento</DialogTitle>
                                 <DialogDescription>Consulta do dia {format(new Date(appointment.date), "dd/MM/yyyy", { locale: ptBR })}</DialogDescription>
@@ -1342,37 +1446,33 @@ export default function Agendamentos() {
                               <AppointmentDetailCard appointment={appointment} onClose={() => setDetailAppointment(null)} />
                             </DialogContent>
                           </Dialog>
-                          <p className="text-xs sm:text-sm mt-1">
-                            {appointment.date.toLocaleDateString("pt-BR")} às {appointment.time}
-                            {" · "}
-                            <span className="text-muted-foreground">{durationLabel(appointment.duration ?? 1)}</span>
-                          </p>
+                          <DeleteAppointmentDialog
+                            appointment={appointment}
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={!canDelete('agenda')}
+                                className="h-7 w-7 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            }
+                          />
                         </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-                        {getStatusBadge(appointment.status)}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" disabled={!canDelete('agenda')} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tem certeza que deseja excluir o agendamento de {appointment.patientName}?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteAppointment(appointment.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+
+                        {/* Data e horário */}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {appointment.date.toLocaleDateString("pt-BR")} às {appointment.time}
+                          {" · "}
+                          {durationLabel(appointment.duration ?? 1)}
+                        </p>
+
+                        {/* Status */}
+                        <div className="mt-2">
+                          {getStatusBadge(appointment.status)}
+                        </div>
+
                       </div>
                     </div>
                   </CardContent>
@@ -1381,7 +1481,7 @@ export default function Agendamentos() {
             ))}
             {historyAppointments.length === 0 && (
               <p className="text-center text-muted-foreground py-8">
-                {historyFilters.patientName || historyFilters.date || historyFilters.time || historyFilters.status !== "all"
+                {historyFilters.patientName || historyFilters.dateFrom || historyFilters.dateTo || historyFilters.status !== "all"
                   ? "Nenhum agendamento encontrado com os filtros aplicados."
                   : "Nenhum agendamento no histórico."}
               </p>

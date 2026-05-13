@@ -108,14 +108,15 @@ export function PatientPhotos({ patientId }: { patientId: string }) {
   return (
     <div className="space-y-4 mt-4">
       {/* Barra de controles */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         {/* Filtros */}
-        <div className="flex items-center border rounded-lg p-1 gap-1">
+        <div className="flex items-center justify-center sm:justify-start border rounded-lg p-1 gap-0.5 flex-wrap">
           {FILTERS.map((f) => (
             <Button
               key={f.value}
               variant={filter === f.value ? "secondary" : "ghost"}
               size="sm"
+              className="text-sm h-9 px-4"
               onClick={() => setFilter(f.value)}
             >
               {f.label}
@@ -128,7 +129,7 @@ export function PatientPhotos({ patientId }: { patientId: string }) {
           ))}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-center sm:justify-start flex-wrap">
           {canCompare && (
             <Button
               variant={compareMode ? "secondary" : "outline"}
@@ -223,8 +224,8 @@ export function PatientPhotos({ patientId }: { patientId: string }) {
           onClick={() => fileInputRef.current?.click()}
         >
           <ImagePlus className="h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            {filter === "todas" ? "Nenhuma foto. Clique para adicionar." : `Nenhuma foto com categoria "${CATEGORY_LABEL[filter as PhotoCategory]}".`}
+          <p className="text-sm text-muted-foreground text-center">
+            {filter === "todas" ? "Nenhuma foto. Clique para adicionar." : `Nenhuma foto na categoria "${CATEGORY_LABEL[filter as PhotoCategory]}".`}
           </p>
         </div>
       ) : (

@@ -119,7 +119,7 @@ export default function Profissionais() {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        className="flex flex-col items-center text-center gap-4"
       >
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Profissionais</h1>
@@ -133,7 +133,7 @@ export default function Profissionais() {
 
       {/* Dialog compartilhado para criar/editar */}
       <Dialog open={isOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="sm:max-w-[440px]">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-[440px] rounded-xl">
           <DialogHeader>
             <DialogTitle>{dialogMode === "edit" ? "Editar Profissional" : "Novo Profissional"}</DialogTitle>
             <DialogDescription>
@@ -202,40 +202,49 @@ export default function Profissionais() {
                 <div className="h-1.5 w-full" style={{ backgroundColor: style.backgroundColor }} />
 
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-full p-2 flex-shrink-0" style={style}>
-                        <Stethoscope className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-base leading-tight">{pro.name}</CardTitle>
-                        {pro.specialty && (
-                          <p className="text-xs text-muted-foreground">{pro.specialty}</p>
-                        )}
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-full p-2 shrink-0" style={style}>
+                      <Stethoscope className="h-4 w-4" />
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={style}>
-                        {proApps.length} próximos
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={!canEdit('profissionais')}
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={() => openEdit(pro)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={!canDelete('profissionais')}
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => setDeletingProId(pro.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base leading-tight break-words">{pro.name}</CardTitle>
+                          {pro.specialty && (
+                            <p className="text-xs text-muted-foreground">{pro.specialty}</p>
+                          )}
+                        </div>
+                        {/* Desktop: ações inline */}
+                        <div className="hidden sm:flex items-center gap-1 shrink-0">
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={style}>
+                            {proApps.length} próximos
+                          </span>
+                          <Button variant="ghost" size="icon" disabled={!canEdit('profissionais')}
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(pro)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" disabled={!canDelete('profissionais')}
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeletingProId(pro.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      {/* Mobile: ações abaixo do nome */}
+                      <div className="flex sm:hidden items-center justify-between mt-2">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={style}>
+                          {proApps.length} próximos
+                        </span>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" disabled={!canEdit('profissionais')}
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(pro)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" disabled={!canDelete('profissionais')}
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeletingProId(pro.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>

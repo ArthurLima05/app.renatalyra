@@ -244,8 +244,19 @@ export function Odontograma({ patientId }: { patientId: string }) {
 
   return (
     <div className="space-y-4 mt-4">
-      {/* Controles */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      {/* Inverte verticalmente os molares cujas coroas apontavam para fora */}
+      <style>{`
+        .teeth-18, .teeth-17, .teeth-16,
+        .teeth-26, .teeth-27, .teeth-28,
+        .teeth-48, .teeth-47, .teeth-46,
+        .teeth-36, .teeth-37, .teeth-38 {
+          transform-box: fill-box;
+          transform-origin: center;
+          transform: scale(1, -1);
+        }
+      `}</style>
+      {/* Controles — coluna/centro no mobile, linha/espaçada no sm+ */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-center gap-3">
         <div className="flex items-center border rounded-lg p-1 gap-1">
           {(["permanente", "decidua"] as Dentition[]).map((d) => (
             <Button
@@ -258,7 +269,7 @@ export function Odontograma({ patientId }: { patientId: string }) {
             </Button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-center sm:justify-end">
           {hasSelection && (
             <Button variant="outline" size="sm" onClick={clearSelection}>
               Limpar seleção
@@ -274,11 +285,11 @@ export function Odontograma({ patientId }: { patientId: string }) {
       {/* ── Vista Permanente: usa a biblioteca ── */}
       {dentitionView === "permanente" && (
         <Card>
-          <CardContent className="pt-3 pb-3">
-            <div className="max-w-[540px] mx-auto space-y-0.5">
+          <CardContent className="pt-3 pb-3 overflow-x-auto">
+            <div className="min-w-[580px] sm:min-w-0 mx-auto space-y-0.5">
               {/* Números superiores */}
               <div
-                className="text-center text-[9px] font-mono text-muted-foreground"
+                className="text-center text-[10px] font-mono text-muted-foreground"
                 style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)" }}
               >
                 {[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28].map((n) => (
@@ -294,12 +305,12 @@ export function Odontograma({ patientId }: { patientId: string }) {
                 showLabels={teethConditions.length > 0}
                 notation="FDI"
                 layout="square"
-                styles={{ maxWidth: "100%" }}
+                styles={{ width: "100%" }}
               />
 
               {/* Números inferiores */}
               <div
-                className="text-center text-[9px] font-mono text-muted-foreground"
+                className="text-center text-[10px] font-mono text-muted-foreground"
                 style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)" }}
               >
                 {[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38].map((n) => (
@@ -320,8 +331,8 @@ export function Odontograma({ patientId }: { patientId: string }) {
       {/* ── Vista Decídua: react-odontogram com maxTeeth=5 ── */}
       {dentitionView === "decidua" && (
         <Card>
-          <CardContent className="pt-3 pb-3">
-            <div className="max-w-[540px] mx-auto space-y-0.5">
+          <CardContent className="pt-3 pb-3 overflow-x-auto">
+            <div className="min-w-[580px] sm:min-w-0 mx-auto space-y-0.5">
               {/*
                 A biblioteca usa 8 posições fixas por quadrante no SVG.
                 Com maxTeeth=5, os 3 dentes mais posteriores (16,17,18) ficam
@@ -330,7 +341,7 @@ export function Odontograma({ patientId }: { patientId: string }) {
                 Layout: [vazio×3, 55,54,53,52,51, 61,62,63,64,65, vazio×3]
               */}
               <div
-                className="text-center text-[9px] font-mono text-muted-foreground"
+                className="text-center text-[10px] font-mono text-muted-foreground"
                 style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)" }}
               >
                 {["", "", "", 55, 54, 53, 52, 51, 61, 62, 63, 64, 65, "", "", ""].map((n, i) => (
@@ -346,12 +357,12 @@ export function Odontograma({ patientId }: { patientId: string }) {
                 notation="FDI"
                 layout="square"
                 maxTeeth={5}
-                styles={{ maxWidth: "100%" }}
+                styles={{ width: "100%" }}
               />
 
               {/* Layout inferior: [vazio×3, 85,84,83,82,81, 71,72,73,74,75, vazio×3] */}
               <div
-                className="text-center text-[9px] font-mono text-muted-foreground"
+                className="text-center text-[10px] font-mono text-muted-foreground"
                 style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)" }}
               >
                 {["", "", "", 85, 84, 83, 82, 81, 71, 72, 73, 74, 75, "", "", ""].map((n, i) => (
@@ -371,17 +382,17 @@ export function Odontograma({ patientId }: { patientId: string }) {
 
       {/* ── Dialog de procedimento ── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-[520px] rounded-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Adicionar Procedimento</DialogTitle>
             <DialogDescription>Campos com * são obrigatórios.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 pt-1">
-            {/* Data + dentição */}
-            <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3 pt-1">
+            {/* Data + dentição + profissional em grid compacto */}
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Data executado *</Label>
+                <Label className="text-xs">Data *</Label>
                 <Input
                   type="date"
                   className="h-8 text-sm"
@@ -391,10 +402,7 @@ export function Odontograma({ patientId }: { patientId: string }) {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Dentição</Label>
-                <Select
-                  value={form.dentition}
-                  onValueChange={(v) => setForm({ ...form, dentition: v as Dentition })}
-                >
+                <Select value={form.dentition} onValueChange={(v) => setForm({ ...form, dentition: v as Dentition })}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="permanente">Permanente</SelectItem>
@@ -404,10 +412,67 @@ export function Odontograma({ patientId }: { patientId: string }) {
               </div>
             </div>
 
+            {/* Procedimento */}
+            <div className="space-y-1">
+              <Label className="text-xs">Procedimento *</Label>
+              <Input
+                className="text-sm"
+                placeholder="Ex: Extração, Restauração, Canal..."
+                value={form.procedureDescription}
+                onChange={(e) => setForm({ ...form, procedureDescription: e.target.value })}
+              />
+            </div>
+
+            {/* Situação */}
+            <div className="space-y-1">
+              <Label className="text-xs">Situação</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {(["a_realizar", "executado", "existente"] as OdontogramStatus[]).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setForm({ ...form, status: s })}
+                    className={cn(
+                      "text-xs px-3 py-1 rounded-full border transition-colors",
+                      form.status === s
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:bg-muted",
+                    )}
+                  >
+                    {STATUS_LABEL[s]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Profissional + próxima consulta */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Profissional *</Label>
+                <Select value={form.professionalId} onValueChange={(v) => setForm({ ...form, professionalId: v })}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {professionals.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Próxima consulta</Label>
+                <Input
+                  type="date"
+                  className="h-8 text-sm"
+                  value={form.nextAppointmentDate}
+                  onChange={(e) => setForm({ ...form, nextAppointmentDate: e.target.value })}
+                />
+              </div>
+            </div>
+
             {/* Dentes */}
             <div className="space-y-1">
               <Label className="text-xs">Dentes</Label>
-              <div className="flex flex-wrap gap-1 p-2 border rounded-lg min-h-[36px]">
+              <div className="flex flex-wrap gap-1 p-2 border rounded-lg min-h-[36px] overflow-hidden">
                 {allTeethInView.map((num) => (
                   <button
                     key={num}
@@ -429,82 +494,17 @@ export function Odontograma({ patientId }: { patientId: string }) {
             {/* Faces */}
             <div className="space-y-1">
               <Label className="text-xs">Faces</Label>
-              <div className="flex flex-wrap gap-3">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                 {PROC_FACES.map((face) => (
                   <label key={face} className="flex items-center gap-1.5 cursor-pointer">
                     <Checkbox
                       checked={form.toothFaces.includes(face)}
                       onCheckedChange={() => toggleFormFace(face)}
                     />
-                    <span className="text-xs">
-                      {face}{" "}
-                      <span className="text-muted-foreground">({FACE_LABELS[face]})</span>
-                    </span>
+                    <span className="text-xs">{face} <span className="text-muted-foreground">({FACE_LABELS[face]})</span></span>
                   </label>
                 ))}
               </div>
-            </div>
-
-            {/* Procedimento */}
-            <div className="space-y-1">
-              <Label className="text-xs">Procedimento realizado *</Label>
-              <Input
-                className="text-sm"
-                placeholder="Ex: Extração, Restauração, Canal..."
-                value={form.procedureDescription}
-                onChange={(e) => setForm({ ...form, procedureDescription: e.target.value })}
-              />
-            </div>
-
-            {/* Situação */}
-            <div className="space-y-1">
-              <Label className="text-xs">Situação</Label>
-              <div className="flex gap-2">
-                {(["a_realizar", "executado", "existente"] as OdontogramStatus[]).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setForm({ ...form, status: s })}
-                    className={cn(
-                      "text-xs px-3 py-1 rounded-full border transition-colors",
-                      form.status === s
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border hover:bg-muted",
-                    )}
-                  >
-                    {STATUS_LABEL[s]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Profissional */}
-            <div className="space-y-1">
-              <Label className="text-xs">Profissional *</Label>
-              <Select
-                value={form.professionalId}
-                onValueChange={(v) => setForm({ ...form, professionalId: v })}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {professionals.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Próxima consulta */}
-            <div className="space-y-1">
-              <Label className="text-xs">Data da próxima consulta</Label>
-              <Input
-                type="date"
-                className="h-8 text-sm"
-                value={form.nextAppointmentDate}
-                onChange={(e) => setForm({ ...form, nextAppointmentDate: e.target.value })}
-              />
             </div>
 
             {/* Obs */}
@@ -519,20 +519,13 @@ export function Odontograma({ patientId }: { patientId: string }) {
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
-                Cancelar
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button
                 size="sm"
-                disabled={
-                  !form.executionDate ||
-                  !form.procedureDescription.trim() ||
-                  !form.professionalId ||
-                  saving
-                }
+                disabled={!form.executionDate || !form.procedureDescription.trim() || !form.professionalId || saving}
                 onClick={handleSave}
               >
-                {saving ? "Salvando..." : "Salvar Procedimento"}
+                {saving ? "Salvando..." : "Salvar"}
               </Button>
             </div>
           </div>
@@ -551,32 +544,22 @@ export function Odontograma({ patientId }: { patientId: string }) {
                   className="h-1"
                   style={{ backgroundColor: STATUS_FILL[proc.status].fill }}
                 />
-                <CardContent className="p-3 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium">{proc.procedureDescription}</p>
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <p className="text-sm font-medium leading-snug">{proc.procedureDescription}</p>
                     <Badge variant={STATUS_BADGE[proc.status]} className="text-xs flex-shrink-0">
                       {STATUS_LABEL[proc.status]}
                     </Badge>
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span>{format(proc.executionDate, "dd/MM/yyyy", { locale: ptBR })}</span>
-                    {pro && <span>{pro.name}</span>}
+                    {pro && <span>· {pro.name}</span>}
                     {proc.toothNumbers.length > 0 && (
-                      <span>Dentes: {proc.toothNumbers.join(", ")}</span>
+                      <span>· {proc.toothNumbers.join(", ")}</span>
                     )}
-                    {proc.toothFaces.length > 0 && (
-                      <span>Faces: {proc.toothFaces.join(", ")}</span>
-                    )}
-                    <span className="capitalize">{proc.dentition}</span>
                   </div>
                   {proc.notes && (
-                    <p className="text-xs text-muted-foreground italic">{proc.notes}</p>
-                  )}
-                  {proc.nextAppointmentDate && (
-                    <p className="text-xs text-muted-foreground">
-                      Próxima consulta:{" "}
-                      {format(proc.nextAppointmentDate, "dd/MM/yyyy", { locale: ptBR })}
-                    </p>
+                    <p className="text-xs text-muted-foreground italic mt-1 line-clamp-2">{proc.notes}</p>
                   )}
                 </CardContent>
               </Card>

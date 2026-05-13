@@ -1,15 +1,15 @@
 {
-  "name": "My workflow",
+  "name": "Alerta de Consulta",
   "nodes": [
     {
       "parameters": {
         "jsCode": "const input = $input.first().json;\nconsole.log(`✅ WhatsApp enviado para ${$('Validar Dados').first().json.patientName} (${$('Validar Dados').first().json.patientPhone})`);\nreturn [{ json: { success: true, ...input } }];"
       },
-      "id": "717f4d38-96d5-4529-8796-5106db486023",
+      "id": "3ec39592-6aa8-4e07-80a4-83ca2c3d4acb",
       "name": "Log Sucesso",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2736, 1248]
+      "position": [3008, 1408]
     },
     {
       "parameters": {
@@ -18,8 +18,8 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey",        "value": "32E4894EF913-499C-BDBE-FEA9EF1A644A" },
-            { "name": "Content-Type",  "value": "application/json" }
+            { "name": "apikey",       "value": "32E4894EF913-499C-BDBE-FEA9EF1A644A" },
+            { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
@@ -29,26 +29,24 @@
             { "name": "text",   "value": "={{ $json.message }}" }
           ]
         },
-        "options": {
-          "timeout": 10000
-        },
-        "onError": "continueErrorOutput"
+        "options": { "timeout": 10000 }
       },
-      "id": "35a9c691-eb11-4456-b665-7836e1fc7ff7",
+      "id": "c3da33dd-0a77-4175-a8fa-3a47808f1096",
       "name": "Enviar WhatsApp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2288, 1328]
+      "position": [2576, 1504],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "jsCode": "// O body chega como string JSON (Content-Type: text/plain via no-cors)\nconst raw = $input.first().json;\nlet data;\nif (typeof raw.body === 'string') {\n  data = JSON.parse(raw.body);\n} else if (typeof raw.body === 'object' && raw.body !== null) {\n  data = raw.body;\n} else {\n  data = raw;\n}\n\nconst patientName = data.patientName || '';\nconst patientPhone = data.patientPhone || '';\nconst message = data.message || '';\nconst returnDate = data.returnDate || '';\nconst notes = data.notes || '';\n\nif (!patientPhone || !message) {\n  throw new Error(`Dados incompletos: phone=${patientPhone}, message=${message}`);\n}\n\nlet phone = patientPhone.replace(/\\D/g, '');\nif (!phone.startsWith('55')) {\n  phone = '55' + phone;\n}\n\nreturn [{\n  json: { patientName, patientPhone: phone, message, returnDate, notes }\n}];"
+        "jsCode": "// O body chega como string JSON (Content-Type: text/plain via no-cors)\nconst raw = $input.first().json;\nlet data;\nif (typeof raw.body === 'string') {\n  data = JSON.parse(raw.body);\n} else if (typeof raw.body === 'object' && raw.body !== null) {\n  data = raw.body;\n} else {\n  data = raw;\n}\n\nconst patientName = data.patientName || '';\nconst patientPhone = data.patientPhone || '';\nconst message = data.message || '';\nconst returnDate = data.returnDate || '';\nconst notes = data.notes || '';\n\nif (!patientPhone || !message) {\n  throw new Error(`Dados incompletos: phone=${patientPhone}, message=${message}`);\n}\n\nlet phone = patientPhone.replace(/\\D/g, '');\nif (!phone.startsWith('55')) {\n  phone = '55' + phone;\n}\n\n// Número BR com DDI 55: mínimo 12 dígitos (55 + DDD 2 + número 8)\n// máximo 13 dígitos (55 + DDD 2 + celular 9)\nif (phone.length < 12 || phone.length > 13) {\n  throw new Error(`Número inválido (${phone.length} dígitos após normalização): ${phone}. Esperado: 12-13 dígitos com DDI 55.`);\n}\n\nreturn [{\n  json: { patientName, patientPhone: phone, message, returnDate, notes }\n}];"
       },
-      "id": "95e25016-cdb6-4650-9495-8b83396a3b72",
+      "id": "9d2f437c-8277-46a0-bf9f-c42171d86086",
       "name": "Validar Dados",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2064, 1328]
+      "position": [2336, 1488]
     },
     {
       "parameters": {
@@ -56,11 +54,11 @@
         "responseBody": "={ \"success\": true }",
         "options": { "responseCode": 200 }
       },
-      "id": "17128c92-28a7-4b52-b598-1b6f2cd6fc5f",
+      "id": "d2d87a37-b7f2-416c-8cde-4653c0865afb",
       "name": "Responder 200 OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2064, 1120]
+      "position": [2336, 1280]
     },
     {
       "parameters": {
@@ -69,11 +67,11 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "7c1789c9-1360-48a6-9bbd-969368046bd5",
+      "id": "792de9d0-f0c4-4078-a5d5-6a6a07afe003",
       "name": "Webhook - Receber Alerta",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [1856, 1232],
+      "position": [2128, 1392],
       "webhookId": "alerta-retorno"
     },
     {
@@ -96,11 +94,11 @@
         },
         "options": {}
       },
-      "id": "e22a81f7-3dd4-40cd-a367-cb776fd7446b",
+      "id": "2d966792-408c-44f5-8cb8-7ffbc3f5fe32",
       "name": "Notificar Erro no Sistema",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2512, 1472]
+      "position": [2784, 1632]
     }
   ],
   "pinData": {},
@@ -116,13 +114,19 @@
       ]
     },
     "Validar Dados": {
-      "main": [[{ "node": "Enviar WhatsApp", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          { "node": "Enviar WhatsApp", "type": "main", "index": 0 }
+        ]
+      ]
     },
     "Webhook - Receber Alerta": {
-      "main": [[
-        { "node": "Validar Dados",    "type": "main", "index": 0 },
-        { "node": "Responder 200 OK", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          { "node": "Validar Dados",    "type": "main", "index": 0 },
+          { "node": "Responder 200 OK", "type": "main", "index": 0 }
+        ]
+      ]
     }
   },
   "active": false,
@@ -130,7 +134,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "45103618-5ce6-4b6e-8d89-9aba6fda89fc",
+  "versionId": "b0572c5a-f4a2-44dd-813b-96f6e13e0fb3",
   "meta": {
     "instanceId": "8fc96216b55d8509079c818d5243cb874ec34786f2c6ffb51935ad321aa2c130"
   },

@@ -174,6 +174,10 @@ export interface AnamneseResponse {
   signedName?: string;
   signedAt?: Date;
   createdAt: Date;
+  // Metadados legais (Lei 14.063/2020 + LGPD)
+  ipAddress?: string;
+  userAgent?: string;
+  verifiedPhone?: string;
 }
 
 export type OdontogramStatus = 'a_realizar' | 'executado' | 'existente';

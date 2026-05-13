@@ -136,7 +136,7 @@ export default function Dashboard() {
         animate={{ y: 0, opacity: 1 }}
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
-        <div>
+        <div className="text-center sm:text-left">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Visão geral das métricas da clínica</p>
         </div>
@@ -189,7 +189,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
         <MetricCard title="Total de Atendimentos" value={totalAppointments} icon={Calendar}  delay={0.1} />
         <MetricCard title="Taxa de Retorno"        value={`${returnRate}%`} icon={TrendingUp} delay={0.2} />
         <MetricCard title="Faltas/Cancelamentos"   value={canceledOrMissed} icon={UserCheck}  delay={0.3} />
@@ -207,7 +207,7 @@ export default function Dashboard() {
         {/* Origem dos Pacientes */}
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5 }}>
           <Card className="h-full">
-            <CardHeader>
+            <CardHeader className="items-start sm:items-center text-left sm:text-center pb-2">
               <CardTitle>Origem dos Pacientes</CardTitle>
             </CardHeader>
             <CardContent>
@@ -251,13 +251,13 @@ export default function Dashboard() {
         {/* Consultas por Profissional */}
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.55 }}>
           <Card className="h-full">
-            <CardHeader>
+            <CardHeader className="items-start sm:items-center text-left sm:text-center pb-2">
               <CardTitle>Consultas por Profissional</CardTitle>
             </CardHeader>
             <CardContent>
               {byProfessional.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={byProfessional} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <BarChart data={byProfessional} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
                     <XAxis type="number" allowDecimals={false} />
                     <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} />
                     <Tooltip
@@ -282,12 +282,12 @@ export default function Dashboard() {
         {/* Status dos Atendimentos */}
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.6 }}>
           <Card className="h-full">
-            <CardHeader>
+            <CardHeader className="items-start sm:items-center text-left sm:text-center pb-2">
               <CardTitle>Status dos Atendimentos</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={statusData}>
+                <BarChart data={statusData} margin={{ left: -20, right: 8 }}>
                   <XAxis dataKey="status" tick={{ fontSize: 12 }} />
                   <YAxis />
                   <Tooltip />
@@ -301,13 +301,13 @@ export default function Dashboard() {
         {/* Evolução de Atendimentos — últimos 6 meses */}
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.65 }}>
           <Card className="h-full">
-            <CardHeader>
+            <CardHeader className="items-start sm:items-center text-left sm:text-center pb-2">
               <CardTitle>Evolução dos Atendimentos</CardTitle>
               <p className="text-xs text-muted-foreground">Últimos 6 meses</p>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={evolutionData} margin={{ left: 0, right: 8 }}>
+                <LineChart data={evolutionData} margin={{ left: -20, right: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
                   <YAxis />

@@ -49,6 +49,7 @@ const Pacientes = () => {
   };
 
   const LIMIT = 100;
+  const INITIAL_LIMIT = 6;
   const searching = searchTerm.trim().length > 0;
 
   const filteredPatients = searching
@@ -57,7 +58,7 @@ const Pacientes = () => {
         .slice(0, LIMIT)
     : [...patients]
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-        .slice(0, 50);
+        .slice(0, INITIAL_LIMIT);
 
   const totalMatch = searching
     ? patients.filter(p => p.fullName.toLowerCase().includes(searchTerm.toLowerCase())).length
@@ -82,12 +83,12 @@ const Pacientes = () => {
       animate={{ opacity: 1, y: 0 }}
       className="p-4 md:p-8 space-y-6"
     >
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col items-center text-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Pacientes</h1>
           <p className="text-muted-foreground mt-1">Gerencie os pacientes da clínica</p>
         </div>
-        
+
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2" disabled={!canCreate('pacientes')}>
@@ -95,7 +96,7 @@ const Pacientes = () => {
               Adicionar Paciente
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-xl">
             <DialogHeader>
               <DialogTitle>Novo Paciente</DialogTitle>
             </DialogHeader>
@@ -190,8 +191,8 @@ const Pacientes = () => {
         </div>
         <p className="text-xs text-muted-foreground px-1">
           {searching
-            ? `${filteredPatients.length} de ${totalMatch} resultado${totalMatch !== 1 ? 's' : ''} para "${searchTerm}"${totalMatch > LIMIT ? ` — refine a busca para ver mais` : ''}`
-            : `Exibindo os 50 mais recentes de ${patients.length} pacientes — use a busca para encontrar outros`
+            ? `${filteredPatients.length} de ${totalMatch} resultado${totalMatch !== 1 ? 's' : ''} para "${searchTerm}"`
+            : `Mostrando os ${INITIAL_LIMIT} mais recentes de ${patients.length} pacientes — busque para encontrar outros`
           }
         </p>
       </div>
@@ -210,41 +211,39 @@ const Pacientes = () => {
               transition={{ duration: 0.2 }}
             >
               <Card
-                className="cursor-pointer hover:shadow-lg transition-shadow h-44 flex flex-col"
+                className="cursor-pointer hover:shadow-lg transition-shadow min-h-[10rem] flex flex-col"
                 onClick={() => navigate(`/pacientes/${patient.id}`)}
               >
-                <CardHeader className="pb-2 flex-none">
-                  <CardTitle className="text-base leading-tight line-clamp-1">
+                <CardHeader className="pb-2 flex-none text-center sm:text-left">
+                  <CardTitle className="text-base leading-tight line-clamp-2">
                     {patient.fullName}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between text-sm pt-0">
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 flex flex-col items-center sm:items-start">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Phone className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate text-xs">{patient.phone}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">{patient.origin}</Badge>
-                    </div>
+                    <Badge variant="outline" className="text-xs">{patient.origin}</Badge>
                   </div>
-                  <div className="mt-2">
+                  <div className="mt-2 flex justify-center sm:justify-start">
                     {nextAppointment ? (
                       <div className="flex items-center gap-1.5 text-primary">
                         <Calendar className="h-3.5 w-3.5 shrink-0" />
-                        <span className="text-xs font-medium truncate">
+                        <span className="text-xs font-medium">
                           Próxima: {nextAppointment.date.toLocaleDateString('pt-BR')}
                         </span>
                       </div>
                     ) : lastAppointment ? (
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Calendar className="h-3.5 w-3.5 shrink-0" />
-                        <span className="text-xs truncate">
+                        <span className="text-xs">
                           Última: {lastAppointment.date.toLocaleDateString('pt-BR')}
                         </span>
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground italic">Sem consultas registradas</p>
+                      <p className="text-xs text-muted-foreground italic">Sem consultas</p>
                     )}
                   </div>
                 </CardContent>

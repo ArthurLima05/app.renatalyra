@@ -15,7 +15,7 @@ import { useTheme } from 'next-themes';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
-  Save, RotateCcw, MessageSquare, Palette, ChevronRight, ArrowLeft, Info,
+  Save, RotateCcw, MessageSquare, Palette, ChevronRight, ChevronLeft, ArrowLeft, Info,
   Sun, Moon, Users, Plus, ChevronDown, ChevronUp, Mail, Phone, Shield,
   SlidersHorizontal, CalendarDays, List, Upload, FileSpreadsheet,
   CheckCircle2, XCircle, AlertCircle, Loader2,
@@ -47,7 +47,7 @@ const PROFILE_COLORS: Record<UserProfile, string> = {
   profissional: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
   financeiro: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
   gestor_relacionamento: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
-  recepcionista: 'bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-gray-300',
+  recepcionista: 'bg-gray-500 text-white dark:bg-gray-600 dark:text-white',
 };
 
 const MODULES: { id: AppModule; label: string; description: string }[] = [
@@ -132,6 +132,94 @@ function AparenciaSection() {
   );
 }
 
+// ── Editor de mensagem com variáveis em negrito ───────────────────────────────
+function toMsgHtml(text: string) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>')
+    .replace(/(\{\{[^}]+\}\})/g, '<strong style="font-weight:700;color:hsl(var(--primary))">$1</strong>');
+}
+
+function VarEditor({
+  value, onChange,
+}: { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const focused = useRef(false);
+
+  // Aplica negrito nas variáveis e move cursor para o final
+  const applyFormat = () => {
+    const el = ref.current;
+    if (!el) return;
+    const plain = el.innerText.replace(/\n$/, ''); // remove trailing newline do contenteditable
+    el.innerHTML = toMsgHtml(plain);
+    // cursor para o final
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+  };
+
+  // Sync valor vindo de fora (reset, etc.) apenas quando não está em foco
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || focused.current) return;
+    el.innerHTML = toMsgHtml(value);
+  }, [value]);
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const variable = e.dataTransfer.getData('text/plain');
+    if (!variable || !ref.current) return;
+
+    // Posição do mouse → fronteira de palavra
+    const plain = ref.current.innerText.replace(/\n$/, '');
+    let rawPos = plain.length;
+    try {
+      const doc = document as any;
+      if (doc.caretPositionFromPoint) {
+        const cp = doc.caretPositionFromPoint(e.clientX, e.clientY);
+        if (cp?.offset !== undefined) rawPos = cp.offset;
+      } else if (doc.caretRangeFromPoint) {
+        const r = doc.caretRangeFromPoint(e.clientX, e.clientY);
+        if (r) rawPos = r.startOffset;
+      }
+    } catch {}
+    rawPos = Math.max(0, Math.min(rawPos, plain.length));
+
+    const isSep = (ch: string) => ch === ' ' || ch === '\n';
+    let l = rawPos; while (l > 0 && !isSep(plain[l - 1])) l--;
+    let r = rawPos; while (r < plain.length && !isSep(plain[r])) r++;
+    const pos = (rawPos - l) <= (r - rawPos) ? l : r;
+
+    const before = pos > 0 && !isSep(plain[pos - 1]) ? ' ' : '';
+    const after  = pos < plain.length && !isSep(plain[pos]) ? ' ' : '';
+    const newPlain = plain.slice(0, pos) + before + variable + after + plain.slice(pos);
+
+    ref.current.innerHTML = toMsgHtml(newPlain);
+    onChange(newPlain);
+  };
+
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      onFocus={() => { focused.current = true; }}
+      onBlur={() => {
+        focused.current = false;
+        applyFormat();
+        onChange(ref.current?.innerText.replace(/\n$/, '') ?? '');
+      }}
+      onInput={() => onChange(ref.current?.innerText.replace(/\n$/, '') ?? '')}
+      onDragOver={e => e.preventDefault()}
+      onDrop={handleDrop}
+      className="min-h-[5rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono focus-visible:outline-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.6' }}
+    />
+  );
+}
+
 // ── Seção: Mensagens ──────────────────────────────────────────────────────────
 function MensagensSection() {
   const { clinicSettings, updateClinicSetting } = useClinic();
@@ -171,13 +259,32 @@ function MensagensSection() {
                   <Label className="text-sm font-semibold">{tpl.label}</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">{tpl.description}</p>
                 </div>
+
+                {/* Chips de variáveis arrastáveis */}
                 <div className="flex flex-wrap gap-1.5 items-center">
-                  {tpl.variables.map(v => <Badge key={v} variant="secondary" className="font-mono text-xs">{v}</Badge>)}
-                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Info className="h-3 w-3" /> variáveis</span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Info className="h-3 w-3" /> Arraste para inserir:
+                  </span>
+                  {tpl.variables.map(v => (
+                    <span
+                      key={v}
+                      draggable
+                      onDragStart={e => {
+                        e.dataTransfer.setData('text/plain', v);
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono bg-gray-500 text-white hover:bg-gray-600 cursor-grab active:cursor-grabbing select-none transition-colors"
+                    >
+                      {v}
+                    </span>
+                  ))}
                 </div>
-                <Textarea rows={3} value={drafts[tpl.key] ?? tpl.defaultValue}
-                  onChange={e => setDrafts(p => ({ ...p, [tpl.key]: e.target.value }))}
-                  className="text-sm font-mono resize-none" />
+
+                <VarEditor
+                  value={drafts[tpl.key] ?? tpl.defaultValue}
+                  onChange={v => setDrafts(p => ({ ...p, [tpl.key]: v }))}
+                />
+
                 <div className="flex gap-2 justify-end">
                   <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground"
                     disabled={!canEdit('configuracoes')}
@@ -254,31 +361,40 @@ function UserDetail({ user, onBack }: { user: AppUser; onBack: () => void }) {
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" className="gap-2 -ml-2 text-muted-foreground" onClick={onBack}>
+      {/* Mobile: barra de navegação estilo nativo */}
+      <button
+        onClick={onBack}
+        className="sm:hidden -mx-4 -mt-4 px-3 py-3 flex items-center gap-1.5 border-b border-border bg-card/80 backdrop-blur w-[calc(100%+2rem)] text-left mb-2"
+      >
+        <ChevronLeft className="h-5 w-5 text-primary" />
+        <span className="text-sm font-medium text-primary">Usuários</span>
+      </button>
+      {/* Desktop: botão sutil */}
+      <Button variant="ghost" size="sm" className="hidden sm:flex gap-2 -ml-2 text-muted-foreground" onClick={onBack}>
         <ArrowLeft className="h-4 w-4" /> Usuários
       </Button>
 
       {/* Card do usuário */}
       <Card>
         <CardContent className="pt-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div className="space-y-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-semibold">{user.fullName}</p>
+                <p className="font-semibold break-words">{user.fullName}</p>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PROFILE_COLORS[user.profile]}`}>
                   {PROFILE_LABELS[user.profile]}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5" />{user.email}
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5 break-all">
+                <Mail className="h-3.5 w-3.5 shrink-0" />{user.email}
               </p>
               {user.phone && (
                 <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5" />{user.phone}
+                  <Phone className="h-3.5 w-3.5 shrink-0" />{user.phone}
                 </p>
               )}
             </div>
-            <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1.5">
               <span className="text-xs text-muted-foreground">{user.active ? 'Ativo' : 'Inativo'}</span>
               <Switch
                 checked={user.active}
@@ -767,7 +883,7 @@ function ImportarSection() {
       {/* PASSO 4: Resultado */}
       {step === 'done' && result && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card className="border-green-200 dark:border-green-800">
               <CardContent className="pt-4 pb-4 flex flex-col items-center gap-1">
                 <CheckCircle2 className="h-6 w-6 text-green-500" />

@@ -272,7 +272,7 @@ export default function Notificacoes() {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="space-y-2"
+        className="space-y-2 text-center sm:text-left"
       >
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Notificações</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
@@ -281,8 +281,8 @@ export default function Notificacoes() {
       </motion.div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
-        <div className="w-full overflow-x-auto pb-2 -mx-2 px-2">
-          <TabsList className="grid w-full min-w-[400px] sm:min-w-0 grid-cols-4 h-auto">
+        <div className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
             <TabsTrigger value="todas" className="text-xs sm:text-sm py-2.5">Todas</TabsTrigger>
             <TabsTrigger value="nao_lidas" className="text-xs sm:text-sm py-2.5 flex items-center gap-1">
               <span className="hidden sm:inline">Não lidas</span>

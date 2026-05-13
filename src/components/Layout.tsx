@@ -17,8 +17,8 @@ export const Layout = () => {
   const sidebarW = isSidebarCollapsed ? 64 : 256;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
+    <div className="h-screen bg-background overflow-hidden">
+      <div className="flex h-full overflow-hidden">
         <Sidebar
           isOpen={isSidebarOpen}
           setIsOpen={setIsSidebarOpen}
@@ -30,9 +30,9 @@ export const Layout = () => {
           className="hidden xl:block shrink-0 transition-all duration-200"
           style={{ width: sidebarW }}
         />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Header isSidebarOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-          <main className="flex-1 p-6 lg:p-8 overflow-auto">
+          <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
             <div className="max-w-7xl mx-auto">
               <Outlet />
             </div>

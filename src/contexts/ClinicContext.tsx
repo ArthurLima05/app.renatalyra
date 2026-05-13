@@ -679,9 +679,18 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const patient = patients.find((p) => p.id === appointment.patientId);
         if (patient) {
           const feedbackLink = `https://search.google.com/local/writereview?placeid=ChIJ542NAkYfqwcR-l-sSWB3u_0`;
+          const webhookUrl = import.meta.env.VITE_N8N_FEEDBACK_WEBHOOK_URL as string
+            ?? "http://localhost:5678/webhook/enviar-feedback";
+
+          // Monta mensagem a partir do template das configurações do sistema
+          const template = clinicSettings["msg_feedback"]
+            ?? "Olá, {{nome_paciente}}! 😊\n\nObrigada por comparecer à sua consulta!\n\nGostaríamos muito de saber sua opinião. Sua avaliação nos ajuda a melhorar cada vez mais.\n\n⭐ Avalie agora: {{link_avaliacao}}";
+          const message = template
+            .replace(/\{\{nome_paciente\}\}/g, patient.fullName)
+            .replace(/\{\{link_avaliacao\}\}/g, feedbackLink);
 
           try {
-            await fetch("https://testetecchclin.app.n8n.cloud/webhook/enviar-feedback", {
+            await fetch(webhookUrl, {
               method: "POST",
               mode: "no-cors",
               headers: { "Content-Type": "application/json" },
@@ -690,6 +699,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 patientName: patient.fullName,
                 phone: patient.phone,
                 feedbackLink: feedbackLink,
+                message: message,
                 appointmentId: appointment.id,
                 appointmentDate: appointment.date.toISOString(),
                 appointmentTime: appointment.time,
@@ -906,41 +916,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               type: "lembrete_consulta",
               title: "Lembrete de Consulta",
               message: `Consulta com ${patient?.fullName || apt.patientName} agendada para ${sameDay ? "hoje" : appointmentDateTime.toLocaleDateString("pt-BR")} às ${apt.time}`,
-              date: now,
-              read: false,
-              patientId: apt.patientId,
-              appointmentId: apt.id,
-            });
-          }
-        }
-      }
-
-      // 2. Lembrete de atualização do prontuário (agendamentos realizados sem notas)
-      const threeDaysAgo = new Date(now);
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-      const appointmentsWithoutNotes = appointments.filter((a) => {
-        const aptDate = new Date(a.date);
-        return a.status === "realizado" && aptDate >= threeDaysAgo && aptDate <= now;
-      });
-
-      for (const apt of appointmentsWithoutNotes) {
-        const existingNotification = notifications.find(
-          (n) => n.type === "lembrete_prontuario" && n.appointmentId === apt.id,
-        );
-
-        if (!existingNotification) {
-          const { count, error: existsError } = await supabase
-            .from("notifications")
-            .select("id", { count: "exact", head: true })
-            .eq("type", "lembrete_prontuario")
-            .eq("appointment_id", apt.id);
-
-          if (!existsError && (count ?? 0) === 0) {
-            const patient = patients.find((p) => p.id === apt.patientId);
-            await createNotification({
-              type: "lembrete_prontuario",
-              title: "Atualizar Prontuário",
-              message: `Prontuário de ${patient?.fullName || apt.patientName} precisa ser atualizado`,
               date: now,
               read: false,
               patientId: apt.patientId,
@@ -1190,6 +1165,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           signedName: r.patient_signed_name ?? undefined,
           signedAt: r.signed_at ? new Date(r.signed_at) : undefined,
           createdAt: new Date(r.created_at),
+          ipAddress: r.ip_address ?? undefined,
+          userAgent: r.user_agent ?? undefined,
+          verifiedPhone: r.verified_phone ?? undefined,
           answers: (r.anamnese_answers || []).map((a: any) => ({
             id: a.id, responseId: a.response_id, questionId: a.question_id ?? undefined,
             questionText: a.question_text, questionType: a.question_type,
@@ -1211,13 +1189,16 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateAnamneseQuestion = async (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active'>>) => {
     const { error } = await (supabase as any).from("anamnese_questions").update(data).eq("id", id);
     if (error) { toast({ title: "Erro ao atualizar pergunta", description: error.message, variant: "destructive" }); throw error; }
-    await loadAnamneseData();
+    // Atualiza estado local diretamente — evita recarregar tudo do banco
+    setAnamneseQuestions(prev => prev.map(q => q.id === id ? { ...q, ...data } : q));
   };
 
   const deleteAnamneseQuestion = async (id: string) => {
-    const { error } = await (supabase as any).from("anamnese_questions").delete().eq("id", id);
+    // Soft delete: marca como inativa em vez de deletar
+    // (DELETE falha por FK constraint com anamnese_answers.question_id)
+    const { error } = await (supabase as any).from("anamnese_questions").update({ active: false }).eq("id", id);
     if (error) { toast({ title: "Erro ao excluir pergunta", description: error.message, variant: "destructive" }); throw error; }
-    await loadAnamneseData();
+    setAnamneseQuestions(prev => prev.map(q => q.id === id ? { ...q, active: false } : q));
     toast({ title: "Pergunta excluída" });
   };
 
@@ -1248,7 +1229,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (respErr) { toast({ title: "Erro ao solicitar anamnese", description: respErr.message, variant: "destructive" }); throw respErr; }
 
     const token = crypto.randomUUID();
-    const code = String(Math.floor(1000 + Math.random() * 9000));
+    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 dígitos
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     const { error: tokenErr } = await (supabase as any).from("anamnese_tokens").insert({

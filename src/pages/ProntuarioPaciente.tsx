@@ -12,10 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, Edit, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History } from 'lucide-react';
 import { Odontograma } from '@/components/Odontograma';
 import { PatientPhotos } from '@/components/PatientPhotos';
 import { PatientAnamnese } from '@/components/PatientAnamnese';
@@ -94,7 +93,6 @@ const ProntuarioPaciente = () => {
 
   const timeSlots = generateTimeSlots();
 
-  const [isEditOpen, setIsEditOpen] = useState(false);
   const [cadastroData, setCadastroData] = useState({
     fullName: patient?.fullName ?? '',
     phone: patient?.phone ?? '',
@@ -141,7 +139,6 @@ const ProntuarioPaciente = () => {
     }
   };
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
-  const [editData, setEditData] = useState(patient || { fullName: '', phone: '', email: '', notes: '' });
   const [isDeletingPatient, setIsDeletingPatient] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [appointmentData, setAppointmentData] = useState({
@@ -205,14 +202,6 @@ const ProntuarioPaciente = () => {
       </div>
     );
   }
-
-  const handleEditSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (id) {
-      updatePatient(id, editData);
-      setIsEditOpen(false);
-    }
-  };
 
   const handleDeleteSession = async () => {
     if (deletingSessionId) {
@@ -365,7 +354,16 @@ const ProntuarioPaciente = () => {
       animate={{ opacity: 1, y: 0 }}
       className="p-4 md:p-8 space-y-6"
     >
-      <Button variant="ghost" onClick={() => navigate('/pacientes')} className="mb-4">
+      {/* Mobile: barra de navegação estilo nativo */}
+      <button
+        onClick={() => navigate('/pacientes')}
+        className="sm:hidden -mx-4 -mt-4 px-3 py-3 flex items-center gap-1.5 border-b border-border bg-card/80 backdrop-blur w-[calc(100%+2rem)] text-left mb-4"
+      >
+        <ChevronLeft className="h-5 w-5 text-primary" />
+        <span className="text-sm font-medium text-primary">Pacientes</span>
+      </button>
+      {/* Desktop */}
+      <Button variant="ghost" onClick={() => navigate('/pacientes')} className="hidden sm:flex mb-4">
         <ArrowLeft className="h-4 w-4 mr-2" />
         Voltar para Pacientes
       </Button>
@@ -376,101 +374,65 @@ const ProntuarioPaciente = () => {
           size="icon"
           disabled={!canDelete('pacientes')}
           onClick={() => setIsDeletingPatient(true)}
-          className="absolute top-4 right-4 h-8 w-8 text-muted-foreground hover:text-destructive transition-colors z-10"
+          className="absolute top-3 right-3 h-8 w-8 text-muted-foreground hover:text-destructive transition-colors z-10"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
-        
-        <CardHeader className="pr-12">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-4">
-              {/* Avatar clicável */}
-              <div className="relative flex-shrink-0 group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
-                  {patient.avatarUrl ? (
-                    <img src={patient.avatarUrl} alt={patient.fullName} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xl font-bold text-muted-foreground">
-                      {patient.fullName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                  <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </div>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file && id) { await updatePatientAvatar(id, file); e.target.value = ""; }
-                }}
-              />
 
-              <div className="space-y-2 min-w-0">
-                <CardTitle className="text-xl sm:text-2xl">{patient.fullName}</CardTitle>
-              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Phone className="h-4 w-4" />
-                  <span className="truncate">{patient.phone}</span>
+        <CardContent className="pt-6 pb-4">
+          {/* Topo: avatar + info — coluna centrada no mobile, linha no desktop */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 mb-4 sm:pr-8">
+            {/* Avatar */}
+            <div className="relative group cursor-pointer shrink-0" onClick={() => avatarInputRef.current?.click()}>
+              <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
+                {patient.avatarUrl ? (
+                  <img src={patient.avatarUrl} alt={patient.fullName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-bold text-muted-foreground">
+                    {patient.fullName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (file && id) { await updatePatientAvatar(id, file); e.target.value = ""; }
+              }}
+            />
+
+            {/* Nome + contatos */}
+            <div className="min-w-0 flex-1 text-center sm:text-left">
+              <h2 className="text-xl font-bold leading-snug break-words">{patient.fullName}</h2>
+              {patient.nickname && <p className="text-sm text-muted-foreground mt-0.5">{patient.nickname}</p>}
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-center sm:items-start gap-1.5 mt-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                  <span>{patient.phone}</span>
                 </div>
                 {patient.email && (
-                  <div className="flex items-center gap-1">
-                    <Mail className="h-4 w-4" />
-                    <span className="truncate">{patient.email}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                    <span className="break-all text-sm">{patient.email}</span>
                   </div>
                 )}
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  <Badge variant="outline">{patient.origin}</Badge>
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <Badge variant="outline" className="text-xs">{patient.origin}</Badge>
                 </div>
               </div>
             </div>
-            </div>{/* fecha flex avatar + info */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full" style={{gridTemplateColumns: 'repeat(3, minmax(0,1fr))' }}>
-              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={!canEdit('pacientes')} onClick={() => setEditData(patient)} className="w-full">
-                    <Edit className="h-4 w-4 mr-2" />
-                    <span>Editar Dados</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Editar Paciente</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleEditSubmit} className="space-y-4">
-                    <div>
-                      <Label>Nome Completo</Label>
-                      <Input
-                        value={editData.fullName}
-                        onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label>Telefone</Label>
-                      <Input
-                        value={editData.phone}
-                        onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label>E-mail</Label>
-                      <Input
-                        value={editData.email || ''}
-                        onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full">Salvar</Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-              
+          </div>
+
+          {/* Botões de ação */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
               {/* Dialog: Alerta de retorno */}
               <Dialog open={isReturnAlertOpen} onOpenChange={setIsReturnAlertOpen}>
                 <DialogTrigger asChild>
@@ -479,7 +441,7 @@ const ProntuarioPaciente = () => {
                     <span className="truncate">{activeReturnAlert ? 'Alerta ativo' : 'Alerta de Retorno'}</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
+                <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-2xl">
                   <DialogHeader>
                     <DialogTitle>Alerta de Retorno</DialogTitle>
                     <DialogDescription>
@@ -554,7 +516,7 @@ const ProntuarioPaciente = () => {
                     <span>Agendar Consulta</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="w-[calc(100%-2rem)] max-w-[500px] rounded-xl">
                   <DialogHeader>
                     <DialogTitle>Agendar Consulta</DialogTitle>
                     <DialogDescription>
@@ -608,7 +570,7 @@ const ProntuarioPaciente = () => {
                               today: new Date(),
                             }}
                             modifiersClassNames={{
-                              today: "bg-gray-200 text-black font-semibold rounded-md",
+                              today: "bg-gray-500 text-white font-semibold rounded-md",
                             }}
                           />
                         </PopoverContent>
@@ -658,69 +620,33 @@ const ProntuarioPaciente = () => {
                 </DialogContent>
               </Dialog>
             </div>
-          </div>
-        </CardHeader>
+        </CardContent>
       </Card>
 
       <Tabs defaultValue="cadastro" className="w-full mt-6">
-        <div className="border-b border-border">
-          <TabsList className="inline-flex h-12 items-center justify-start gap-1 bg-transparent p-0 w-full overflow-x-auto">
-            <TabsTrigger
-              value="cadastro"
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <UserCircle className="h-4 w-4" />
-              Cadastro
-            </TabsTrigger>
-            <TabsTrigger 
-              value="financial" 
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              Financeiro
-            </TabsTrigger>
-            <TabsTrigger
-              value="historico"
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <History className="h-4 w-4" />
-              Histórico
-            </TabsTrigger>
-            <TabsTrigger
-              value="anamnese"
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <ClipboardList className="h-4 w-4" />
-              Anamnese
-            </TabsTrigger>
-            <TabsTrigger
-              value="fotos"
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <Images className="h-4 w-4" />
-              Fotos
-            </TabsTrigger>
-            <TabsTrigger
-              value="odontograma"
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <Stethoscope className="h-4 w-4" />
-              Odontograma
-            </TabsTrigger>
-            <TabsTrigger
-              value="documentos"
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <FolderOpen className="h-4 w-4" />
-              Documentos
-            </TabsTrigger>
-            <TabsTrigger
-              value="notes"
-              className="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-              Observações
-            </TabsTrigger>
+        <div className="border-b border-border overflow-x-auto">
+          <TabsList className="inline-flex h-14 items-center bg-transparent p-0 gap-0 min-w-max">
+            {(
+              [
+                { value: 'cadastro',    icon: <UserCircle className="h-5 w-5 shrink-0" />,   label: 'Cadastro' },
+                { value: 'financial',   icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>, label: 'Financeiro' },
+                { value: 'historico',   icon: <History className="h-5 w-5 shrink-0" />,       label: 'Histórico' },
+                { value: 'anamnese',    icon: <ClipboardList className="h-5 w-5 shrink-0" />, label: 'Anamnese' },
+                { value: 'fotos',       icon: <Images className="h-5 w-5 shrink-0" />,        label: 'Fotos' },
+                { value: 'odontograma', icon: <Stethoscope className="h-5 w-5 shrink-0" />,  label: 'Odontograma' },
+                { value: 'documentos',  icon: <FolderOpen className="h-5 w-5 shrink-0" />,   label: 'Documentos' },
+                { value: 'notes',       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>, label: 'Observações' },
+              ] as { value: string; icon: React.ReactNode; label: string }[]
+            ).map(({ value, icon, label }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="relative inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-3 pb-3 pt-2 text-[13px] font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+              >
+                {icon}
+                {label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
 
@@ -729,7 +655,7 @@ const ProntuarioPaciente = () => {
           <Card>
             <CardContent className="pt-4 pb-4 space-y-3">
               {/* Grid compacto — 3 colunas no desktop */}
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
                 <Field label="Nome *">
                   <Input className="h-8 text-sm" value={cadastroData.fullName} onChange={(e) => handleCadastroChange('fullName', e.target.value)} />
                 </Field>
@@ -1115,15 +1041,8 @@ const ProntuarioPaciente = () => {
                       <CardContent className="pt-4">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-medium truncate">{session.procedure}</p>
-                              {hasInstallments && (
-                                <Badge variant="outline" className="text-xs shrink-0">
-                                  {paidCount}/{sessionInstallments.length} parcelas
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                            <p className="text-sm font-medium break-words">{session.procedure}</p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                               <span className="text-xs text-muted-foreground">
                                 {session.date.toLocaleDateString('pt-BR')}
                               </span>
@@ -1132,6 +1051,11 @@ const ProntuarioPaciente = () => {
                                   <CreditCard className="h-3 w-3" />
                                   {paymentMethodLabels[session.paymentMethod] ?? session.paymentMethod}
                                 </span>
+                              )}
+                              {hasInstallments && (
+                                <Badge variant="outline" className="text-xs shrink-0">
+                                  {paidCount}/{sessionInstallments.length} parcelas
+                                </Badge>
                               )}
                             </div>
                           </div>
@@ -1179,52 +1103,39 @@ const ProntuarioPaciente = () => {
                             </Button>
 
                             {isExpanded && (
-                              <div className="mt-2 overflow-x-auto -mx-2 sm:mx-0">
-                                <Table className="min-w-full">
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead className="text-xs">Parcela</TableHead>
-                                      <TableHead className="text-xs">Valor</TableHead>
-                                      <TableHead className="text-xs">Vencimento</TableHead>
-                                      <TableHead className="text-xs">Status</TableHead>
-                                      <TableHead className="text-xs"></TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {sessionInstallments
-                                      .sort((a, b) => a.installmentNumber - b.installmentNumber)
-                                      .map((inst) => (
-                                        <TableRow key={inst.id}>
-                                          <TableCell className="text-xs whitespace-nowrap">
-                                            {inst.installmentNumber}/{inst.totalInstallments}
-                                          </TableCell>
-                                          <TableCell className="text-xs whitespace-nowrap">
-                                            R$ {inst.amount.toFixed(2)}
-                                          </TableCell>
-                                          <TableCell className="text-xs whitespace-nowrap">
-                                            {inst.predictedDate.toLocaleDateString('pt-BR')}
-                                          </TableCell>
-                                          <TableCell className="text-xs">
-                                            <Badge variant={inst.paid ? 'default' : 'secondary'} className="text-xs">
-                                              {inst.paid ? 'Pago' : inst.predictedDate < new Date() ? 'Vencido' : 'Pendente'}
-                                            </Badge>
-                                          </TableCell>
-                                          <TableCell className="text-xs">
-                                            {!inst.paid && (
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => updateInstallment(inst.id, { paid: true, paidDate: new Date() })}
-                                                className="text-xs whitespace-nowrap h-7"
-                                              >
-                                                Marcar pago
-                                              </Button>
-                                            )}
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                  </TableBody>
-                                </Table>
+                              <div className="mt-2 space-y-1.5">
+                                {sessionInstallments
+                                  .sort((a, b) => a.installmentNumber - b.installmentNumber)
+                                  .map((inst) => (
+                                    <div key={inst.id} className="p-2 rounded-md border text-xs space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium shrink-0 w-9 text-center tabular-nums">
+                                          {inst.installmentNumber}/{inst.totalInstallments}
+                                        </span>
+                                        <span className="text-muted-foreground shrink-0 tabular-nums">
+                                          {inst.predictedDate.toLocaleDateString('pt-BR')}
+                                        </span>
+                                        <span className="font-medium ml-auto shrink-0 tabular-nums">
+                                          R$ {inst.amount.toFixed(2)}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center justify-between gap-2 pl-11">
+                                        <Badge variant={inst.paid ? 'default' : 'secondary'} className="text-xs">
+                                          {inst.paid ? 'Pago' : inst.predictedDate < new Date() ? 'Vencido' : 'Pendente'}
+                                        </Badge>
+                                        {!inst.paid && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => updateInstallment(inst.id, { paid: true, paidDate: new Date() })}
+                                            className="text-xs h-6 px-2 shrink-0"
+                                          >
+                                            Pagar
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
                               </div>
                             )}
                           </div>
@@ -1256,7 +1167,7 @@ const ProntuarioPaciente = () => {
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground">Cancelamentos</p>
+                <p className="text-[11px] leading-tight text-muted-foreground">Cancelamentos</p>
                 <p className="text-2xl font-bold text-muted-foreground">
                   {patientAppointments.filter(a => a.status === 'cancelado').length}
                 </p>
@@ -1282,31 +1193,29 @@ const ProntuarioPaciente = () => {
                 return (
                   <Card key={appt.id}>
                     <CardContent className="py-3 px-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="text-center min-w-[44px]">
-                            <p className="text-sm font-semibold leading-tight">
-                              {appt.date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{appt.date.getFullYear()}</p>
-                          </div>
-                          <div className="w-px h-8 bg-border shrink-0" />
-                          <div>
-                            <p className="text-sm font-medium">{appt.time}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {professional?.name ?? 'Profissional não identificado'}
-                            </p>
-                          </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-center shrink-0">
+                          <p className="text-sm font-semibold leading-tight">
+                            {appt.date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{appt.date.getFullYear()}</p>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className={config.className}>
-                            {config.label}
-                          </Badge>
-                          {appt.notes && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {appt.notes}
-                            </span>
-                          )}
+                        <div className="w-px self-stretch bg-border shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">{appt.time}</p>
+                              <p className="text-xs text-muted-foreground break-words">
+                                {professional?.name ?? 'Profissional não identificado'}
+                              </p>
+                              {appt.notes && (
+                                <p className="text-xs text-muted-foreground mt-0.5 break-words">{appt.notes}</p>
+                              )}
+                            </div>
+                            <Badge variant="outline" className={cn("shrink-0 text-xs", config.className)}>
+                              {config.label}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                     </CardContent>

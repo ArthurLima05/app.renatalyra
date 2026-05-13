@@ -44,13 +44,13 @@ const STEPS = [
 function AnamneseProgress({ status }: { status: "sent" | "completed" }) {
   const activeIndex = status === "completed" ? 2 : 1;
   return (
-    <div className="flex items-center gap-0">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-0">
       {STEPS.map((step, i) => {
         const done = i < activeIndex;
         const active = i === activeIndex;
         const Icon = step.icon;
         return (
-          <div key={step.key} className="flex items-center">
+          <div key={step.key} className="flex flex-col sm:flex-row sm:items-center">
             <div className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium",
               done   ? "bg-primary text-primary-foreground" :
@@ -61,7 +61,10 @@ function AnamneseProgress({ status }: { status: "sent" | "completed" }) {
               {step.label}
             </div>
             {i < STEPS.length - 1 && (
-              <div className={cn("h-px w-6 mx-1", done ? "bg-primary" : "bg-border")} />
+              <div className={cn(
+                "w-px h-3 ml-[18px] sm:w-6 sm:h-px sm:ml-0 sm:mx-1",
+                done ? "bg-primary" : "bg-border"
+              )} />
             )}
           </div>
         );
@@ -88,30 +91,44 @@ function QuestionsManager({ onClose }: { onClose: () => void }) {
     } finally { setSaving(false); }
   };
 
+  // Troca o sequence de duas perguntas vizinhas (swap real, paralelo)
+  const moveQuestion = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= active.length) return;
+    const a = active[index];
+    const b = active[targetIndex];
+    // Dispara os dois updates em paralelo sem await — o estado local
+    // já é atualizado instantaneamente dentro de updateAnamneseQuestion
+    Promise.all([
+      updateAnamneseQuestion(a.id, { sequence: b.sequence }),
+      updateAnamneseQuestion(b.id, { sequence: a.sequence }),
+    ]);
+  };
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-[600px] rounded-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Gerenciar Perguntas da Anamnese</DialogTitle>
           <DialogDescription>Configure as perguntas que serão enviadas ao paciente.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            {active.map((q) => (
+            {active.map((q, idx) => (
               <div key={q.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
                 <div className="flex flex-col gap-1 flex-shrink-0 items-center">
                   <button
                     className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    disabled={q.sequence <= 1}
-                    onClick={() => updateAnamneseQuestion(q.id, { sequence: q.sequence - 1 })}
+                    disabled={idx === 0}
+                    onClick={() => moveQuestion(idx, -1)}
                   >
                     <ChevronUp className="h-3.5 w-3.5" />
                   </button>
-                  <span className="text-xs font-mono text-muted-foreground">{q.sequence}</span>
+                  <span className="text-xs font-mono text-muted-foreground">{idx + 1}</span>
                   <button
                     className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    disabled={q.sequence >= nextSeq - 1}
-                    onClick={() => updateAnamneseQuestion(q.id, { sequence: q.sequence + 1 })}
+                    disabled={idx === active.length - 1}
+                    onClick={() => moveQuestion(idx, 1)}
                   >
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
@@ -181,7 +198,7 @@ function QuestionsManager({ onClose }: { onClose: () => void }) {
 function AnamneseViewer({ response, onClose }: { response: AnamneseResponse; onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-[600px] rounded-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Anamnese Preenchida</DialogTitle>
           <DialogDescription>
@@ -215,18 +232,43 @@ function AnamneseViewer({ response, onClose }: { response: AnamneseResponse; onC
               </div>
             ))}
 
-          {/* Assinatura */}
-          {response.signedName && (
+          {/* Registro de conformidade legal */}
+          {response.status === "completed" && (
             <div className="border-t pt-4 space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assinatura Eletrônica</p>
-              <div className="bg-muted/40 rounded-lg p-3 space-y-1">
-                <p className="font-medium italic text-lg">{response.signedName}</p>
-                {response.signedAt && (
-                  <p className="text-xs text-muted-foreground">
-                    Assinado em {format(response.signedAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Registro de Conformidade</p>
+              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <svg className="h-3.5 w-3.5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                  <p className="text-xs font-semibold text-green-800 dark:text-green-200">Declaração eletrônica confirmada</p>
+                </div>
+                {response.signedName && (
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    Paciente: <strong>{response.signedName}</strong>
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground">Assinatura eletrônica — MP 2.200-2/2001</p>
+                {response.verifiedPhone && (
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    Telefone verificado (WhatsApp): <strong>{response.verifiedPhone}</strong>
+                  </p>
+                )}
+                {response.signedAt && (
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    Confirmado em: {format(response.signedAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </p>
+                )}
+                {response.ipAddress && (
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    IP do dispositivo: <span className="font-mono">{response.ipAddress}</span>
+                  </p>
+                )}
+                {response.userAgent && (
+                  <p className="text-xs text-green-700 dark:text-green-300 truncate" title={response.userAgent}>
+                    Dispositivo: {response.userAgent.substring(0, 60)}{response.userAgent.length > 60 ? "…" : ""}
+                  </p>
+                )}
+                <p className="text-[10px] text-green-600 dark:text-green-400 pt-0.5">
+                  Lei 14.063/2020 (assinatura eletrônica) · MP 2.200-2/2001 · LGPD (Lei 13.709/2018)
+                </p>
               </div>
             </div>
           )}
@@ -269,14 +311,16 @@ export function PatientAnamnese({ patientId, patientName }: { patientId: string;
   return (
     <div className="space-y-4 mt-4">
       {/* Barra de ações */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <p className="text-sm text-muted-foreground text-center sm:text-left">
           {activeQuestions.length} pergunta{activeQuestions.length !== 1 ? "s" : ""} no formulário
         </p>
-        <Button variant="ghost" size="sm" className="gap-2" onClick={() => setShowManager(true)}>
-          <Settings className="h-4 w-4" />
-          Gerenciar Perguntas
-        </Button>
+        <div className="flex justify-center sm:justify-end">
+          <Button variant="ghost" size="sm" className="gap-2" onClick={() => setShowManager(true)}>
+            <Settings className="h-4 w-4" />
+            Gerenciar Perguntas
+          </Button>
+        </div>
       </div>
 
       {/* Nenhuma anamnese ainda */}
@@ -328,15 +372,15 @@ export function PatientAnamnese({ patientId, patientName }: { patientId: string;
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Código de verificação</p>
-                <div className="flex gap-2 items-center">
-                  <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     {pendingRequest.code.split("").map((d, i) => (
                       <div key={i} className="w-10 h-10 rounded-lg border-2 border-primary bg-primary/10 flex items-center justify-center text-lg font-bold">
                         {d}
                       </div>
                     ))}
                   </div>
-                  <Button size="sm" variant="outline" className="gap-1.5 ml-2"
+                  <Button size="sm" variant="outline" className="gap-1.5 w-full sm:w-auto"
                     onClick={() => copy(pendingRequest.code, "code")}>
                     {copied === "code" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     {copied === "code" ? "Copiado!" : "Copiar código"}
@@ -346,7 +390,7 @@ export function PatientAnamnese({ patientId, patientName }: { patientId: string;
             </div>
 
             {/* Botão de envio WhatsApp */}
-            <div className="border-t pt-3">
+            <div className="border-t pt-4 mt-1">
               <Button
                 className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
                 disabled={sendingWhatsapp === "pending"}

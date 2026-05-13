@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  X,
 } from 'lucide-react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
@@ -76,6 +77,7 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
         transition={{ duration: 0.2 }}
         className={cn(
           'fixed top-0 left-0 bottom-0 bg-card border-r border-border z-40 flex flex-col transition-all duration-200 overflow-hidden',
+          'rounded-r-2xl shadow-lg',
           isMobile ? 'w-64' : w,
         )}
       >
@@ -92,18 +94,23 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
               <p className="text-xs text-muted-foreground truncate">de Gestão</p>
             </div>
           )}
-          {/* Botão colapsar — apenas desktop */}
-          {!isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              title={isCollapsed ? 'Expandir menu' : 'Recolher menu'}
-            >
-              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
-          )}
+
+          {/* Botão X — fecha no mobile, colapsa no desktop */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={() => isMobile ? setIsOpen(false) : setIsCollapsed(!isCollapsed)}
+            title={isMobile ? 'Fechar menu' : isCollapsed ? 'Expandir menu' : 'Recolher menu'}
+          >
+            {isMobile ? (
+              <X className="h-4 w-4" />
+            ) : isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <X className="h-4 w-4" />
+            )}
+          </Button>
         </div>
 
         {/* Navegação */}
