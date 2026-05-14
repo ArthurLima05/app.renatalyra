@@ -286,7 +286,7 @@ export function Odontograma({ patientId }: { patientId: string }) {
       {dentitionView === "permanente" && (
         <Card>
           <CardContent className="pt-3 pb-3 overflow-x-auto">
-            <div className="min-w-[580px] sm:min-w-0 mx-auto space-y-0.5">
+            <div className="min-w-[580px] sm:min-w-0 sm:max-w-[500px] mx-auto space-y-0.5">
               {/* Números superiores */}
               <div
                 className="text-center text-[10px] font-mono text-muted-foreground"
@@ -332,7 +332,7 @@ export function Odontograma({ patientId }: { patientId: string }) {
       {dentitionView === "decidua" && (
         <Card>
           <CardContent className="pt-3 pb-3 overflow-x-auto">
-            <div className="min-w-[580px] sm:min-w-0 mx-auto space-y-0.5">
+            <div className="min-w-[580px] sm:min-w-0 sm:max-w-[500px] mx-auto space-y-0.5">
               {/*
                 A biblioteca usa 8 posições fixas por quadrante no SVG.
                 Com maxTeeth=5, os 3 dentes mais posteriores (16,17,18) ficam

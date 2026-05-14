@@ -41,7 +41,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: SidebarProps) => {
   const { notifications } = useClinic();
-  const { canView, isAdmin } = usePermissionsCtx();
+  const { hasAnyPermission, isAdmin } = usePermissionsCtx();
   const navigate = useNavigate();
   const { toast } = useToast();
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -116,7 +116,7 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
         {/* Navegação */}
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
-            const hasAccess = item.module === 'agenda' || canView(item.module);
+            const hasAccess = item.module === 'agenda' || hasAnyPermission(item.module);
             return (
             <NavLink
               key={item.to}
@@ -164,7 +164,7 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
                 isActive
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'hover:bg-secondary text-foreground',
-                !canView('configuracoes') && 'opacity-40',
+                !hasAnyPermission('configuracoes') && 'opacity-40',
               )
             }
           >

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useClinic } from "@/contexts/ClinicContext";
+import { usePermissionsCtx } from "@/contexts/PermissionsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -280,7 +281,8 @@ function AnamneseViewer({ response, onClose }: { response: AnamneseResponse; onC
 
 // ── Componente principal ─────────────────────────────────────────────────────
 export function PatientAnamnese({ patientId, patientName }: { patientId: string; patientName: string }) {
-  const { anamneseQuestions, requestAnamneseForPatient, sendAnamneseViaWhatsapp, getAnamneseByPatientId } = useClinic();
+  const { anamneseQuestions, requestAnamneseForPatient, sendAnamneseViaWhatsapp, getAnamneseByPatientId, deleteAnamneseResponse } = useClinic();
+  const { canDelete } = usePermissionsCtx();
   const responses = getAnamneseByPatientId(patientId);
 
   const [showManager, setShowManager] = useState(false);
@@ -429,19 +431,47 @@ export function PatientAnamnese({ patientId, patientName }: { patientId: string;
                   </p>
                 )}
               </div>
-              {r.status === "completed" ? (
-                <Button size="sm" variant="outline" className="gap-2"
-                  onClick={() => setViewingResponse(r)}>
-                  <Eye className="h-4 w-4" />
-                  Ver Anamnese
-                </Button>
-              ) : (
-                <Button size="sm" variant="ghost" className="gap-2 text-muted-foreground"
-                  onClick={() => r.token && setPendingRequest({ link: `${window.location.origin}/anamnese/${r.token}`, code: r.code ?? "" })}>
-                  <Copy className="h-4 w-4" />
-                  Ver link
-                </Button>
-              )}
+              <div className="flex items-center gap-1.5">
+                {r.status === "completed" ? (
+                  <Button size="sm" variant="outline" className="gap-2"
+                    onClick={() => setViewingResponse(r)}>
+                    <Eye className="h-4 w-4" />
+                    Ver Anamnese
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="ghost" className="gap-2 text-muted-foreground"
+                    onClick={() => r.token && setPendingRequest({ link: `${window.location.origin}/anamnese/${r.token}`, code: r.code ?? "" })}>
+                    <Copy className="h-4 w-4" />
+                    Ver link
+                  </Button>
+                )}
+                {canDelete('pacientes') && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir anamnese?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação é irreversível. Todas as respostas serão deletadas.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => deleteAnamneseResponse(r.id)}
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             </div>
             <AnamneseProgress status={r.status} />
             {r.status === "sent" && r.token && (

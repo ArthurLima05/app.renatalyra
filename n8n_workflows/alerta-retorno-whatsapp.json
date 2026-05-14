@@ -14,7 +14,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "url": "https://evolution.renatalyra.com.br/message/sendText/renata-lyra",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -40,7 +40,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// O body chega como string JSON (Content-Type: text/plain via no-cors)\nconst raw = $input.first().json;\nlet data;\nif (typeof raw.body === 'string') {\n  data = JSON.parse(raw.body);\n} else if (typeof raw.body === 'object' && raw.body !== null) {\n  data = raw.body;\n} else {\n  data = raw;\n}\n\nconst patientName = data.patientName || '';\nconst patientPhone = data.patientPhone || '';\nconst message = data.message || '';\nconst returnDate = data.returnDate || '';\nconst notes = data.notes || '';\n\nif (!patientPhone || !message) {\n  throw new Error(`Dados incompletos: phone=${patientPhone}, message=${message}`);\n}\n\nlet phone = patientPhone.replace(/\\D/g, '');\nif (!phone.startsWith('55')) {\n  phone = '55' + phone;\n}\n\n// Número BR com DDI 55: mínimo 12 dígitos (55 + DDD 2 + número 8)\n// máximo 13 dígitos (55 + DDD 2 + celular 9)\nif (phone.length < 12 || phone.length > 13) {\n  throw new Error(`Número inválido (${phone.length} dígitos após normalização): ${phone}. Esperado: 12-13 dígitos com DDI 55.`);\n}\n\nreturn [{\n  json: { patientName, patientPhone: phone, message, returnDate, notes }\n}];"
+        "jsCode": "// O body chega como string JSON (Content-Type: text/plain via no-cors)\nconst raw = $input.first().json;\nlet data;\nif (typeof raw.body === 'string') {\n  data = JSON.parse(raw.body);\n} else if (typeof raw.body === 'object' && raw.body !== null) {\n  data = raw.body;\n} else {\n  data = raw;\n}\n\nconst patientName = data.patientName || '';\nconst patientPhone = data.patientPhone || '';\nconst message = data.message || '';\nconst returnDate = data.returnDate || '';\nconst notes = data.notes || '';\n\nif (!patientPhone || !message) {\n  throw new Error(`Dados incompletos: phone=${patientPhone}, message=${message}`);\n}\n\nlet phone = patientPhone.replace(/\\D/g, '');\n\n// Até 11 dígitos → sem DDI → assume Brasil (+55)\n// 12+ dígitos → DDI já incluído (ex: 351 Portugal, 1 EUA)\nif (phone.length <= 11) {\n  phone = '55' + phone;\n}\n\nif (phone.length < 10) {\n  throw new Error(`Número inválido (${phone.length} dígitos): ${phone}.`);\n}\n\nreturn [{\n  json: { patientName, patientPhone: phone, message, returnDate, notes }\n}];"
       },
       "id": "9d2f437c-8277-46a0-bf9f-c42171d86086",
       "name": "Validar Dados",

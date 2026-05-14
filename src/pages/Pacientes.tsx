@@ -17,7 +17,7 @@ import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 const Pacientes = () => {
   const navigate = useNavigate();
   const { patients, sessions, addPatient } = useClinic();
-  const { canCreate } = usePermissionsCtx();
+  const { canCreate, canView } = usePermissionsCtx();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -179,6 +179,7 @@ const Pacientes = () => {
         </Dialog>
       </div>
 
+      {canView('pacientes') && (
       <div className="space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -196,7 +197,16 @@ const Pacientes = () => {
           }
         </p>
       </div>
+      )}
 
+      {!canView('pacientes') && canCreate('pacientes') && (
+        <p className="text-sm text-muted-foreground text-center py-6">
+          Você tem permissão apenas para cadastrar novos pacientes.
+        </p>
+      )}
+
+      {canView('pacientes') && (
+      <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredPatients.map((patient) => {
           const lastAppointment = getLastAppointment(patient.id);
@@ -257,6 +267,8 @@ const Pacientes = () => {
         <div className="text-center py-12">
           <p className="text-muted-foreground">Nenhum paciente encontrado para "{searchTerm}".</p>
         </div>
+      )}
+      </>
       )}
     </motion.div>
   );

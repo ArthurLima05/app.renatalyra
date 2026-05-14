@@ -43,7 +43,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return $input.all().flatMap(item => {\n  const patient = item.json;\n  const baseMsg = $('Buscar Aniversariantes').first().json.birthdayMessage\n    || 'Olá, {{nome_paciente}}! 🎂 A equipe da Dra. Renata Lyra deseja a você um feliz aniversário! Que este dia seja repleto de alegria e saúde. 🎉';\n\n  const msg = baseMsg.replace(/\\{\\{nome_paciente\\}\\}/g, patient.full_name || '');\n\n  let phone = (patient.phone || '').replace(/\\D/g, '');\n  if (!phone.startsWith('55')) phone = '55' + phone;\n\n  if (phone.length < 12 || phone.length > 13) {\n    console.log(`⚠️ Número inválido para ${patient.full_name}: ${phone} (${phone.length} dígitos) — ignorado`);\n    return [];\n  }\n\n  return [{ json: { patientName: patient.full_name, phone, message: msg } }];\n});"
+        "jsCode": "return $input.all().flatMap(item => {\n  const patient = item.json;\n  const baseMsg = $('Buscar Aniversariantes').first().json.birthdayMessage\n    || 'Olá, {{nome_paciente}}! 🎂 A equipe da Dra. Renata Lyra deseja a você um feliz aniversário! Que este dia seja repleto de alegria e saúde. 🎉';\n\n  const msg = baseMsg.replace(/\\{\\{nome_paciente\\}\\}/g, patient.full_name || '');\n\n  let phone = (patient.phone || '').replace(/\\D/g, '');\n\n  // Até 11 dígitos → sem DDI → assume Brasil (+55)\n  // 12+ dígitos → DDI já incluído (ex: 351 Portugal, 1 EUA)\n  if (phone.length <= 11) phone = '55' + phone;\n\n  if (phone.length < 10) {\n    console.log(`⚠️ Número inválido para ${patient.full_name}: ${phone} — ignorado`);\n    return [];\n  }\n\n  return [{ json: { patientName: patient.full_name, phone, message: msg } }];\n});"
       },
       "id": "ba04-build-msg",
       "name": "Montar Mensagem",
@@ -54,7 +54,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "url": "https://evolution.renatalyra.com.br/message/sendText/renata-lyra",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

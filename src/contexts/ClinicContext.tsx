@@ -85,6 +85,7 @@ interface ClinicContextType {
   saveAnamneseResponse: (patientId: string, answers: Omit<AnamneseAnswerRecord, 'id' | 'responseId'>[]) => Promise<void>;
   requestAnamneseForPatient: (patientId: string) => Promise<{ link: string; code: string }>;
   sendAnamneseViaWhatsapp: (patientId: string, responseId: string, token: string, code: string) => Promise<void>;
+  deleteAnamneseResponse: (id: string) => Promise<void>;
   getAnamneseByPatientId: (patientId: string) => AnamneseResponse[];
   patientPhotos: PatientPhoto[];
   addPatientPhoto: (patientId: string, file: File, caption: string, category: PhotoCategory) => Promise<void>;
@@ -1258,6 +1259,17 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const getAnamneseByPatientId = (patientId: string) =>
     anamneseResponses.filter((r) => r.patientId === patientId);
 
+  const deleteAnamneseResponse = async (id: string) => {
+    await Promise.all([
+      (supabase as any).from("anamnese_answers").delete().eq("response_id", id),
+      (supabase as any).from("anamnese_tokens").delete().eq("response_id", id),
+    ]);
+    const { error } = await (supabase as any).from("anamnese_responses").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir anamnese", description: error.message, variant: "destructive" }); throw error; }
+    setAnamneseResponses(prev => prev.filter(r => r.id !== id));
+    toast({ title: "Anamnese excluída" });
+  };
+
   const loadPatientPhotos = async () => {
     const { data, error } = await (supabase as any)
       .from("patient_photos")
@@ -1782,6 +1794,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     saveAnamneseResponse,
     requestAnamneseForPatient,
     sendAnamneseViaWhatsapp,
+    deleteAnamneseResponse,
     getAnamneseByPatientId,
     patientPhotos,
     addPatientPhoto,

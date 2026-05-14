@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "bot_anamnese",
   "nodes": [
     {
@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\n\nconst patientName  = body.patientName  || 'Paciente';\nconst patientPhone = body.patientPhone || '';\nconst link         = body.link         || '';\nconst code         = body.code         || '';\n\nif (!patientPhone) {\n  return [{ json: { skip: true, reason: 'Telefone não cadastrado' } }];\n}\n\n// Normaliza: só dígitos + garante DDI 55\nlet phone = patientPhone.replace(/\\D/g, '');\nif (!phone.startsWith('55')) {\n  phone = '55' + phone;\n}\n\n// Valida comprimento: 12 (fixo) ou 13 (celular) dígitos com DDI\nif (phone.length < 12 || phone.length > 13) {\n  return [{ json: { skip: true, reason: `Número inválido (${phone.length} dígitos): ${phone}` } }];\n}\n\nconst message =\n  `🦷 Olá, ${patientName}!\\n\\n` +\n  `A clínica solicitou o preenchimento da sua ficha de anamnese.\\n\\n` +\n  `📋 Acesse o formulário pelo link abaixo:\\n${link}\\n\\n` +\n  `🔑 Código de verificação (6 dígitos): *${code}*\\n\\n` +\n  `O link é válido por 7 dias. Em caso de dúvidas, entre em contato conosco.`;\n\nreturn [{ json: { phone, message, patientName } }];\n"
+        "jsCode": "const body = $input.first().json.body;\n\nconst patientName  = body.patientName  || 'Paciente';\nconst patientPhone = body.patientPhone || '';\nconst link         = body.link         || '';\nconst code         = body.code         || '';\n\nif (!patientPhone) {\n  return [{ json: { skip: true, reason: 'Telefone não cadastrado' } }];\n}\n\n// Normaliza: só dígitos\nlet phone = patientPhone.replace(/\\D/g, '');\n\n// Até 11 dígitos -> sem DDI -> assume Brasil (+55)\n// 12+ dígitos -> DDI já incluído (ex: 351 Portugal, 1 EUA)\nif (phone.length <= 11) {\n  phone = '55' + phone;\n}\n\nif (phone.length < 10) {\n  return [{ json: { skip: true, reason: `Número inválido (${phone.length} dígitos): ${phone}` } }];\n}\n\nconst message =\n  `🦷 Olá, ${patientName}!\\n\\n` +\n  `A clínica solicitou o preenchimento da sua ficha de anamnese.\\n\\n` +\n  `📋 Acesse o formulário pelo link abaixo:\\n${link}\\n\\n` +\n  `🔑 Código de verificação (6 dígitos): *${code}*\\n\\n` +\n  `O link é válido por 7 dias. Em caso de dúvidas, entre em contato conosco.`;\n\nreturn [{ json: { phone, message, patientName } }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -58,7 +58,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "url": "https://evolution.renatalyra.com.br/message/sendText/renata-lyra",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

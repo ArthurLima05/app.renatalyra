@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "WhatsApp Cancelamento",
   "nodes": [
     {
@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Body pode chegar como string (no-cors) ou objeto JSON\nconst raw = $input.first().json;\nlet data;\nif (typeof raw.body === 'string') {\n  try { data = JSON.parse(raw.body); } catch { data = raw; }\n} else if (typeof raw.body === 'object' && raw.body !== null) {\n  data = raw.body;\n} else {\n  data = raw;\n}\n\nconst patientName    = data.patientName    || 'Paciente';\nconst patientPhone   = data.phone          || '';\nconst message        = data.message        || '';\nconst appointmentDate = data.appointmentDate || '';\nconst appointmentTime = data.appointmentTime || '';\n\nif (!patientPhone) {\n  return [{ json: { skip: true, reason: 'Telefone não cadastrado', patientName } }];\n}\n\nif (!message) {\n  return [{ json: { skip: true, reason: 'Mensagem vazia', patientName } }];\n}\n\n// Normaliza: só dígitos + garante DDI 55\nlet phone = patientPhone.replace(/\\D/g, '');\nif (!phone.startsWith('55')) {\n  phone = '55' + phone;\n}\n\n// Valida comprimento: 12 (fixo) ou 13 (celular)\nif (phone.length < 12 || phone.length > 13) {\n  return [{ json: { skip: true, reason: `Número inválido (${phone.length} dígitos): ${phone}`, patientName } }];\n}\n\nreturn [{ json: { phone, message, patientName, appointmentDate, appointmentTime } }];\n"
+        "jsCode": "// Body pode chegar como string (no-cors) ou objeto JSON\nconst raw = $input.first().json;\nlet data;\nif (typeof raw.body === 'string') {\n  try { data = JSON.parse(raw.body); } catch { data = raw; }\n} else if (typeof raw.body === 'object' && raw.body !== null) {\n  data = raw.body;\n} else {\n  data = raw;\n}\n\nconst patientName    = data.patientName    || 'Paciente';\nconst patientPhone   = data.phone          || '';\nconst message        = data.message        || '';\nconst appointmentDate = data.appointmentDate || '';\nconst appointmentTime = data.appointmentTime || '';\n\nif (!patientPhone) {\n  return [{ json: { skip: true, reason: 'Telefone não cadastrado', patientName } }];\n}\n\nif (!message) {\n  return [{ json: { skip: true, reason: 'Mensagem vazia', patientName } }];\n}\n\n// Normaliza: só dígitos\nlet phone = patientPhone.replace(/\\D/g, '');\n\n// Até 11 dígitos -> sem DDI -> assume Brasil (+55)\n// 12+ dígitos -> DDI já incluído (ex: 351 Portugal, 1 EUA)\nif (phone.length <= 11) {\n  phone = '55' + phone;\n}\n\nif (phone.length < 10) {\n  return [{ json: { skip: true, reason: `Número inválido (${phone.length} dígitos): ${phone}`, patientName } }];\n}\n\nreturn [{ json: { phone, message, patientName, appointmentDate, appointmentTime } }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -57,7 +57,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "url": "https://evolution.renatalyra.com.br/message/sendText/renata-lyra",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

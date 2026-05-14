@@ -58,7 +58,7 @@ const ProntuarioPaciente = () => {
     returnAlerts,
   } = useClinic();
 
-  const { canEdit, canDelete, canCreate } = usePermissionsCtx();
+  const { canEdit, canDelete, canCreate, canView } = usePermissionsCtx();
   const patient = id ? getPatientById(id) : undefined;
   const sessions = id ? getSessionsByPatientId(id) : [];
   const transactions = id ? getTransactionsByPatientId(id) : [];
@@ -785,7 +785,8 @@ const ProntuarioPaciente = () => {
         </AlertDialog>
 
         <TabsContent value="financial" className="space-y-4">
-          {/* Totais */}
+          {/* Totais — visível apenas com canView */}
+          {canView('financeiro') && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-2">
@@ -804,6 +805,7 @@ const ProntuarioPaciente = () => {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Botões de ação */}
           <div className="flex flex-col sm:flex-row gap-2">
@@ -1012,7 +1014,8 @@ const ProntuarioPaciente = () => {
             </Dialog>
           </div>
 
-          {/* Lista de lançamentos */}
+          {/* Lista de lançamentos — visível apenas com canView */}
+          {canView('financeiro') && (
           <div className="space-y-2">
             {sessions.filter(s => s.patientId === id).length === 0 ? (
               <p className="text-muted-foreground text-sm">Nenhum lançamento registrado.</p>
@@ -1146,6 +1149,7 @@ const ProntuarioPaciente = () => {
                 })
             )}
           </div>
+          )}
         </TabsContent>
 
         {/* ── ABA HISTÓRICO DE AGENDAMENTOS ──────────────────────────── */}
