@@ -1,0 +1,157 @@
+{
+  "name": "bot_aniversario",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "ba01-schedule",
+      "name": "Schedule Trigger 08h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-800, 200],
+      "notes": "Dispara todo dia às 08:00 (fuso configurado no n8n — ajuste se necessário para America/Sao_Paulo)"
+    },
+    {
+      "parameters": {
+        "url": "https://hmjrgrrosyinblpzntkw.supabase.co/functions/v1/get-birthday-patients",
+        "options": {}
+      },
+      "id": "ba02-get-patients",
+      "name": "Buscar Aniversariantes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-600, 200]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "patients",
+        "options": {}
+      },
+      "id": "ba03-split",
+      "name": "Split Pacientes",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [-400, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().flatMap(item => {\n  const patient = item.json;\n  const baseMsg = $('Buscar Aniversariantes').first().json.birthdayMessage\n    || 'Olá, {{nome_paciente}}! 🎂 A equipe da Dra. Renata Lyra deseja a você um feliz aniversário! Que este dia seja repleto de alegria e saúde. 🎉';\n\n  const msg = baseMsg.replace(/\\{\\{nome_paciente\\}\\}/g, patient.full_name || '');\n\n  let phone = (patient.phone || '').replace(/\\D/g, '');\n  if (!phone.startsWith('55')) phone = '55' + phone;\n\n  if (phone.length < 12 || phone.length > 13) {\n    console.log(`⚠️ Número inválido para ${patient.full_name}: ${phone} (${phone.length} dígitos) — ignorado`);\n    return [];\n  }\n\n  return [{ json: { patientName: patient.full_name, phone, message: msg } }];\n});"
+      },
+      "id": "ba04-build-msg",
+      "name": "Montar Mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution:8080/message/sendText/renata-lyra",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",       "value": "32E4894EF913-499C-BDBE-FEA9EF1A644A" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "number", "value": "={{ $json.phone }}" },
+            { "name": "text",   "value": "={{ $json.message }}" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "ba05-send-whatsapp",
+      "name": "Enviar WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [50, 200],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const name = $('Montar Mensagem').item.json.patientName;\nconsole.log(`🎂 Mensagem de aniversário enviada para ${name}`);\nreturn [{ json: { success: true, patientName: name } }];"
+      },
+      "id": "ba06-log-success",
+      "name": "Log Sucesso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hmjrgrrosyinblpzntkw.supabase.co/functions/v1/create-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "type",    "value": "erro_whatsapp" },
+            { "name": "title",   "value": "Falha no envio de aniversário" },
+            { "name": "message", "value": "=Não foi possível enviar mensagem de aniversário para {{ $('Montar Mensagem').item.json.patientName }} ({{ $('Montar Mensagem').item.json.phone }}). Erro: {{ $json.error.message }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ba07-notify-error",
+      "name": "Notificar Erro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 350]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger 08h": {
+      "main": [
+        [{ "node": "Buscar Aniversariantes", "type": "main", "index": 0 }]
+      ]
+    },
+    "Buscar Aniversariantes": {
+      "main": [
+        [{ "node": "Split Pacientes", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split Pacientes": {
+      "main": [
+        [{ "node": "Montar Mensagem", "type": "main", "index": 0 }]
+      ]
+    },
+    "Montar Mensagem": {
+      "main": [
+        [{ "node": "Enviar WhatsApp", "type": "main", "index": 0 }]
+      ]
+    },
+    "Enviar WhatsApp": {
+      "main": [
+        [{ "node": "Log Sucesso",    "type": "main", "index": 0 }],
+        [{ "node": "Notificar Erro", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bot-aniversario-v1",
+  "meta": {
+    "instanceId": "8fc96216b55d8509079c818d5243cb874ec34786f2c6ffb51935ad321aa2c130"
+  },
+  "id": "BOT_ANIVERSARIO_001",
+  "tags": []
+}

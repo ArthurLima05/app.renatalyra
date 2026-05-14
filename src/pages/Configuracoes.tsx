@@ -90,6 +90,13 @@ const MESSAGE_TEMPLATES = [
     variables: ['{{nome_paciente}}', '{{link}}'],
     defaultValue: 'Olá, {{nome_paciente}}! 🌟 Esperamos que sua consulta tenha sido excelente. Deixe sua avaliação: {{link}}',
   },
+  {
+    key: 'msg_birthday',
+    label: 'Feliz Aniversário',
+    description: 'Enviada automaticamente às 8h do dia do aniversário do paciente (exige data de nascimento cadastrada).',
+    variables: ['{{nome_paciente}}'],
+    defaultValue: 'Olá, {{nome_paciente}}! 🎂 A equipe da Dra. Renata Lyra deseja a você um feliz aniversário! Que este dia seja repleto de alegria e saúde. 🎉',
+  },
 ];
 
 // ── Seção: Aparência ──────────────────────────────────────────────────────────
