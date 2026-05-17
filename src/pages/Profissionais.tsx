@@ -209,7 +209,7 @@ export default function Profissionais() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <CardTitle className="text-base leading-tight break-words">{pro.name}</CardTitle>
+                          <CardTitle className="text-lg leading-tight break-words font-cocon tracking-[0.055em]">{pro.name}</CardTitle>
                           {pro.specialty && (
                             <p className="text-xs text-muted-foreground">{pro.specialty}</p>
                           )}

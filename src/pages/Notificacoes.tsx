@@ -275,7 +275,7 @@ export default function Notificacoes() {
         className="space-y-2 text-center sm:text-left"
       >
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Notificações</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground font-cocon">
           {unreadCount} não lidas · {urgentCount} urgentes
         </p>
       </motion.div>

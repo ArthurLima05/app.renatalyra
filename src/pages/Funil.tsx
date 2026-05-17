@@ -388,7 +388,7 @@ export default function Funil() {
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Funil de Vendas</h1>
-          <p className="text-sm text-muted-foreground">Acompanhe leads do primeiro contato até a conversão</p>
+          <p className="text-sm text-muted-foreground font-cocon">Acompanhe leads do primeiro contato até a conversão</p>
         </div>
         <Button className="gap-2 shrink-0" onClick={() => setIsAddOpen(true)}>
           <Plus className="h-4 w-4" />

@@ -18,23 +18,21 @@ export const MetricCard = ({ title, value, icon: Icon, trend, delay = 0 }: Metri
       transition={{ delay }}
       className="h-full"
     >
-      <Card className="h-full hover:shadow-lg transition-shadow">
-        <CardContent className="p-3 sm:p-6 h-full">
-          {/* Mobile: linha compacta — ícone | título+valor | (sem coluna) */}
-          {/* Desktop: título+valor à esquerda, ícone grande à direita */}
-          <div className="flex items-center gap-3 sm:items-start sm:justify-between">
-            <div className="bg-primary/10 p-2 rounded-lg shrink-0 sm:hidden">
-              <Icon className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs sm:text-sm text-muted-foreground leading-snug break-words">{title}</p>
-              <h3 className="text-lg sm:text-3xl font-bold text-foreground mt-0.5">{value}</h3>
-              {trend && <p className="text-xs text-muted-foreground mt-0.5">{trend}</p>}
-            </div>
-            <div className="hidden sm:flex bg-primary/10 p-3 rounded-lg shrink-0">
-              <Icon className="h-6 w-6 text-primary" />
+      <Card className="h-full group hover:shadow-md hover:border-primary/30 transition-all duration-200">
+        <CardContent className="p-4 sm:p-5 h-full flex flex-col justify-between gap-3">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs sm:text-sm text-muted-foreground leading-snug">{title}</p>
+            <div className="bg-primary/10 group-hover:bg-primary/16 p-2 rounded-lg shrink-0 transition-colors">
+              <Icon className="h-4 w-4 text-primary" />
             </div>
           </div>
+          <div>
+            <span className="text-2xl sm:text-3xl font-bold text-foreground font-body tabular-nums">
+              {value}
+            </span>
+            {trend && <p className="text-xs text-muted-foreground mt-1">{trend}</p>}
+          </div>
+          <div className="h-px bg-primary/15 rounded-full" />
         </CardContent>
       </Card>
     </motion.div>

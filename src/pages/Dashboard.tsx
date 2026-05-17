@@ -15,8 +15,20 @@ import { cn } from '@/lib/utils';
 
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado' | 'todos';
 
-const ORIGIN_COLORS = ['#DBC192', '#9CA0A0', '#F5E6D3', '#C9A876'];
-const STATUS_COLOR = '#DBC192';
+// Paleta 100% alinhada com os tokens do design system
+const ORIGIN_COLORS = [
+  'hsl(40,45%,65%)',   // primary — dourado
+  'hsl(40,30%,55%)',   // warm deep
+  'hsl(180,2%,58%)',   // muted — cinza neutro
+  'hsl(40,60%,80%)',   // light gold
+];
+const STATUS_COLORS: Record<string, string> = {
+  Agendado:   'hsl(40,60%,80%)',   // dourado claro
+  Confirmado: 'hsl(40,45%,65%)',   // dourado primário
+  Realizado:  'hsl(40,35%,50%)',   // dourado escuro
+  Cancelado:  'hsl(0,0%,68%)',     // cinza médio
+  Falta:      'hsl(0,0%,50%)',     // cinza escuro
+};
 
 export default function Dashboard() {
   const { appointments, patients, professionals } = useClinic();
@@ -138,7 +150,7 @@ export default function Dashboard() {
       >
         <div className="text-center sm:text-left">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Visão geral das métricas da clínica</p>
+          <p className="text-sm sm:text-base text-muted-foreground font-cocon">Visão geral das métricas da clínica</p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -190,10 +202,10 @@ export default function Dashboard() {
 
       {/* Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-        <MetricCard title="Total de Atendimentos" value={totalAppointments} icon={Calendar}  delay={0.1} />
-        <MetricCard title="Taxa de Retorno"        value={`${returnRate}%`} icon={TrendingUp} delay={0.2} />
-        <MetricCard title="Faltas/Cancelamentos"   value={canceledOrMissed} icon={UserCheck}  delay={0.3} />
-        <MetricCard title="Confirmados"            value={confirmedAppointments} icon={Clock} delay={0.4} />
+        <MetricCard title="Total de Atendimentos" value={totalAppointments}       icon={Calendar}  delay={0.1} />
+        <MetricCard title="Taxa de Retorno"        value={`${returnRate}%`}      icon={TrendingUp} delay={0.2} />
+        <MetricCard title="Faltas/Cancelamentos"   value={canceledOrMissed}      icon={UserCheck}  delay={0.3} />
+        <MetricCard title="Confirmados"            value={confirmedAppointments} icon={Clock}      delay={0.4} />
         <MetricCard
           title={isTodos ? "Total Pacientes" : "Novos Pacientes"}
           value={newPatients}
@@ -263,8 +275,8 @@ export default function Dashboard() {
                     <Tooltip
                       labelFormatter={(label) => byProfessional.find(p => p.name === label)?.fullName ?? label}
                     />
-                    <Bar dataKey="Realizados" fill="#DBC192" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="Agendados"  fill="#9CA0A0" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="Realizados" fill="hsl(40,45%,65%)" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="Agendados"  fill="hsl(180,2%,58%)" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -291,7 +303,11 @@ export default function Dashboard() {
                   <XAxis dataKey="status" tick={{ fontSize: 12 }} />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="count" fill={STATUS_COLOR} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {statusData.map((entry) => (
+                      <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? 'hsl(40,45%,72%)'} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

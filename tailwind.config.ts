@@ -13,6 +13,11 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans:  ['DM Sans', 'system-ui', 'sans-serif'],
+        cocon: ['Cocon', 'DM Sans', 'system-ui', 'sans-serif'],
+        body:  ['DM Sans', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

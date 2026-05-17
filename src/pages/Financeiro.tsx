@@ -355,7 +355,7 @@ export default function Financeiro() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financeiro</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground font-cocon">
               {isSecretaria ? 'Adicionar lançamentos' : 'Controle detalhado de receitas e despesas'}
             </p>
           </div>

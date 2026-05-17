@@ -87,7 +87,7 @@ const Pacientes = () => {
       <div className="flex flex-col items-center text-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Pacientes</h1>
-          <p className="text-muted-foreground mt-1">Gerencie os pacientes da clínica</p>
+          <p className="text-muted-foreground mt-1 font-cocon">Gerencie os pacientes da clínica</p>
         </div>
 
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -224,7 +224,7 @@ const Pacientes = () => {
                 onClick={() => navigate(`/pacientes/${patient.id}`)}
               >
                 <CardHeader className="pb-2 flex-none text-center sm:text-left">
-                  <CardTitle className="text-base leading-tight line-clamp-2">
+                  <CardTitle className="text-lg leading-tight line-clamp-2 font-cocon tracking-[0.055em]">
                     {patient.fullName}
                   </CardTitle>
                 </CardHeader>

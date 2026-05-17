@@ -411,7 +411,7 @@ const ProntuarioPaciente = () => {
 
             {/* Nome + contatos */}
             <div className="min-w-0 flex-1 text-center sm:text-left">
-              <h2 className="text-xl font-bold leading-snug break-words">{patient.fullName}</h2>
+              <h2 className="text-2xl font-bold leading-snug break-words font-cocon">{patient.fullName}</h2>
               {patient.nickname && <p className="text-sm text-muted-foreground mt-0.5">{patient.nickname}</p>}
               <div className="flex flex-col sm:flex-row sm:flex-wrap items-center sm:items-start gap-1.5 mt-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5">

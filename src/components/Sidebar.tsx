@@ -77,8 +77,9 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
         initial={false}
         animate={isMobile ? { x: isOpen ? 0 : '-100%' } : { x: 0 }}
         transition={{ duration: 0.2 }}
+        style={{ background: 'linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--sidebar-accent)) 100%)' }}
         className={cn(
-          'fixed top-0 left-0 bottom-0 bg-card border-r border-border z-40 flex flex-col transition-all duration-200 overflow-hidden',
+          'fixed top-0 left-0 bottom-0 border-r border-border z-40 flex flex-col transition-all duration-200 overflow-hidden',
           'rounded-r-2xl shadow-lg',
           isMobile ? 'w-64' : w,
         )}
@@ -128,11 +129,11 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
               title={collapsed ? item.label : undefined}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center rounded-lg transition-all px-2 py-2.5 text-sm font-medium',
+                  'flex items-center rounded-xl transition-all duration-150 px-2 py-2.5 text-sm font-medium relative',
                   collapsed ? 'justify-center' : 'gap-3',
                   isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'hover:bg-secondary text-foreground',
+                    ? 'bg-primary/12 text-primary font-semibold before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-[3px] before:bg-primary before:rounded-r-full'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60',
                   !hasAccess && 'opacity-40',
                 )
               }
@@ -169,11 +170,11 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
             title={collapsed ? 'Configurações' : undefined}
             className={({ isActive }) =>
               cn(
-                'flex items-center rounded-lg transition-all px-2 py-2.5 text-sm font-medium w-full',
+                'flex items-center rounded-xl transition-all duration-150 px-2 py-2.5 text-sm font-medium w-full relative',
                 collapsed ? 'justify-center' : 'gap-3',
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'hover:bg-secondary text-foreground',
+                  ? 'bg-primary/12 text-primary font-semibold before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-[3px] before:bg-primary before:rounded-r-full'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60',
                 !hasAnyPermission('configuracoes') && 'opacity-40',
               )
             }

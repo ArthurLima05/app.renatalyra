@@ -310,7 +310,7 @@ function AppointmentDetailCard({
       {/* Nome + status + telefone */}
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-semibold text-lg">{appointment.patientName}</p>
+          <p className="font-semibold text-lg font-cocon">{appointment.patientName}</p>
           {patient?.phone && (
             <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
               <Phone className="h-3.5 w-3.5" />
@@ -864,7 +864,7 @@ export default function Agendamentos() {
       >
         <div className="text-center sm:text-left">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Agendamentos</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Gerencie todas as consultas</p>
+          <p className="text-sm sm:text-base text-muted-foreground font-cocon">Gerencie todas as consultas</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
@@ -1220,7 +1220,7 @@ export default function Agendamentos() {
                               <Dialog open={detailAppointment?.id === appointment.id}
                                 onOpenChange={(open) => !open && setDetailAppointment(null)}>
                                 <DialogTrigger asChild>
-                                  <h3 className="font-semibold text-base sm:text-lg truncate cursor-pointer hover:text-primary transition-colors"
+                                  <h3 className="font-semibold text-base sm:text-lg truncate cursor-pointer hover:text-primary transition-colors font-cocon"
                                     onClick={() => setDetailAppointment(appointment)}>
                                     {appointment.patientName}
                                   </h3>
@@ -1440,7 +1440,7 @@ export default function Agendamentos() {
                             onOpenChange={(open) => !open && setDetailAppointment(null)}>
                             <DialogTrigger asChild>
                               <h3
-                                className="font-semibold text-sm leading-snug cursor-pointer hover:text-primary transition-colors break-words"
+                                className="font-semibold text-sm leading-snug cursor-pointer hover:text-primary transition-colors break-words font-cocon"
                                 onClick={() => setDetailAppointment(appointment)}
                               >
                                 {appointment.patientName}
