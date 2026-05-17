@@ -385,17 +385,17 @@ const ProntuarioPaciente = () => {
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 mb-4 sm:pr-8">
             {/* Avatar */}
             <div className="relative group cursor-pointer shrink-0" onClick={() => avatarInputRef.current?.click()}>
-              <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary/20 bg-muted flex items-center justify-center shadow-[0_2px_8px_-2px_hsl(40_20%_50%/0.2)]">
                 {patient.avatarUrl ? (
                   <img src={patient.avatarUrl} alt={patient.fullName} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-2xl font-bold text-muted-foreground">
+                  <span className="text-2xl font-cocon text-muted-foreground/70 tracking-[0.04em]">
                     {patient.fullName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
                   </span>
                 )}
               </div>
-              <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/25 transition-all duration-300 flex items-center justify-center">
+                <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
             </div>
             <input

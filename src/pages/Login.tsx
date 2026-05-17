@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import logoClinica from '@/assets/LightLogo.svg';
 import logoClinicaDark from '@/assets/DarkLogo.svg';
-import simboloDourado from '@/assets/SimboloDourado.svg';
-import simboloBranco from '@/assets/SimboloBranco.svg';
+import fotoDra from '@/assets/_MF_9787.jpg';
 import { motion } from 'framer-motion';
+
+const EASE = [0.25, 0.46, 0.45, 0.94] as const;
 
 export default function Login() {
   const navigate = useNavigate();
@@ -37,101 +38,155 @@ export default function Login() {
   return (
     <div className="min-h-screen flex">
 
-      {/* ── Painel esquerdo — desktop only ─────────────────────────────── */}
-      <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden flex-col items-center justify-center p-12"
-           style={{ background: 'linear-gradient(160deg, hsl(40,45%,60%) 0%, hsl(40,55%,45%) 100%)' }}>
+      {/* ── Lado esquerdo — foto ─────────────────────────────────────────────── */}
+      <div className="hidden lg:block lg:w-[55%] relative overflow-hidden">
+        {/* Foto */}
+        <img
+          src={fotoDra}
+          alt="Dra. Renata Lyra"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        />
 
-        {/* Símbolo de fundo */}
-        <img src={simboloBranco} aria-hidden="true"
-             className="absolute bottom-0 right-0 h-[85%] w-auto opacity-[0.08] pointer-events-none select-none" />
+        {/* Overlay gradiente — escurece nas bordas, preserva o centro */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/10 via-transparent to-black/60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
-        {/* Conteúdo */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative z-10 flex flex-col items-center text-center gap-8"
+        {/* Marca d'água do símbolo — canto inferior esquerdo */}
+        <div className="absolute bottom-10 left-10 right-10">
+          <div className="flex items-end justify-between">
+            {/* Tagline */}
+            <div className="space-y-1">
+              <p className="text-white/50 text-xs tracking-[0.15em] uppercase font-cocon">
+                Sistema de Gestão
+              </p>
+              <p className="text-white/80 text-sm tracking-[0.08em] font-cocon">
+                Clínica Odontológica
+              </p>
+            </div>
+            {/* Linha dourada decorativa */}
+            <div className="h-px w-20 bg-gradient-to-l from-white/50 to-transparent" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Lado direito — formulário ────────────────────────────────────────── */}
+      <div
+        className="flex-1 flex flex-col relative overflow-hidden"
+        style={{ background: 'hsl(40 25% 96%)' }}
+      >
+        {/* Linha dourada vertical — separação */}
+        <div className="hidden lg:block absolute left-0 top-[12%] bottom-[12%] w-px bg-gradient-to-b from-transparent via-primary/35 to-transparent" />
+
+        {/* Padrão sutil de fundo — pontilhado dourado */}
+        <div
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{
+            backgroundImage: 'radial-gradient(hsl(40 45% 50%) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+          }}
+        />
+
+        {/* Rodapé fixo no fundo */}
+        <p
+          className="absolute bottom-8 left-0 right-0 text-center text-[10px] font-cocon tracking-[0.12em] uppercase z-10"
+          style={{ color: 'hsl(40 8% 60%)' }}
         >
-          <img src={logoClinicaDark} alt="Clínica Renata Lyra" className="h-48 w-auto object-contain drop-shadow-lg" />
+          Renata Lyra · Clínica Odontológica
+        </p>
 
-          <div className="space-y-3">
-            <h1 className="text-4xl font-cocon text-white leading-tight drop-shadow">
-              Bem-vinda de volta
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: EASE }}
+          className="relative z-10 flex flex-col w-full max-w-[360px] mx-auto px-4 pt-6 pb-16"
+        >
+          {/* Logo */}
+          <div className="flex justify-center mb-5">
+            <img
+              src={logoClinica}
+              alt="Clínica Renata Lyra"
+              className="h-28 w-auto dark:hidden"
+            />
+            <img
+              src={logoClinicaDark}
+              alt="Clínica Renata Lyra"
+              className="h-28 w-auto hidden dark:block"
+            />
+          </div>
+
+          {/* Ornamento dourado */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
+            <span className="text-primary/50 text-base">✦</span>
+            <div className="h-px w-8 bg-primary/20" />
+          </div>
+
+          {/* Título */}
+          <div className="mb-6">
+            <h1
+              className="text-5xl leading-tight mb-2"
+              style={{ color: 'hsl(40 5% 16%)', letterSpacing: '0.02em' }}
+            >
+              Bem-vinda
             </h1>
-            <p className="text-white/75 text-lg leading-relaxed max-w-xs">
-              Sua clínica organizada com elegância e precisão.
+            <p
+              className="font-cocon tracking-[0.04em] text-sm"
+              style={{ color: 'hsl(40 8% 50%)' }}
+            >
+              Acesse o sistema para continuar
             </p>
           </div>
 
-          <div className="w-12 h-0.5 bg-white/40 rounded-full" />
+            {/* Formulário — estilo editorial com linha inferior */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-1">
+                <Label
+                  htmlFor="email"
+                  className="text-[11px] tracking-[0.1em] uppercase"
+                  style={{ color: 'hsl(40 8% 50%)' }}
+                >
+                  E-mail
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="seu@email.com"
+                  className="border-0 border-b rounded-none bg-transparent h-11 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/35"
+                  style={{ borderBottomColor: 'hsl(40 20% 76%)', borderBottomWidth: '1px' }}
+                  required
+                />
+              </div>
 
-          <p className="text-white/60 text-sm italic font-cocon">
-            "Cuidar com excelência, tratar com humanidade."
-          </p>
-        </motion.div>
-      </div>
+              <div className="space-y-1">
+                <Label
+                  htmlFor="password"
+                  className="text-[11px] tracking-[0.1em] uppercase"
+                  style={{ color: 'hsl(40 8% 50%)' }}
+                >
+                  Senha
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="••••••••"
+                  className="border-0 border-b rounded-none bg-transparent h-11 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/35"
+                  style={{ borderBottomColor: 'hsl(40 20% 76%)', borderBottomWidth: '1px' }}
+                  required
+                />
+              </div>
 
-      {/* ── Painel direito — formulário ─────────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center bg-background p-6 relative overflow-hidden">
-
-        {/* Símbolo sutil no fundo — mobile e desktop */}
-        <img src={simboloDourado} aria-hidden="true"
-             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[70%] w-auto opacity-[0.05] pointer-events-none select-none dark:hidden" />
-        <img src={simboloBranco} aria-hidden="true"
-             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[70%] w-auto opacity-[0.03] pointer-events-none select-none hidden dark:block" />
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="w-full max-w-sm relative z-10"
-        >
-          {/* Logo — apenas mobile */}
-          <div className="lg:hidden flex justify-center mb-8">
-            <img src={logoClinica} alt="Clínica Renata Lyra" className="h-36 w-auto object-contain dark:hidden" />
-            <img src={logoClinicaDark} alt="Clínica Renata Lyra" className="h-36 w-auto object-contain hidden dark:block" />
-          </div>
-
-          <div className="mb-8 text-center lg:text-left">
-            <h1 className="text-3xl font-cocon text-foreground">Entrar</h1>
-            <p className="text-muted-foreground mt-1 text-sm">Acesse sua conta para continuar</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="seu@email.com"
-                className="h-11"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="••••••••"
-                className="h-11"
-                required
-              />
-            </div>
-
-            <Button type="submit" className="w-full h-11 text-base mt-2" disabled={isLoading}>
-              {isLoading ? 'Entrando...' : 'Entrar'}
-            </Button>
-          </form>
-
-          <p className="text-center text-xs text-muted-foreground mt-8">
-            Clínica Renata Lyra · Sistema de Gestão
-          </p>
+              <Button
+                type="submit"
+                className="w-full h-12 text-sm tracking-[0.06em] uppercase mt-4"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Entrando…' : 'Entrar'}
+              </Button>
+            </form>
         </motion.div>
       </div>
     </div>

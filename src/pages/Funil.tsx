@@ -127,13 +127,20 @@ function LeadForm({
 // ── Card do lead ──────────────────────────────────────────────────────────────
 function LeadCard({ lead, stageInfo, onSelect }: { lead: Lead; stageInfo: typeof STAGES[0]; onSelect: () => void }) {
   return (
-    <div
+    <motion.div
       onClick={onSelect}
-      className="bg-card border border-border rounded-xl p-3 space-y-2 cursor-pointer hover:shadow-md transition-shadow"
+      className="bg-card border border-border/80 rounded-xl p-3 space-y-3 cursor-pointer"
+      style={{ boxShadow: 'var(--card-shadow)' }}
+      whileHover={{
+        y: -3,
+        boxShadow: '0 8px 24px -6px hsl(40 25% 45% / 0.2), 0 2px 8px hsl(0 0% 0% / 0.04)',
+        borderColor: 'hsl(var(--primary) / 0.3)',
+      }}
+      transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold leading-tight">{lead.name}</p>
-        <span className={cn("text-xs px-1.5 py-0.5 rounded-full shrink-0", ORIGIN_COLORS[lead.origin])}>
+        <p className="text-sm font-semibold leading-tight font-cocon tracking-[0.02em]">{lead.name}</p>
+        <span className={cn("text-xs px-1.5 py-0.5 rounded-full shrink-0 font-medium", ORIGIN_COLORS[lead.origin])}>
           {lead.origin}
         </span>
       </div>
@@ -141,13 +148,13 @@ function LeadCard({ lead, stageInfo, onSelect }: { lead: Lead; stageInfo: typeof
         <p className="text-xs text-muted-foreground truncate">{lead.treatmentInterest}</p>
       )}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{formatPhoneDisplay(lead.phone)}</span>
-        <span>{daysInStage(lead.updatedAt)}</span>
+        <span className="flex items-center gap-1.5"><Phone className="h-3 w-3" />{formatPhoneDisplay(lead.phone)}</span>
+        <span className="tabular-nums">{daysInStage(lead.updatedAt)}</span>
       </div>
       {lead.estimatedValue && (
-        <p className="text-xs font-medium text-green-600 dark:text-green-400">{fmt(lead.estimatedValue)}</p>
+        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{fmt(lead.estimatedValue)}</p>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -387,7 +394,7 @@ export default function Funil() {
       <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Funil de Vendas</h1>
+          <h1 className="text-2xl sm:text-3xl">Funil de Vendas</h1>
           <p className="text-sm text-muted-foreground font-cocon">Acompanhe leads do primeiro contato até a conversão</p>
         </div>
         <Button className="gap-2 shrink-0" onClick={() => setIsAddOpen(true)}>

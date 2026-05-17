@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Bell, Calendar, X, FileText, DollarSign, Trash2, ExternalLink, MoreVertical, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -142,24 +143,30 @@ export default function Notificacoes() {
     return groups;
   }, [filteredNotifications]);
 
-  const getNotificationIcon = (type: NotificationType) => {
+  const getNotifConfig = (type: NotificationType, urgent: boolean) => {
+    if (urgent) return {
+      icon: <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400" />,
+      iconBg: 'bg-rose-100 dark:bg-rose-900/30',
+      border: 'border-l-rose-500',
+    };
     switch (type) {
       case 'agendamento':
       case 'lembrete_consulta':
-        return <Calendar className="h-5 w-5 text-primary" />;
+        return { icon: <Calendar className="h-5 w-5 text-primary" />, iconBg: 'bg-primary/10', border: 'border-l-primary' };
       case 'cancelamento':
       case 'falta':
-        return <X className="h-5 w-5 text-destructive" />;
+        return { icon: <X className="h-5 w-5 text-rose-600 dark:text-rose-400" />, iconBg: 'bg-rose-100 dark:bg-rose-900/30', border: 'border-l-rose-500' };
       case 'lembrete_prontuario':
-        return <FileText className="h-5 w-5 text-primary" />;
+        return { icon: <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />, iconBg: 'bg-blue-100 dark:bg-blue-900/30', border: 'border-l-blue-500' };
       case 'lembrete_pagamento':
-        return <DollarSign className="h-5 w-5 text-yellow-500" />;
+        return { icon: <DollarSign className="h-5 w-5 text-amber-600 dark:text-amber-400" />, iconBg: 'bg-amber-100 dark:bg-amber-900/30', border: 'border-l-amber-500' };
       case 'erro_whatsapp':
-        return <AlertTriangle className="h-5 w-5 text-destructive" />;
+        return { icon: <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />, iconBg: 'bg-orange-100 dark:bg-orange-900/30', border: 'border-l-orange-500' };
       default:
-        return <Bell className="h-5 w-5 text-primary" />;
+        return { icon: <Bell className="h-5 w-5 text-primary" />, iconBg: 'bg-primary/10', border: 'border-l-primary' };
     }
   };
+  const getNotificationIcon = (type: NotificationType) => getNotifConfig(type, false).icon;
 
       const getActionButton = (notification: any) => {
         switch (notification.type) {
@@ -274,7 +281,7 @@ export default function Notificacoes() {
         animate={{ y: 0, opacity: 1 }}
         className="space-y-2 text-center sm:text-left"
       >
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Notificações</h1>
+        <h1 className="text-2xl sm:text-3xl text-foreground">Notificações</h1>
         <p className="text-sm sm:text-base text-muted-foreground font-cocon">
           {unreadCount} não lidas · {urgentCount} urgentes
         </p>
@@ -418,13 +425,8 @@ export default function Notificacoes() {
                           animate={{ x: 0, opacity: 1 }}
                           transition={{ delay: index * 0.03 }}
                         >
-                          <Card 
-                            className={`
-                              ${notification.read ? 'opacity-60' : ''} 
-                              ${urgent ? 'border-destructive/50 bg-destructive/5' : ''}
-                              ${isSelected ? 'ring-2 ring-primary' : ''}
-                            `}
-                          >
+                          {(() => { const cfg = getNotifConfig(notification.type, urgent); return (
+                          <Card className={cn('border-l-4 transition-opacity', cfg.border, notification.read ? 'opacity-55' : '', isSelected ? 'ring-2 ring-primary/50' : '')}>
                             <CardContent className="p-3 sm:p-4">
                               <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
                                 <div className="flex items-start gap-3 w-full">
@@ -435,9 +437,9 @@ export default function Notificacoes() {
                                       className="h-4 w-4 sm:h-5 sm:w-5"
                                     />
                                   </div>
-                                  
-                                  <div className="bg-primary/10 p-2 rounded-lg flex-shrink-0">
-                                    {getNotificationIcon(notification.type)}
+
+                                  <div className={cn('p-2 rounded-xl flex-shrink-0', cfg.iconBg)}>
+                                    {cfg.icon}
                                   </div>
                                   
                                   <div className="flex-1 min-w-0">
@@ -508,6 +510,7 @@ export default function Notificacoes() {
                               </div>
                             </CardContent>
                           </Card>
+                          ); })()}
                         </motion.div>
                       );
                     })}

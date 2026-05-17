@@ -15,6 +15,30 @@ import { cn } from '@/lib/utils';
 
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado' | 'todos';
 
+// Tooltip customizado para todos os gráficos
+const ChartTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      className="rounded-xl border border-primary/15 px-3 py-2.5 text-sm min-w-[120px]"
+      style={{ background: 'var(--card-gradient)', boxShadow: 'var(--card-shadow)' }}
+    >
+      {label && (
+        <p className="font-cocon text-xs text-muted-foreground mb-2 tracking-[0.03em]">{label}</p>
+      )}
+      <div className="space-y-1">
+        {payload.map((item: any, i: number) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: item.color ?? item.fill }} />
+            <span className="text-muted-foreground text-xs">{item.name ?? item.dataKey}:</span>
+            <span className="font-semibold text-foreground text-xs tabular-nums">{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Paleta 100% alinhada com os tokens do design system
 const ORIGIN_COLORS = [
   'hsl(40,45%,65%)',   // primary — dourado
@@ -149,7 +173,7 @@ export default function Dashboard() {
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl text-foreground">Dashboard</h1>
           <p className="text-sm sm:text-base text-muted-foreground font-cocon">Visão geral das métricas da clínica</p>
         </div>
 
@@ -239,7 +263,7 @@ export default function Dashboard() {
                           <Cell key={`cell-${index}`} fill={ORIGIN_COLORS[index % ORIGIN_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip content={<ChartTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                   {outroCount > 0 && (
@@ -270,11 +294,9 @@ export default function Dashboard() {
               {byProfessional.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={byProfessional} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
-                    <XAxis type="number" allowDecimals={false} />
-                    <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} />
-                    <Tooltip
-                      labelFormatter={(label) => byProfessional.find(p => p.name === label)?.fullName ?? label}
-                    />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<ChartTooltip />} />
                     <Bar dataKey="Realizados" fill="hsl(40,45%,65%)" radius={[0, 4, 4, 0]} />
                     <Bar dataKey="Agendados"  fill="hsl(180,2%,58%)" radius={[0, 4, 4, 0]} />
                   </BarChart>
@@ -300,9 +322,9 @@ export default function Dashboard() {
             <CardContent>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={statusData} margin={{ left: -20, right: 8 }}>
-                  <XAxis dataKey="status" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <Tooltip />
+                  <XAxis dataKey="status" tick={{ fontSize: 11, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                     {statusData.map((entry) => (
                       <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? 'hsl(40,45%,72%)'} />
@@ -324,12 +346,12 @@ export default function Dashboard() {
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={evolutionData} margin={{ left: -20, right: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="realizados" name="Realizados" stroke="#DBC192" strokeWidth={2} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="agendados"  name="Agendados"  stroke="#9CA0A0" strokeWidth={2} dot={{ r: 4 }} strokeDasharray="4 2" />
+                  <CartesianGrid strokeDasharray="4 4" stroke="hsl(40,20%,88%)" strokeOpacity={0.6} />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Line type="monotone" dataKey="realizados" name="Realizados" stroke="hsl(40,45%,60%)" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(40,45%,60%)', strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="agendados"  name="Agendados"  stroke="hsl(180,2%,62%)" strokeWidth={2} dot={{ r: 3, fill: 'hsl(180,2%,62%)', strokeWidth: 0 }} strokeDasharray="5 3" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>

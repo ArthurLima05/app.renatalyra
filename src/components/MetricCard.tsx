@@ -18,7 +18,7 @@ export const MetricCard = ({ title, value, icon: Icon, trend, delay = 0 }: Metri
       transition={{ delay }}
       className="h-full"
     >
-      <Card className="h-full group hover:shadow-md hover:border-primary/30 transition-all duration-200">
+      <Card className="h-full group metric-hover transition-all duration-200">
         <CardContent className="p-4 sm:p-5 h-full flex flex-col justify-between gap-3">
           <div className="flex items-start justify-between gap-2">
             <p className="text-xs sm:text-sm text-muted-foreground leading-snug">{title}</p>

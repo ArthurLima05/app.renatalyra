@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { EmptyState } from '@/components/EmptyState';
+import { PatientCardSkeleton, SkeletonGrid } from '@/components/SkeletonCard';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +19,7 @@ import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 
 const Pacientes = () => {
   const navigate = useNavigate();
-  const { patients, sessions, addPatient } = useClinic();
+  const { patients, sessions, addPatient, loading } = useClinic();
   const { canCreate, canView } = usePermissionsCtx();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -86,7 +88,7 @@ const Pacientes = () => {
     >
       <div className="flex flex-col items-center text-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Pacientes</h1>
+          <h1 className="text-3xl text-foreground">Pacientes</h1>
           <p className="text-muted-foreground mt-1 font-cocon">Gerencie os pacientes da clínica</p>
         </div>
 
@@ -204,23 +206,29 @@ const Pacientes = () => {
         </p>
       )}
 
-      {canView('pacientes') && (
+      {canView('pacientes') && loading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <SkeletonGrid count={6}><PatientCardSkeleton /></SkeletonGrid>
+        </div>
+      )}
+
+      {canView('pacientes') && !loading && (
       <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredPatients.map((patient) => {
+        {filteredPatients.map((patient, index) => {
           const lastAppointment = getLastAppointment(patient.id);
           const nextAppointment = getNextAppointment(patient.id);
 
           return (
             <motion.div
               key={patient.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -4, boxShadow: '0 10px 32px -6px hsl(40 25% 45% / 0.24), 0 3px 10px hsl(0 0% 0% / 0.05)' }}
+              transition={{ delay: Math.min(index * 0.04, 0.28), duration: 0.25, ease: 'easeOut' }}
             >
               <Card
-                className="cursor-pointer hover:shadow-lg transition-shadow min-h-[10rem] flex flex-col"
+                className="cursor-pointer min-h-[10rem] flex flex-col transition-colors hover:border-primary/30"
                 onClick={() => navigate(`/pacientes/${patient.id}`)}
               >
                 <CardHeader className="pb-2 flex-none text-center sm:text-left">
@@ -263,9 +271,10 @@ const Pacientes = () => {
       </div>
 
       {filteredPatients.length === 0 && searching && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Nenhum paciente encontrado para "{searchTerm}".</p>
-        </div>
+        <EmptyState
+          title={`Nenhum resultado para "${searchTerm}"`}
+          description="Tente buscar por outro nome ou confira a grafia."
+        />
       )}
       </>
       )}

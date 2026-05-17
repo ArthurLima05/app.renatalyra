@@ -982,7 +982,7 @@ export default function Configuracoes() {
         {section === null ? (
           <motion.div key="menu" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="space-y-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold">Configurações</h1>
+              <h1 className="text-2xl sm:text-3xl">Configurações</h1>
               <p className="text-muted-foreground mt-1">Personalize o sistema.</p>
             </div>
             <div className="space-y-2">

@@ -354,7 +354,7 @@ export default function Financeiro() {
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financeiro</h1>
+            <h1 className="text-2xl sm:text-3xl text-foreground">Financeiro</h1>
             <p className="text-sm sm:text-base text-muted-foreground font-cocon">
               {isSecretaria ? 'Adicionar lançamentos' : 'Controle detalhado de receitas e despesas'}
             </p>
@@ -553,77 +553,66 @@ export default function Financeiro() {
       {/* Cards de Resumo - apenas para quem tem canView */}
       {canView('financeiro') && !isSecretaria && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1 pr-2">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total de Entradas</p>
-                  <h3 className="text-xl sm:text-2xl font-bold text-foreground truncate">
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.25 }}>
+          <Card className="border-l-4 border-l-emerald-500">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-cocon mb-1">Total de Entradas</p>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground truncate tabular-nums">
                     R$ {totalEntradas.toFixed(2)}
-                  </h3>
-                   <p className="text-xs text-muted-foreground mt-1">
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
                     {filteredByDateTransactions.filter(t => t.type === 'entrada').length} transações
                   </p>
                 </div>
-                <div className="bg-green-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
-                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2.5 rounded-xl flex-shrink-0">
+                  <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
+              <div className="mt-3 h-px bg-emerald-200/60 dark:bg-emerald-800/40 rounded-full" />
             </CardContent>
           </Card>
         </motion.div>
 
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1 pr-2">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total de Saídas</p>
-                  <h3 className="text-xl sm:text-2xl font-bold text-foreground truncate">
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18, duration: 0.25 }}>
+          <Card className="border-l-4 border-l-rose-500">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-cocon mb-1">Total de Saídas</p>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground truncate tabular-nums">
                     R$ {totalSaidas.toFixed(2)}
-                  </h3>
-                   <p className="text-xs text-muted-foreground mt-1">
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
                     {filteredByDateTransactions.filter(t => t.type === 'saida').length} transações
                   </p>
                 </div>
-                <div className="bg-red-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
-                  <TrendingDown className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
+                <div className="bg-rose-100 dark:bg-rose-900/30 p-2.5 rounded-xl flex-shrink-0">
+                  <TrendingDown className="h-5 w-5 text-rose-600 dark:text-rose-400" />
                 </div>
               </div>
+              <div className="mt-3 h-px bg-rose-200/60 dark:bg-rose-800/40 rounded-full" />
             </CardContent>
           </Card>
         </motion.div>
 
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1 pr-2">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Saldo Atual</p>
-                  <h3 className={`text-xl sm:text-2xl font-bold truncate ${saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26, duration: 0.25 }}>
+          <Card className="border-l-4 border-l-primary">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-cocon mb-1">Saldo Atual</p>
+                  <p className={`text-xl sm:text-2xl font-bold truncate tabular-nums ${saldo >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                     R$ {saldo.toFixed(2)}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {saldo >= 0 ? 'Positivo' : 'Negativo'}
                   </p>
+                  <p className="text-xs text-muted-foreground mt-1">{saldo >= 0 ? 'Positivo' : 'Negativo'}</p>
                 </div>
-                <div className="bg-primary/10 p-2 sm:p-3 rounded-lg flex-shrink-0">
-                  <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                <div className="bg-primary/10 p-2.5 rounded-xl flex-shrink-0">
+                  <DollarSign className="h-5 w-5 text-primary" />
                 </div>
               </div>
+              <div className="mt-3 h-px bg-primary/20 rounded-full" />
             </CardContent>
           </Card>
         </motion.div>

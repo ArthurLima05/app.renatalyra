@@ -122,7 +122,7 @@ export default function Profissionais() {
         className="flex flex-col items-center text-center gap-4"
       >
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Profissionais</h1>
+          <h1 className="text-2xl sm:text-3xl text-foreground">Profissionais</h1>
           <p className="text-sm text-muted-foreground">Equipe da clínica</p>
         </div>
         <Button className="gap-2" disabled={!canCreate('profissionais')} onClick={openAdd}>
@@ -194,9 +194,10 @@ export default function Profissionais() {
           return (
             <motion.div
               key={pro.id}
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: index * 0.08 }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -4, boxShadow: '0 10px 32px -6px hsl(40 25% 45% / 0.24), 0 3px 10px hsl(0 0% 0% / 0.05)' }}
+              transition={{ delay: Math.min(index * 0.08, 0.28), duration: 0.25, ease: 'easeOut' }}
             >
               <Card className="overflow-hidden">
                 <div className="h-1.5 w-full" style={{ backgroundColor: style.backgroundColor }} />

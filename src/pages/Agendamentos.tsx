@@ -88,34 +88,27 @@ const DURATION_OPTIONS = [
 
 const durationLabel = (d: number) => DURATION_OPTIONS.find((o) => o.value === d)?.label ?? `${d * 30} min`;
 
-// Cores de status ainda usadas na lista e badges
-const STATUS_COLORS: Record<AppointmentStatus, string> = {
-  agendado: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
-  confirmado: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  realizado: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  cancelado: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
-  falta: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
-  sugerido: "bg-gray-500 text-white dark:bg-gray-600 dark:text-white",
+const STATUS_CONFIG: Record<AppointmentStatus, { label: string; dot: string; badge: string }> = {
+  agendado:   { label: 'Agendado',   dot: 'bg-amber-400',   badge: 'bg-amber-50   text-amber-700   border border-amber-200   dark:bg-amber-900/20   dark:text-amber-300   dark:border-amber-800/50' },
+  confirmado: { label: 'Confirmado', dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/50' },
+  realizado:  { label: 'Realizado',  dot: 'bg-primary',     badge: 'bg-primary/10 text-primary     border border-primary/25 dark:bg-primary/15    dark:text-primary    dark:border-primary/30' },
+  cancelado:  { label: 'Cancelado',  dot: 'bg-rose-500',    badge: 'bg-rose-50    text-rose-600    border border-rose-200    dark:bg-rose-900/20    dark:text-rose-400    dark:border-rose-800/50' },
+  falta:      { label: 'Falta',      dot: 'bg-slate-400',   badge: 'bg-slate-100  text-slate-600   border border-slate-200   dark:bg-slate-800      dark:text-slate-400   dark:border-slate-700' },
+  sugerido:   { label: 'Sugerido',   dot: 'bg-violet-400',  badge: 'bg-violet-50  text-violet-600  border border-violet-200  dark:bg-violet-900/20  dark:text-violet-400  dark:border-violet-800/50' },
 };
 
-// Semáforo: ponto colorido por status
-const SEMAPHORE_DOT: Record<AppointmentStatus, string> = {
-  agendado: "bg-yellow-400",
-  confirmado: "bg-green-500",
-  realizado: "bg-blue-500",
-  cancelado: "bg-red-500",
-  falta: "bg-orange-500",
-  sugerido: "bg-gray-400",
-};
+// Aliases para retrocompatibilidade com partes do código
+const STATUS_COLORS = Object.fromEntries(
+  Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.badge])
+) as Record<AppointmentStatus, string>;
 
-const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  agendado: "Agendado",
-  confirmado: "Confirmado",
-  realizado: "Realizado",
-  cancelado: "Cancelado",
-  falta: "Falta",
-  sugerido: "Sugerido",
-};
+const SEMAPHORE_DOT = Object.fromEntries(
+  Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.dot])
+) as Record<AppointmentStatus, string>;
+
+const STATUS_LABELS = Object.fromEntries(
+  Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.label])
+) as Record<AppointmentStatus, string>;
 
 // Atribui coluna e largura a cada agendamento para exibição lado a lado
 function layoutAppointments(apps: Appointment[]): Array<{ app: Appointment; left: number; width: number }> {
@@ -319,9 +312,9 @@ function AppointmentDetailCard({
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span className={cn("inline-block w-2.5 h-2.5 rounded-full", SEMAPHORE_DOT[appointment.status])} />
-          <span className={cn("text-xs px-2 py-1 rounded-full font-medium", STATUS_COLORS[appointment.status])}>
-            {STATUS_LABELS[appointment.status]}
+          <span className={cn("inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium", STATUS_CONFIG[appointment.status].badge)}>
+            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_CONFIG[appointment.status].dot)} />
+            {STATUS_CONFIG[appointment.status].label}
           </span>
         </div>
       </div>
@@ -731,18 +724,20 @@ export default function Agendamentos() {
         <DialogTrigger asChild>
           <div
             className={cn(
-              "rounded-md cursor-pointer hover:opacity-80 transition-opacity h-full w-full overflow-hidden",
+              "rounded-lg cursor-pointer h-full w-full overflow-hidden",
+              "transition-all duration-200 ease-out",
+              "hover:brightness-95 hover:shadow-md hover:-translate-y-px",
               compact ? "p-1 text-xs" : "p-2 text-sm",
             )}
             style={dentistStyle(pro?.name)}
             onClick={() => setDetailAppointment(app)}
           >
-            <div className="font-semibold truncate mb-0.5 flex items-center gap-1">
-              <span className={cn("inline-block w-2 h-2 rounded-full flex-shrink-0", SEMAPHORE_DOT[app.status])} />
+            <div className="font-semibold truncate mb-0.5 flex items-center gap-1 font-cocon tracking-[0.02em]">
+              <span className={cn("inline-block w-1.5 h-1.5 rounded-full flex-shrink-0", SEMAPHORE_DOT[app.status])} />
               {app.patientName}
             </div>
             {!compact && (
-              <div className="opacity-75 text-xs flex items-center gap-0.5">
+              <div className="opacity-70 text-xs flex items-center gap-0.5 tabular-nums">
                 <Timer className="h-3 w-3" />
                 {durationLabel(app.duration ?? 1)}
               </div>
@@ -802,7 +797,7 @@ export default function Agendamentos() {
           {TIME_SLOTS.map((slot, si) => (
             <div
               key={slot}
-              className="absolute w-full border-b flex items-start justify-center pt-0.5 text-xs font-mono text-muted-foreground"
+              className="absolute w-full border-b flex items-start justify-center pt-0.5 text-xs tabular-nums text-muted-foreground"
               style={{ top: si * SLOT_HEIGHT, height: SLOT_HEIGHT }}
             >
               {slot}
@@ -863,7 +858,7 @@ export default function Agendamentos() {
         className="flex flex-col items-center sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Agendamentos</h1>
+          <h1 className="text-2xl sm:text-3xl text-foreground">Agendamentos</h1>
           <p className="text-sm sm:text-base text-muted-foreground font-cocon">Gerencie todas as consultas</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
