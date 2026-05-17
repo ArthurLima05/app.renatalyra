@@ -220,11 +220,11 @@ export default function Profissionais() {
                             {proApps.length} próximos
                           </span>
                           <Button variant="ghost" size="icon" disabled={!canEdit('profissionais')}
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(pro)}>
+                            className="h-9 w-9 text-muted-foreground hover:text-foreground" onClick={() => openEdit(pro)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button variant="ghost" size="icon" disabled={!canDelete('profissionais')}
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeletingProId(pro.id)}>
+                            className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setDeletingProId(pro.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -236,11 +236,11 @@ export default function Profissionais() {
                         </span>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" disabled={!canEdit('profissionais')}
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(pro)}>
+                            className="h-9 w-9 text-muted-foreground hover:text-foreground" onClick={() => openEdit(pro)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button variant="ghost" size="icon" disabled={!canDelete('profissionais')}
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeletingProId(pro.id)}>
+                            className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setDeletingProId(pro.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>

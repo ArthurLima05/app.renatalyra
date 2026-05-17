@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CheckCircle2, XCircle, Loader2, Eye, EyeOff } from 'lucide-react';
-import logoClinica from '@/assets/logo-clinica.jpg';
-import logoClinicaDark from '@/assets/logo-clinica-dark.png';
+import logoClinica from '@/assets/LightLogo.svg';
+import logoClinicaDark from '@/assets/DarkLogo.svg';
 
 type Status = 'loading' | 'set-password' | 'error' | 'success';
 
@@ -91,8 +91,8 @@ export default function AceitarConvite() {
       >
         {/* Logo */}
         <div className="flex justify-center">
-          <img src={logoClinica} alt="Clínica Renata Lyra" className="h-16 w-auto dark:hidden" />
-          <img src={logoClinicaDark} alt="Clínica Renata Lyra" className="h-16 w-auto hidden dark:block" />
+          <img src={logoClinica} alt="Clínica Renata Lyra" className="h-36 w-auto dark:hidden" />
+          <img src={logoClinicaDark} alt="Clínica Renata Lyra" className="h-36 w-auto hidden dark:block" />
         </div>
 
         {/* Loading */}

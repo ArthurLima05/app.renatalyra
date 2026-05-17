@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Phone, Calendar } from 'lucide-react';
+import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input';
 import { PatientOrigin } from '@/types';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 
@@ -112,13 +113,11 @@ const Pacientes = () => {
               </div>
               <div>
                 <Label htmlFor="phone">Telefone / WhatsApp *</Label>
-                <Input
+                <PhoneInput
                   id="phone"
-                  type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(v) => setFormData({ ...formData, phone: v })}
                   required
-                  placeholder="(11) 98765-4321"
                 />
               </div>
               <div>
@@ -233,7 +232,7 @@ const Pacientes = () => {
                   <div className="space-y-1.5 flex flex-col items-center sm:items-start">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Phone className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate text-xs">{patient.phone}</span>
+                      <span className="truncate text-xs">{formatPhoneDisplay(patient.phone)}</span>
                     </div>
                     <Badge variant="outline" className="text-xs">{patient.origin}</Badge>
                   </div>

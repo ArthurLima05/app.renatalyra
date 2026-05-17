@@ -440,7 +440,7 @@ export function PatientAnamnese({ patientId, patientName }: { patientId: string;
                   </Button>
                 ) : (
                   <Button size="sm" variant="ghost" className="gap-2 text-muted-foreground"
-                    onClick={() => r.token && setPendingRequest({ link: `${window.location.origin}/anamnese/${r.token}`, code: r.code ?? "" })}>
+                    onClick={() => r.token && setPendingRequest({ link: `https://app.renatalyra.com.br/anamnese/${r.token}`, code: r.code ?? "" })}>
                     <Copy className="h-4 w-4" />
                     Ver link
                   </Button>

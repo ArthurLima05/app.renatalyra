@@ -1240,7 +1240,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (tokenErr) { toast({ title: "Erro ao gerar token", description: tokenErr.message, variant: "destructive" }); throw tokenErr; }
 
     await loadAnamneseData();
-    const link = `${window.location.origin}/anamnese/${token}`;
+    const link = `https://app.renatalyra.com.br/anamnese/${token}`;
     toast({ title: "Link gerado com sucesso" });
     return { link, code };
   };

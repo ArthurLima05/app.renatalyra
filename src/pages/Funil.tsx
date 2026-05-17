@@ -20,6 +20,7 @@ import {
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input';
 
 // ── Estágios ──────────────────────────────────────────────────────────────────
 const STAGES: { id: LeadStage; label: string; color: string; dot: string }[] = [
@@ -84,7 +85,7 @@ function LeadForm({
         </div>
         <div>
           <Label>Telefone *</Label>
-          <Input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(00) 00000-0000" required />
+          <PhoneInput value={form.phone} onChange={v => set('phone', v)} required />
         </div>
         <div>
           <Label>E-mail</Label>
@@ -140,7 +141,7 @@ function LeadCard({ lead, stageInfo, onSelect }: { lead: Lead; stageInfo: typeof
         <p className="text-xs text-muted-foreground truncate">{lead.treatmentInterest}</p>
       )}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{lead.phone}</span>
+        <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{formatPhoneDisplay(lead.phone)}</span>
         <span>{daysInStage(lead.updatedAt)}</span>
       </div>
       {lead.estimatedValue && (
@@ -255,7 +256,7 @@ function LeadDetailPanel({ lead, onClose }: { lead: Lead; onClose: () => void })
       <div className="space-y-2 text-sm">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Phone className="h-3.5 w-3.5 shrink-0" />
-          <a href={`tel:${lead.phone}`} className="hover:text-foreground">{lead.phone}</a>
+          <a href={`tel:${lead.phone}`} className="hover:text-foreground">{formatPhoneDisplay(lead.phone)}</a>
         </div>
         {lead.email && (
           <div className="text-muted-foreground truncate">{lead.email}</div>
@@ -416,12 +417,12 @@ export default function Funil() {
       </div>
 
       {/* Kanban */}
-      <div className="flex gap-3 overflow-x-auto pb-4">
+      <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory">
         {STAGES.map(stage => {
           const cards = byStage[stage.id] ?? [];
           const stageValue = cards.reduce((s, l) => s + (l.estimatedValue ?? 0), 0);
           return (
-            <div key={stage.id} className={cn("flex-none w-64 rounded-xl p-3 space-y-3", stage.color)}>
+            <div key={stage.id} className={cn("flex-none w-[82vw] sm:w-64 snap-center rounded-xl p-3 space-y-3", stage.color)}>
               <div>
                 <div className="flex items-center justify-between mb-0.5">
                   <div className="flex items-center gap-1.5">

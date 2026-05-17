@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History } from 'lucide-react';
+import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input';
 import { Odontograma } from '@/components/Odontograma';
 import { PatientPhotos } from '@/components/PatientPhotos';
 import { PatientAnamnese } from '@/components/PatientAnamnese';
@@ -415,7 +416,7 @@ const ProntuarioPaciente = () => {
               <div className="flex flex-col sm:flex-row sm:flex-wrap items-center sm:items-start gap-1.5 mt-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5 shrink-0" />
-                  <span>{patient.phone}</span>
+                  <span>{formatPhoneDisplay(patient.phone)}</span>
                 </div>
                 {patient.email && (
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -657,17 +658,17 @@ const ProntuarioPaciente = () => {
               {/* Grid compacto — 3 colunas no desktop */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
                 <Field label="Nome *">
-                  <Input className="h-8 text-sm" value={cadastroData.fullName} onChange={(e) => handleCadastroChange('fullName', e.target.value)} />
+                  <Input className="h-10 text-sm" value={cadastroData.fullName} onChange={(e) => handleCadastroChange('fullName', e.target.value)} />
                 </Field>
                 <Field label="Apelido">
-                  <Input className="h-8 text-sm" value={cadastroData.nickname} placeholder="—" onChange={(e) => handleCadastroChange('nickname', e.target.value)} />
+                  <Input className="h-10 text-sm" value={cadastroData.nickname} placeholder="—" onChange={(e) => handleCadastroChange('nickname', e.target.value)} />
                 </Field>
                 <Field label="Data de Nascimento">
-                  <Input className="h-8 text-sm" type="date" value={cadastroData.birthDate} onChange={(e) => handleCadastroChange('birthDate', e.target.value)} />
+                  <Input className="h-10 text-sm" type="date" value={cadastroData.birthDate} onChange={(e) => handleCadastroChange('birthDate', e.target.value)} />
                 </Field>
                 <Field label="Sexo">
                   <Select value={cadastroData.gender} onValueChange={(v) => handleCadastroChange('gender', v)}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="masculino">Masculino</SelectItem>
                       <SelectItem value="feminino">Feminino</SelectItem>
@@ -676,14 +677,14 @@ const ProntuarioPaciente = () => {
                   </Select>
                 </Field>
                 <Field label="CPF">
-                  <Input className="h-8 text-sm" value={cadastroData.cpf} placeholder="000.000.000-00" onChange={(e) => handleCadastroChange('cpf', e.target.value)} />
+                  <Input className="h-10 text-sm" value={cadastroData.cpf} placeholder="000.000.000-00" onChange={(e) => handleCadastroChange('cpf', e.target.value)} />
                 </Field>
                 <Field label="RG">
-                  <Input className="h-8 text-sm" value={cadastroData.rg} placeholder="00.000.000-0" onChange={(e) => handleCadastroChange('rg', e.target.value)} />
+                  <Input className="h-10 text-sm" value={cadastroData.rg} placeholder="00.000.000-0" onChange={(e) => handleCadastroChange('rg', e.target.value)} />
                 </Field>
                 <Field label="Estado Civil">
                   <Select value={cadastroData.maritalStatus} onValueChange={(v) => handleCadastroChange('maritalStatus', v)}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="solteiro">Solteiro(a)</SelectItem>
                       <SelectItem value="casado">Casado(a)</SelectItem>
@@ -694,7 +695,7 @@ const ProntuarioPaciente = () => {
                 </Field>
                 <Field label="Escolaridade">
                   <Select value={cadastroData.education} onValueChange={(v) => handleCadastroChange('education', v)}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="fundamental_incompleto">Fundamental Incompleto</SelectItem>
                       <SelectItem value="fundamental_completo">Fundamental Completo</SelectItem>
@@ -709,14 +710,18 @@ const ProntuarioPaciente = () => {
                   </Select>
                 </Field>
                 <Field label="Telefone">
-                  <Input className="h-8 text-sm" value={cadastroData.phone} placeholder="(00) 00000-0000" onChange={(e) => handleCadastroChange('phone', e.target.value)} />
+                  <PhoneInput
+                    value={cadastroData.phone}
+                    onChange={(v) => handleCadastroChange('phone', v)}
+                    className="h-10 text-sm"
+                  />
                 </Field>
                 <Field label="E-mail">
-                  <Input className="h-8 text-sm" type="email" value={cadastroData.email} onChange={(e) => handleCadastroChange('email', e.target.value)} />
+                  <Input className="h-10 text-sm" type="email" value={cadastroData.email} onChange={(e) => handleCadastroChange('email', e.target.value)} />
                 </Field>
                 <Field label="Como conheceu">
                   <Select value={cadastroData.origin} onValueChange={(v) => handleCadastroChange('origin', v)}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Google Ads">Google Ads</SelectItem>
                       <SelectItem value="Instagram">Instagram</SelectItem>

@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const n8nWebhookUrl = Deno.env.get('N8N_ANAMNESE_WEBHOOK_URL') ?? ''
-    const appUrl = Deno.env.get('APP_URL') ?? 'https://app.renatalyra.com.br'
+    const appUrl = (Deno.env.get('APP_URL') ?? '').replace(/\/$/, '') || 'https://app.renatalyra.com.br'
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 

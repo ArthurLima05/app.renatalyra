@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Loader2, ShieldCheck, AlertCircle, Smartphone } from "lucide-react";
-import logoClinica from "@/assets/logo-clinica.jpg";
+import logoClinica from "@/assets/LightLogo.svg";
+import logoClinicaDark from "@/assets/DarkLogo.svg";
 
 type Step = "code" | "form" | "sign" | "done" | "error" | "loading" | "blocked";
 
@@ -241,7 +242,8 @@ export default function AnamnesePaciente() {
       <div className="max-w-xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
         <div className="flex flex-col items-center gap-3 text-center">
-          <img src={logoClinica} alt="Clínica" className="h-14 object-contain" />
+          <img src={logoClinica} alt="Clínica" className="h-32 object-contain dark:hidden" />
+          <img src={logoClinicaDark} alt="Clínica" className="h-32 object-contain hidden dark:block" />
           <div>
             <h1 className="text-xl font-bold">Ficha de Anamnese</h1>
             {patientName && <p className="text-sm text-muted-foreground">Olá, <strong>{patientName}</strong>!</p>}

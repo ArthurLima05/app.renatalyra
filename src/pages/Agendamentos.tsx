@@ -68,7 +68,7 @@ const MONTH_NAMES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-const SLOT_HEIGHT = 32; // px por slot de 30 min
+const SLOT_HEIGHT = 48; // px por slot de 30 min
 
 const TIME_SLOTS: string[] = [];
 for (let h = 8; h <= 18; h++) {
@@ -761,16 +761,16 @@ export default function Agendamentos() {
   };
 
   // ── Grade de horários (dia e semana) ──────────────────────────────────────
-  const TimeGrid = ({ days }: { days: Date[] }) => {
+  const TimeGrid = ({ days, className }: { days: Date[]; className?: string }) => {
     const isSingleDay = days.length === 1;
     const totalH = TIME_SLOTS.length * SLOT_HEIGHT;
 
     return (
       <div
-        className="border rounded-lg overflow-hidden"
+        className={cn("border rounded-lg overflow-hidden", className)}
         style={{
           display: "grid",
-          gridTemplateColumns: `72px repeat(${days.length}, 1fr)`,
+          gridTemplateColumns: `clamp(2.5rem, 12%, 4.5rem) repeat(${days.length}, 1fr)`,
           gridTemplateRows: `auto ${totalH}px`,
         }}
       >
@@ -785,14 +785,12 @@ export default function Agendamentos() {
             )}
             style={{ gridRow: 1, gridColumn: di + 2 }}
           >
-            {isSingleDay ? (
-              <div className="text-xs text-muted-foreground font-medium">Consulta</div>
-            ) : (
-              <>
-                <div className="text-xs font-medium">{DAY_NAMES[day.getDay()]}</div>
-                <div className="text-sm font-bold">{format(day, "d")}</div>
-              </>
-            )}
+            <div className={cn("text-[10px] font-medium uppercase tracking-wide", isToday(day) ? "text-primary-foreground/80" : "text-muted-foreground")}>
+              {format(day, "EEE", { locale: ptBR })}
+            </div>
+            <div className={cn("text-base font-bold leading-none mt-0.5", isToday(day) ? "text-primary-foreground" : "text-foreground")}>
+              {format(day, "d")}
+            </div>
           </div>
         ))}
 
@@ -1021,8 +1019,8 @@ export default function Agendamentos() {
         </TabsList>
 
         <TabsContent value="agendamentos" className="mt-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-start">
-          <div className="flex-1 min-w-0 space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
+          <div className="flex-1 min-w-0 w-full space-y-4">
           {/* Toggle principal + sub-toggle */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3 flex-wrap">
@@ -1040,15 +1038,14 @@ export default function Agendamentos() {
               )}
             </div>
             {viewMode === "calendario" && (
-              <div className="flex justify-center sm:justify-start">
-              <div className="flex items-center border rounded-lg p-1 gap-1 w-fit">
+              <div className="grid grid-cols-3 border rounded-lg p-1 gap-1 w-full">
                 {(["dia", "semana", "mes"] as CalendarSubView[]).map((sv) => (
                   <Button key={sv} variant={calendarSubView === sv ? "secondary" : "ghost"} size="sm"
+                    className="w-full"
                     onClick={() => setCalendarSubView(sv)}>
                     {sv.charAt(0).toUpperCase() + sv.slice(1)}
                   </Button>
                 ))}
-              </div>
               </div>
             )}
           </div>
@@ -1056,10 +1053,21 @@ export default function Agendamentos() {
           {/* ══ DIA ══════════════════════════════════════════════════════════ */}
           {viewMode === "calendario" && calendarSubView === "dia" && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Button variant="outline" size="sm" onClick={() => navigateDay(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-                <span className="font-medium text-sm capitalize">{dayLabel}</span>
-                <Button variant="outline" size="sm" onClick={() => navigateDay(1)}><ChevronRight className="h-4 w-4" /></Button>
+              <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center gap-2 w-full">
+                <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => navigateDay(-1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex flex-col items-center gap-0.5 min-w-0">
+                  <span className="text-[11px] font-medium text-muted-foreground capitalize">
+                    {format(calendarDate, "EEEE", { locale: ptBR })}
+                  </span>
+                  <span className="text-sm font-bold leading-none text-center">
+                    {format(calendarDate, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  </span>
+                </div>
+                <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => navigateDay(1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
               <TimeGrid days={[calendarDate]} />
             </div>
@@ -1068,10 +1076,10 @@ export default function Agendamentos() {
           {/* ══ SEMANA ═══════════════════════════════════════════════════════ */}
           {viewMode === "calendario" && calendarSubView === "semana" && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Button variant="outline" size="sm" onClick={() => navigateWeek(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-                <span className="font-medium text-sm capitalize">{weekRangeLabel}</span>
-                <Button variant="outline" size="sm" onClick={() => navigateWeek(1)}><ChevronRight className="h-4 w-4" /></Button>
+              <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center gap-2 w-full">
+                <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => navigateWeek(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+                <span className="font-medium text-sm capitalize text-center">{weekRangeLabel}</span>
+                <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => navigateWeek(1)}><ChevronRight className="h-4 w-4" /></Button>
               </div>
               <div className="overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <div style={{ minWidth: 720 }}>
@@ -1089,10 +1097,10 @@ export default function Agendamentos() {
           {/* ══ MÊS ══════════════════════════════════════════════════════════ */}
           {viewMode === "calendario" && calendarSubView === "mes" && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Button variant="outline" size="sm" onClick={() => navigateMonth(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-                <span className="font-semibold">{MONTH_NAMES[calendarDate.getMonth()]} {calendarDate.getFullYear()}</span>
-                <Button variant="outline" size="sm" onClick={() => navigateMonth(1)}><ChevronRight className="h-4 w-4" /></Button>
+              <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center gap-2 w-full">
+                <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => navigateMonth(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+                <span className="font-semibold text-center">{MONTH_NAMES[calendarDate.getMonth()]} {calendarDate.getFullYear()}</span>
+                <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => navigateMonth(1)}><ChevronRight className="h-4 w-4" /></Button>
               </div>
               <div className="grid grid-cols-7 gap-1">
                 {DAY_NAMES.map((n) => (

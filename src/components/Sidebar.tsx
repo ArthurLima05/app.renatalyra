@@ -1,4 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import simboloCinza from '@/assets/SimboloCinza.svg';
+import simboloBranco from '@/assets/SimboloBranco.svg';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -99,7 +101,7 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+            className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground"
             onClick={() => isMobile ? setIsOpen(false) : setIsCollapsed(!isCollapsed)}
             title={isMobile ? 'Fechar menu' : isCollapsed ? 'Expandir menu' : 'Recolher menu'}
           >
@@ -150,6 +152,14 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
             </NavLink>
           );})}
         </nav>
+
+        {/* Símbolo decorativo */}
+        {!collapsed && (
+          <div className="relative h-40 shrink-0 overflow-hidden pointer-events-none select-none">
+            <img src={simboloCinza} aria-hidden="true" className="absolute bottom-0 left-1/2 -translate-x-1/2 h-40 w-auto opacity-[0.12] dark:hidden" />
+            <img src={simboloBranco} aria-hidden="true" className="absolute bottom-0 left-1/2 -translate-x-1/2 h-40 w-auto opacity-[0.07] hidden dark:block" />
+          </div>
+        )}
 
         {/* Rodapé */}
         <div className={cn('border-t border-border py-3 px-2 space-y-0.5')}>

@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import logoClinica from '@/assets/logo-clinica.jpg';
+import logoClinica from '@/assets/LightLogo.svg';
+import logoClinicaDark from '@/assets/DarkLogo.svg';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -42,14 +43,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <img 
-            src={logoClinica} 
-            alt="Clínica Odontológica Renata Lyra" 
-            className="h-24 w-auto mx-auto mb-4 object-contain"
-          />
+          <img src={logoClinica} alt="Clínica Odontológica Renata Lyra" className="h-44 w-auto mx-auto mb-4 object-contain dark:hidden" />
+          <img src={logoClinicaDark} alt="Clínica Odontológica Renata Lyra" className="h-44 w-auto mx-auto mb-4 object-contain hidden dark:block" />
           <CardTitle>Login</CardTitle>
           <CardDescription>
             Entre com suas credenciais para acessar o sistema

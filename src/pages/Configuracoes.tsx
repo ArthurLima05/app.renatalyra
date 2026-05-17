@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -592,7 +593,7 @@ function UsuariosSection() {
             </div>
             <div>
               <Label>Telefone</Label>
-              <Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="(00) 00000-0000" />
+              <PhoneInput value={form.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} />
             </div>
             <div>
               <Label>Perfil *</Label>

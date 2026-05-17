@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import logoClinica from '@/assets/logo-clinica.jpg';
-import logoClinicaDark from '@/assets/logo-clinica-dark.png';
+import logoClinica from '@/assets/LightLogo.svg';
+import logoClinicaDark from '@/assets/DarkLogo.svg';
 import logoTechClin from '@/assets/logo-techclin.png';
 import logoTechClinDark from '@/assets/logo-techclin-dark.png';
 import { Button } from './ui/button';
@@ -18,12 +18,12 @@ export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
       animate={{ y: 0, opacity: 1 }}
       className="bg-card border-b border-border shadow-sm"
     >
-      <div className="relative px-4 py-3 flex items-center h-20">
+      <div className="relative px-4 py-2 flex items-center h-24">
         {/* Botão menu — mobile */}
         <Button
           variant="ghost"
           size="icon"
-          className="xl:hidden z-10"
+          className="hidden xl:hidden z-10"
           onClick={toggleSidebar}
         >
           {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -39,12 +39,12 @@ export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
           <img
             src={logoClinica}
             alt="Clínica Renata Lyra"
-            className="h-14 sm:h-16 w-auto object-contain dark:hidden"
+            className="h-20 sm:h-24 w-auto object-contain dark:hidden"
           />
           <img
             src={logoClinicaDark}
             alt="Clínica Renata Lyra"
-            className="h-14 sm:h-16 w-auto object-contain hidden dark:block"
+            className="h-20 sm:h-24 w-auto object-contain hidden dark:block"
           />
         </motion.div>
 
