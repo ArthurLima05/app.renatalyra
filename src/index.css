@@ -164,6 +164,23 @@ All colors MUST be HSL.
     letter-spacing: 0.03em;
   }
 
+  /* ── Força light mode na tela de login ───────────────────────────────────── */
+  .login-light {
+    --background:      hsl(40 20% 96%);
+    --foreground:      hsl(40 5% 18%);
+    --primary:         hsl(40 45% 68%);
+    --primary-foreground: hsl(40 5% 12%);
+    --muted-foreground: hsl(40 8% 44%);
+    --muted:           hsl(40 10% 92%);
+    --border:          hsl(40 12% 88%);
+    --input:           hsl(40 12% 88%);
+    --card:            hsl(0 0% 100%);
+    --ring:            hsl(40 45% 68%);
+    --gradient-gold:   linear-gradient(135deg, hsl(40, 45%, 68%), hsl(40, 52%, 78%));
+    --btn-primary-shadow: 0 2px 10px -3px hsl(40 35% 45% / 0.45), 0 1px 3px hsl(0 0% 0% / 0.06);
+    color-scheme: light;
+  }
+
   /* ── Sidebar ─────────────────────────────────────────────────────────────── */
   :root {
     --sb-bg:          hsl(0 0% 100%);

@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import logoClinica from '@/assets/LightLogo.svg';
-import logoClinicaDark from '@/assets/DarkLogo.svg';
 import fotoDra from '@/assets/_MF_9787.jpg';
 import { motion } from 'framer-motion';
 
@@ -36,7 +35,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="login-light min-h-screen flex">
 
       {/* ── Lado esquerdo — foto ─────────────────────────────────────────────── */}
       <div className="hidden lg:block lg:w-[55%] relative overflow-hidden">
@@ -100,25 +99,21 @@ export default function Login() {
           transition={{ duration: 0.55, ease: EASE }}
           className="relative z-10 flex flex-col w-full max-w-[360px] mx-auto px-4 pt-6 pb-16"
         >
-          {/* Logo */}
-          <div className="flex justify-center mb-5">
+          {/* Logo — sempre light, independente do tema */}
+          <div className="mb-5">
             <img
               src={logoClinica}
               alt="Clínica Renata Lyra"
-              className="h-28 w-auto dark:hidden"
-            />
-            <img
-              src={logoClinicaDark}
-              alt="Clínica Renata Lyra"
-              className="h-28 w-auto hidden dark:block"
+              className="h-28 w-auto"
             />
           </div>
 
-          {/* Ornamento dourado */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-px flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
-            <span className="text-primary/50 text-base">✦</span>
-            <div className="h-px w-8 bg-primary/20" />
+          {/* Listra dourada */}
+          <div className="mb-6">
+            <div
+              className="h-[1.5px] w-32 rounded-full"
+              style={{ background: 'linear-gradient(90deg, transparent, hsl(40 45% 60%), hsl(40 55% 72%), hsl(40 45% 60%), transparent)' }}
+            />
           </div>
 
           {/* Título */}

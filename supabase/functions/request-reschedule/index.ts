@@ -99,7 +99,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Cria notificação urgente de remarcação
+    // 3. Atualiza status do agendamento para 'sugerido'
+    // Isso remove o agendamento do ciclo de confirmações automáticas (24h, 12h, 3h)
+    if (appointment?.id) {
+      const { error: updateError } = await supabase
+        .from('appointments')
+        .update({ status: 'sugerido' })
+        .eq('id', appointment.id)
+
+      if (updateError) {
+        console.error('Erro ao atualizar status do agendamento:', updateError)
+      } else {
+        console.log('Status do agendamento atualizado para sugerido:', appointment.id)
+      }
+    }
+
+    // 4. Cria notificação urgente de remarcação
     const notificationMessage = message 
       ? `${patient.full_name} deseja remarcar a consulta. Mensagem: ${message}`
       : `${patient.full_name} deseja remarcar a consulta${appointment ? ` que estava agendada para ${new Date(appointment.date).toLocaleDateString('pt-BR')} às ${appointment.time}` : ''}`
