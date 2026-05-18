@@ -10,7 +10,30 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  // Verifica se o chamador está autenticado
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Não autorizado' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+    )
+  }
+
   try {
+    // Valida o JWT com o Supabase
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Sessão inválida' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
     const body = await req.json()
     const { patientId, responseId, token, code } = body
 
@@ -18,7 +41,6 @@ Deno.serve(async (req) => {
       throw new Error('patientId, token e code sao obrigatorios')
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const n8nWebhookUrl = Deno.env.get('N8N_ANAMNESE_WEBHOOK_URL') ?? ''
     const appUrl = (Deno.env.get('APP_URL') ?? '').replace(/\/$/, '') || 'https://app.renatalyra.com.br'
