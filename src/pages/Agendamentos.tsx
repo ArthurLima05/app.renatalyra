@@ -868,7 +868,7 @@ export default function Agendamentos() {
               Novo Agendamento
             </Button>
           </DialogTrigger>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-[500px] rounded-xl">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-[500px] rounded-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Novo Agendamento</DialogTitle>
               <DialogDescription>Selecione paciente, data, duração e horário.</DialogDescription>
