@@ -14,7 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History, MessageCircle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input';
 import { Odontograma } from '@/components/Odontograma';
 import { PatientPhotos } from '@/components/PatientPhotos';
@@ -57,6 +58,7 @@ const ProntuarioPaciente = () => {
     updatePatientAvatar,
     addReturnAlert,
     returnAlerts,
+    sendFeedbackRequest,
   } = useClinic();
 
   const { canEdit, canDelete, canCreate, canView } = usePermissionsCtx();
@@ -148,6 +150,13 @@ const ProntuarioPaciente = () => {
   });
   const [observations, setObservations] = useState(patient?.notes || '');
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+
+  // Toggle feedback — estado local para evitar flickering
+  const [feedbackEnabled, setFeedbackEnabled] = useState(!(patient?.feedbackGiven ?? false));
+  const handleFeedbackToggle = (v: boolean) => {
+    setFeedbackEnabled(v);
+    if (patient) updatePatient(patient.id, { feedbackGiven: !v });
+  };
 
   // Dialog: Alerta de retorno
   const [isReturnAlertOpen, setIsReturnAlertOpen] = useState(false);
@@ -434,6 +443,14 @@ const ProntuarioPaciente = () => {
 
           {/* Botões de ação */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+              {/* Toggle Feedback */}
+              <div className="flex items-center justify-between border rounded-md px-3 h-9 w-full text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Enviar Feedback</span>
+                </div>
+                <Switch checked={feedbackEnabled} onCheckedChange={handleFeedbackToggle} />
+              </div>
               {/* Dialog: Alerta de retorno */}
               <Dialog open={isReturnAlertOpen} onOpenChange={setIsReturnAlertOpen}>
                 <DialogTrigger asChild>

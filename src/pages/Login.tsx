@@ -149,7 +149,7 @@ export default function Login() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="seu@email.com"
                   className="border-0 border-b rounded-none bg-transparent h-11 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/35"
-                  style={{ borderBottomColor: 'hsl(40 20% 76%)', borderBottomWidth: '1px' }}
+                  style={{ borderBottomColor: 'hsl(40 20% 76%)', borderBottomWidth: '1px', color: 'hsl(40 5% 16%)' }}
                   required
                 />
               </div>
@@ -169,7 +169,7 @@ export default function Login() {
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="••••••••"
                   className="border-0 border-b rounded-none bg-transparent h-11 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/35"
-                  style={{ borderBottomColor: 'hsl(40 20% 76%)', borderBottomWidth: '1px' }}
+                  style={{ borderBottomColor: 'hsl(40 20% 76%)', borderBottomWidth: '1px', color: 'hsl(40 5% 16%)' }}
                   required
                 />
               </div>

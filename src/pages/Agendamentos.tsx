@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { Switch } from "@/components/ui/switch";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -244,7 +245,7 @@ function AppointmentDetailCard({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
-  const { patients, professionals, appointments: allAppointments, updateAppointmentStatus, updateAppointmentTime, updateAppointmentProfessional, deleteAppointment } = useClinic();
+  const { patients, professionals, appointments: allAppointments, updateAppointmentStatus, updateAppointmentTime, updateAppointmentProfessional, deleteAppointment, updatePatient, sendFeedbackRequest } = useClinic();
   const { canDelete } = usePermissionsCtx();
   const patient = patients.find((p) => p.id === appointment.patientId);
   const professional = professionals.find((p) => p.id === appointment.professionalId);
@@ -255,6 +256,19 @@ function AppointmentDetailCard({
   const [newDate, setNewDate] = useState<Date>(new Date(appointment.date));
   const [newDuration, setNewDuration] = useState(appointment.duration ?? 1);
   const [saving, setSaving] = useState(false);
+  const [feedbackEnabled, setFeedbackEnabled] = useState(!patient?.feedbackGiven);
+
+  const handleFeedbackToggle = (v: boolean) => {
+    setFeedbackEnabled(v);
+    if (patient) updatePatient(patient.id, { feedbackGiven: !v });
+  };
+
+  const handleStatusChange = async (newStatus: AppointmentStatus) => {
+    await updateAppointmentStatus(appointment.id, newStatus);
+    if (newStatus === 'realizado' && patient && !patient.feedbackGiven) {
+      sendFeedbackRequest(patient.id).catch(() => {});
+    }
+  };
 
   const isSlotAvailable = (slot: string, slotDuration: number = newDuration) => {
     const targetStart = TIME_SLOTS.indexOf(slot);
@@ -441,8 +455,7 @@ function AppointmentDetailCard({
         <Label className="text-xs text-muted-foreground flex items-center gap-1">
           <User className="h-3.5 w-3.5" /> Status
         </Label>
-        <Select value={appointment.status}
-          onValueChange={(v) => updateAppointmentStatus(appointment.id, v as AppointmentStatus)}>
+        <Select value={appointment.status} onValueChange={(v) => handleStatusChange(v as AppointmentStatus)}>
           <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="agendado">Agendado</SelectItem>
@@ -460,6 +473,17 @@ function AppointmentDetailCard({
         <ExternalLink className="h-3.5 w-3.5" />
         Ver perfil do paciente
       </Button>
+
+      {/* Toggle Feedback */}
+      {patient && (
+        <div className="flex items-center justify-between w-full border rounded-md px-3 h-8 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <MessageCircle className="h-3.5 w-3.5" />
+            <span>Enviar Feedback</span>
+          </div>
+          <Switch checked={feedbackEnabled} onCheckedChange={handleFeedbackToggle} />
+        </div>
+      )}
 
       {/* Excluir */}
       {canDelete('agenda') && (
@@ -491,6 +515,7 @@ export default function Agendamentos() {
     linkAppointmentToSession,
     addSession,
     professionals,
+    myProfessionalId,
     returnAlerts,
     deleteReturnAlert,
     sendReturnAlertWhatsApp,
@@ -512,7 +537,7 @@ export default function Agendamentos() {
   const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
   const [formData, setFormData] = useState({
     patientId: "",
-    professionalId: "",
+    professionalId: myProfessionalId ?? "",
     date: "",
     time: "",
     duration: 1,
@@ -680,7 +705,7 @@ export default function Agendamentos() {
         status: "agendado",
       });
       setIsOpen(false);
-      setFormData({ patientId: "", professionalId: "", date: "", time: "", duration: 1 });
+      setFormData({ patientId: "", professionalId: myProfessionalId ?? "", date: "", time: "", duration: 1 });
     } finally {
       setIsSubmitting(false);
     }
@@ -699,42 +724,31 @@ export default function Agendamentos() {
     );
   };
 
-  // ── Pill clicável ─────────────────────────────────────────────────────────
+  // ── Pill clicável — sem Dialog interno (Dialog está no nível da página) ──
   const AppointmentPill = ({ app, compact = false }: { app: Appointment; compact?: boolean }) => {
     const pro = professionals.find((p) => p.id === app.professionalId);
     return (
-      <Dialog open={detailAppointment?.id === app.id} onOpenChange={(open) => !open && setDetailAppointment(null)}>
-        <DialogTrigger asChild>
-          <div
-            className={cn(
-              "rounded-lg cursor-pointer h-full w-full overflow-hidden",
-              "transition-all duration-200 ease-out",
-              "hover:brightness-95 hover:shadow-md hover:-translate-y-px",
-              compact ? "p-1 text-xs" : "p-2 text-sm",
-            )}
-            style={dentistStyle(pro?.name)}
-            onClick={() => setDetailAppointment(app)}
-          >
-            <div className="font-semibold truncate mb-0.5 flex items-center gap-1 font-cocon tracking-[0.02em]">
-              <span className={cn("inline-block w-1.5 h-1.5 rounded-full flex-shrink-0", SEMAPHORE_DOT[app.status])} />
-              {app.patientName}
-            </div>
-            {!compact && (
-              <div className="opacity-70 text-xs flex items-center gap-0.5 tabular-nums">
-                <Timer className="h-3 w-3" />
-                {durationLabel(app.duration ?? 1)}
-              </div>
-            )}
+      <div
+        className={cn(
+          "rounded-lg cursor-pointer h-full w-full overflow-hidden",
+          "transition-all duration-200 ease-out",
+          "hover:brightness-95 hover:shadow-md hover:-translate-y-px",
+          compact ? "p-1 text-xs" : "p-2 text-sm",
+        )}
+        style={dentistStyle(pro?.name)}
+        onClick={() => setDetailAppointment(app)}
+      >
+        <div className="font-semibold truncate mb-0.5 flex items-center gap-1 font-cocon tracking-[0.02em]">
+          <span className={cn("inline-block w-1.5 h-1.5 rounded-full flex-shrink-0", SEMAPHORE_DOT[app.status])} />
+          {app.patientName}
+        </div>
+        {!compact && (
+          <div className="opacity-70 text-xs flex items-center gap-0.5 tabular-nums">
+            <Timer className="h-3 w-3" />
+            {durationLabel(app.duration ?? 1)}
           </div>
-        </DialogTrigger>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-[420px] rounded-xl">
-          <DialogHeader>
-            <DialogTitle>Detalhes do Agendamento</DialogTitle>
-            <DialogDescription>Consulta do dia {format(new Date(app.date), "dd/MM/yyyy", { locale: ptBR })}</DialogDescription>
-          </DialogHeader>
-          <AppointmentDetailCard appointment={app} onClose={() => setDetailAppointment(null)} />
-        </DialogContent>
-      </Dialog>
+        )}
+      </div>
     );
   };
 
@@ -889,25 +903,41 @@ export default function Agendamentos() {
               {/* Dentista */}
               <div className="space-y-2">
                 <Label>Dentista</Label>
-                <div className="flex gap-2 flex-wrap">
-                  {professionals.map((pro) => {
-                    const selected = formData.professionalId === pro.id;
-                    return (
-                      <button
+                {myProfessionalId ? (
+                  // Dentista vinculado: mostra apenas o próprio nome, sem escolha
+                  <div className="flex gap-2 flex-wrap">
+                    {professionals.filter(p => p.id === myProfessionalId).map((pro) => (
+                      <span
                         key={pro.id}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, professionalId: pro.id, time: "" })}
                         style={dentistStyle(pro.name)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2",
-                          selected ? "border-current shadow-sm scale-105" : "border-transparent opacity-70 hover:opacity-100",
-                        )}
+                        className="px-3 py-1.5 rounded-full text-sm font-medium border-2 border-current shadow-sm"
                       >
                         {pro.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  // Admin/secretaria: pode escolher qualquer dentista
+                  <div className="flex gap-2 flex-wrap">
+                    {professionals.map((pro) => {
+                      const selected = formData.professionalId === pro.id;
+                      return (
+                        <button
+                          key={pro.id}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, professionalId: pro.id, time: "" })}
+                          style={dentistStyle(pro.name)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2",
+                            selected ? "border-current shadow-sm scale-105" : "border-transparent opacity-70 hover:opacity-100",
+                          )}
+                        >
+                          {pro.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Data */}
@@ -1475,6 +1505,29 @@ export default function Agendamentos() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog único de detalhe — usa versão ao vivo do appointment pelo ID */}
+      <Dialog open={detailAppointment !== null} onOpenChange={(open) => !open && setDetailAppointment(null)}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-[420px] rounded-xl">
+          {detailAppointment && (() => {
+            const live = appointments.find(a => a.id === detailAppointment.id) ?? detailAppointment;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Detalhes do Agendamento</DialogTitle>
+                  <DialogDescription>
+                    Consulta do dia {format(new Date(live.date), "dd/MM/yyyy", { locale: ptBR })}
+                  </DialogDescription>
+                </DialogHeader>
+                <AppointmentDetailCard
+                  appointment={live}
+                  onClose={() => setDetailAppointment(null)}
+                />
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

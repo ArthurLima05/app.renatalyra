@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { type, title, message } = await req.json()
+    const { type, title, message, professional_id } = await req.json()
 
     if (!title || !message) {
       return new Response(
@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
       message,
       date: new Date().toISOString(),
       read: false,
+      professional_id: professional_id ?? null,
     })
 
     if (error) {

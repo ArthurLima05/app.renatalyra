@@ -68,6 +68,9 @@ interface ClinicContextType {
   deleteReturnAlert: (id: string) => Promise<void>;
   sendReturnAlertWhatsApp: (id: string) => Promise<void>;
   sendCancellationNotification: (appointmentId: string) => Promise<void>;
+  myProfessionalId: string | null;
+  linkProfessionalToUser: (professionalId: string | null, userId: string) => Promise<void>;
+  sendFeedbackRequest: (patientId: string) => Promise<void>;
   clinicSettings: Record<string, string>;
   updateClinicSetting: (key: string, value: string) => Promise<void>;
   appUsers: AppUser[];
@@ -131,6 +134,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [appUsers, setAppUsers] = useState<AppUser[]>([]);
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [myProfessionalId, setMyProfessionalId] = useState<string | null>(null);
+  const myProfessionalIdRef = useRef<string | null>(null);
   const { toast } = useToast();
   const isCheckingNotifications = useRef(false);
 
@@ -145,6 +150,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const newPro = {
           ...payload.new,
           createdAt: new Date(payload.new.created_at),
+          userId: (payload.new as any).user_id ?? null,
         } as Professional;
         setProfessionals((prev) => [...prev, newPro]);
       })
@@ -152,6 +158,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const updated = {
           ...payload.new,
           createdAt: new Date(payload.new.created_at),
+          userId: (payload.new as any).user_id ?? null,
         } as Professional;
         setProfessionals((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       })
@@ -191,6 +198,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           education: raw.education ?? undefined,
           avatarUrl: raw.avatar_url ?? undefined,
           createdAt: new Date(raw.created_at),
+          feedbackGiven: raw.feedback_given ?? false,
+          feedbackSentAt: raw.feedback_sent_at ? new Date(raw.feedback_sent_at) : undefined,
         };
         setPatients((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       })
@@ -277,6 +286,12 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const notificationsChannel = supabase
       .channel("notifications-changes")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
+        const profId = myProfessionalIdRef.current;
+        const notifProfId = (payload.new as any).professional_id ?? null;
+
+        // Dentista: ignora notificações de outros profissionais
+        if (profId && notifProfId && notifProfId !== profId) return;
+
         const newNotif = {
           ...payload.new,
           type: payload.new.type,
@@ -285,6 +300,15 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setNotifications((prev) => [newNotif, ...prev]);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications" }, (payload) => {
+        const profId = myProfessionalIdRef.current;
+        const notifProfId = (payload.new as any).professional_id ?? null;
+
+        // Dentista: remove do estado se a notificação não é mais dela
+        if (profId && notifProfId && notifProfId !== profId) {
+          setNotifications((prev) => prev.filter((n) => n.id !== payload.new.id));
+          return;
+        }
+
         const updated = {
           ...payload.new,
           type: payload.new.type,
@@ -436,6 +460,20 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const loadAllData = async () => {
     setLoading(true);
+
+    // Verifica se o usuário logado está vinculado a um profissional
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: prof } = await (supabase as any)
+        .from('professionals')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const profId = prof?.id ?? null;
+      myProfessionalIdRef.current = profId;
+      setMyProfessionalId(profId);
+    }
+
     await Promise.all([
       loadProfessionals(),
       loadPatients(),
@@ -467,22 +505,41 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       (data || []).map((p) => ({
         ...p,
         createdAt: new Date(p.created_at),
+        userId: (p as any).user_id ?? null,
       })),
     );
   };
 
   const loadPatients = async () => {
+    // Se for dentista, busca apenas os IDs dos seus pacientes via appointments
+    let patientIdFilter: string[] | null = null;
+    if (myProfessionalIdRef.current) {
+      const { data: apptData } = await (supabase as any)
+        .from('appointments')
+        .select('patient_id')
+        .eq('professional_id', myProfessionalIdRef.current);
+      patientIdFilter = [...new Set<string>((apptData ?? []).map((a: any) => a.patient_id))];
+      if (patientIdFilter.length === 0) {
+        setPatients([]);
+        return;
+      }
+    }
+
     // Carrega em lotes de 1000 até buscar todos os pacientes
     const PAGE = 1000;
     let from = 0;
     let allData: any[] = [];
 
     while (true) {
-      const { data, error } = await supabase
+      let q = (supabase as any)
         .from("patients")
         .select("*")
         .order("created_at", { ascending: false })
         .range(from, from + PAGE - 1);
+
+      if (patientIdFilter) q = q.in('id', patientIdFilter);
+
+      const { data, error } = await q;
 
       if (error) { console.error("Error loading patients:", error); break; }
       if (!data || data.length === 0) break;
@@ -497,6 +554,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ...p,
         fullName: p.full_name,
         birthDate: p.birth_date ? new Date(p.birth_date + 'T12:00:00') : undefined,
+        feedbackGiven: (p as any).feedback_given ?? false,
+        feedbackSentAt: (p as any).feedback_sent_at ? new Date((p as any).feedback_sent_at) : undefined,
         nickname: p.nickname ?? undefined,
         gender: p.gender ?? undefined,
         rg: p.rg ?? undefined,
@@ -509,11 +568,17 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const loadAppointments = async () => {
-    const { data, error } = await supabase
+    let q = (supabase as any)
       .from("appointments")
       .select("*, patients(full_name)")
-      .is("deleted_at" as any, null)
+      .is("deleted_at", null)
       .order("date", { ascending: false });
+
+    if (myProfessionalIdRef.current) {
+      q = q.eq("professional_id", myProfessionalIdRef.current);
+    }
+
+    const { data, error } = await q;
 
     if (error) {
       console.error("Error loading appointments:", error);
@@ -580,7 +645,14 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const loadNotifications = async () => {
-    const { data, error } = await supabase.from("notifications").select("*").order("date", { ascending: false });
+    let q = (supabase as any).from("notifications").select("*").order("date", { ascending: false });
+
+    if (myProfessionalIdRef.current) {
+      // Dentista vê apenas notificações da sua agenda ou sem profissional vinculado
+      q = q.or(`professional_id.eq.${myProfessionalIdRef.current},professional_id.is.null`);
+    }
+
+    const { data, error } = await q;
     if (error) {
       console.error("Error loading notifications:", error);
       return;
@@ -662,6 +734,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
+    setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
+
     if (status === "cancelado" || status === "falta" || status === "confirmado") {
       const appointment = appointments.find((a) => a.id === id);
       if (appointment) {
@@ -740,6 +814,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
+    setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, date, time, duration } : a));
     toast({ title: "Horário atualizado com sucesso" });
   };
 
@@ -752,6 +827,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toast({ title: "Erro ao reatribuir dentista", description: error.message, variant: "destructive" });
       throw error;
     }
+    setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, professionalId } : a));
     toast({ title: "Dentista atualizado com sucesso" });
   };
 
@@ -1025,6 +1101,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (patient.avatarUrl !== undefined) updateData.avatar_url = patient.avatarUrl;
     if (patient.origin !== undefined) updateData.origin = patient.origin;
     if (patient.notes !== undefined) updateData.notes = patient.notes;
+    if (patient.feedbackGiven !== undefined) updateData.feedback_given = patient.feedbackGiven;
 
     const { error } = await supabase.from("patients").update(updateData).eq("id", id);
 
@@ -1689,6 +1766,33 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const sendFeedbackRequest = async (patientId: string) => {
+    const { data, error } = await supabase.functions.invoke('trigger-feedback-bot', {
+      body: { patientId },
+    });
+    if (error || !data?.success) {
+      const msg = error?.message ?? data?.error ?? 'Erro desconhecido';
+      toast({ title: 'Erro ao enviar pedido de feedback', description: msg, variant: 'destructive' });
+      throw new Error(msg);
+    }
+    toast({ title: '✅ Pedido de avaliação enviado' });
+  };
+
+  const linkProfessionalToUser = async (professionalId: string | null, userId: string) => {
+    const { data, error } = await supabase.functions.invoke('link-professional-user', {
+      body: { professionalId, userId },
+    });
+
+    if (error || !data?.success) {
+      const msg = error?.message ?? data?.error ?? 'Erro desconhecido';
+      toast({ title: 'Erro ao vincular profissional', description: msg, variant: 'destructive' });
+      throw new Error(msg);
+    }
+
+    await loadProfessionals();
+    toast({ title: professionalId ? 'Profissional vinculado' : 'Vínculo removido' });
+  };
+
   const updateInstallment = async (id: string, data: Partial<Installment>) => {
     const updateData: any = {};
 
@@ -1814,6 +1918,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     deleteReturnAlert,
     sendReturnAlertWhatsApp,
     sendCancellationNotification,
+    myProfessionalId,
+    linkProfessionalToUser,
+    sendFeedbackRequest,
     clinicSettings,
     updateClinicSetting,
     appUsers,

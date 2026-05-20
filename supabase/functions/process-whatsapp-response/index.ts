@@ -24,11 +24,9 @@ Deno.serve(async (req) => {
     console.log('Processando resposta WhatsApp:', { buttonId, phone })
 
     // 1. Busca o paciente pelo telefone (tenta diferentes formatos)
-    // Formatos possíveis: 554691037113, 5546991037113
     let patient = null
-    
-    // Tenta primeiro com o telefone exato
-    let { data, error } = await supabase
+
+    let { data } = await supabase
       .from('patients')
       .select('id, full_name')
       .eq('phone', phone)
@@ -37,20 +35,16 @@ Deno.serve(async (req) => {
     if (data) {
       patient = data
     } else if (phone.length === 12 && phone.startsWith('55')) {
-      // Se não encontrou e o telefone tem 12 dígitos (55 + DDD + 8 dígitos),
-      // tenta adicionar um 9 após o DDD (formato: 55 + DDD + 9 + 8 dígitos)
       const phoneWithNine = phone.slice(0, 4) + '9' + phone.slice(4)
       console.log('Tentando formato alternativo:', phoneWithNine)
-      
+
       const { data: data2 } = await supabase
         .from('patients')
         .select('id, full_name')
         .eq('phone', phoneWithNine)
         .maybeSingle()
-      
-      if (data2) {
-        patient = data2
-      }
+
+      if (data2) patient = data2
     }
 
     if (!patient) {
@@ -60,10 +54,10 @@ Deno.serve(async (req) => {
 
     console.log('Paciente encontrado:', patient)
 
-    // 2. Busca o agendamento do paciente com status "agendado"
+    // 2. Busca o agendamento pendente (inclui professional_id para notificações segmentadas)
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
-      .select('id, date, time, status')
+      .select('id, date, time, status, professional_id')
       .eq('patient_id', patient.id)
       .eq('status', 'agendado')
       .order('date', { ascending: true })
@@ -77,7 +71,7 @@ Deno.serve(async (req) => {
 
     console.log('Agendamento encontrado:', appointment)
 
-    // 3. Define novo status baseado no buttonId
+    // 3. Define novo status
     const newStatus = buttonId === 'confirmar' ? 'confirmado' : 'cancelado'
 
     // 4. Atualiza o status do agendamento
@@ -101,7 +95,8 @@ Deno.serve(async (req) => {
         action: buttonId,
         newStatus,
         appointment: updatedAppointment,
-        patient: patient
+        patient,
+        professional_id: appointment.professional_id ?? null,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -113,7 +108,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -363,9 +363,17 @@ function ModulePermissionRow({
 
 // ── Detalhe do usuário ────────────────────────────────────────────────────────
 function UserDetail({ user, onBack }: { user: AppUser; onBack: () => void }) {
-  const { userPermissions, updateUserPermission, toggleAppUserActive } = useClinic();
+  const { userPermissions, updateUserPermission, toggleAppUserActive, professionals, linkProfessionalToUser } = useClinic();
   const { isAdmin } = usePermissionsCtx();
   const perms = userPermissions.filter(p => p.userId === user.id);
+  const linkedProfessional = professionals.find(p => p.userId === user.id);
+  const [linkingProf, setLinkingProf] = useState(false);
+
+  const handleLinkProfessional = async (professionalId: string | null) => {
+    setLinkingProf(true);
+    try { await linkProfessionalToUser(professionalId, user.id); }
+    finally { setLinkingProf(false); }
+  };
 
   return (
     <div className="space-y-6">
@@ -432,6 +440,42 @@ function UserDetail({ user, onBack }: { user: AppUser; onBack: () => void }) {
           ))}
         </div>
       </div>
+
+      {/* Vínculo com Profissional */}
+      {isAdmin && (
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Users className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Profissional Vinculado</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Quando vinculado, este usuário verá apenas seus próprios agendamentos e pacientes.
+          </p>
+          <Select
+            value={linkedProfessional?.id ?? 'none'}
+            onValueChange={(v) => handleLinkProfessional(v === 'none' ? null : v)}
+            disabled={linkingProf}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Nenhum (acesso geral)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Nenhum (acesso geral)</SelectItem>
+              {professionals
+                .filter(p => !p.userId || p.userId === user.id)
+                .map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {linkedProfessional && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1.5 flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Vinculado a <strong>{linkedProfessional.name}</strong> — acesso restrito aos seus pacientes
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -626,15 +670,16 @@ function UsuariosSection() {
 
 // ── Campos do sistema ─────────────────────────────────────────────────────────
 const PATIENT_FIELDS = [
-  { key: 'full_name',      label: 'Nome completo',      required: true },
-  { key: 'phone',          label: 'Telefone',           required: false },
-  { key: 'email',          label: 'E-mail',             required: false },
-  { key: 'birth_date',     label: 'Data de nascimento', required: false },
-  { key: 'cpf',            label: 'CPF',                required: false },
-  { key: 'rg',             label: 'RG',                 required: false },
-  { key: 'gender',         label: 'Sexo',               required: false },
-  { key: 'marital_status', label: 'Estado civil',       required: false },
-  { key: 'notes',          label: 'Observações',        required: false },
+  { key: 'full_name',         label: 'Nome completo',      required: true },
+  { key: 'phone',             label: 'Telefone',           required: false },
+  { key: 'email',             label: 'E-mail',             required: false },
+  { key: 'birth_date',        label: 'Data de nascimento', required: false },
+  { key: 'cpf',               label: 'CPF',                required: false },
+  { key: 'rg',                label: 'RG',                 required: false },
+  { key: 'gender',            label: 'Sexo',               required: false },
+  { key: 'marital_status',    label: 'Estado civil',       required: false },
+  { key: 'notes',             label: 'Observações',        required: false },
+  { key: 'legacy_patient_id', label: 'ID sistema antigo',  required: false },
 ];
 
 // ── Seção: Importar Pacientes ─────────────────────────────────────────────────
@@ -675,7 +720,8 @@ function ImportarSection() {
             h === 'rg' && f.key === 'rg' ||
             (h.includes('sex') || h.includes('gên') || h.includes('gen')) && f.key === 'gender' ||
             (h.includes('civil') || h.includes('estado')) && f.key === 'marital_status' ||
-            (h.includes('obs') || h.includes('note')) && f.key === 'notes'
+            (h.includes('obs') || h.includes('note')) && f.key === 'notes' ||
+            (h === 'patientid' || h.includes('patient_id') || h.includes('id_paciente')) && f.key === 'legacy_patient_id'
           );
           if (idx !== -1) auto[f.key] = hdrs[idx];
         });
@@ -751,6 +797,7 @@ function ImportarSection() {
         else if (ms.includes('vi')) record.marital_status = 'viuvo';
       }
       if (mapping['notes'] && row[mapping['notes']]) record.notes = row[mapping['notes']].trim();
+      if (mapping['legacy_patient_id'] && row[mapping['legacy_patient_id']]) record.legacy_patient_id = row[mapping['legacy_patient_id']].toString().trim();
 
       const { error } = await supabase.from('patients').insert(record as any);
       if (error) {

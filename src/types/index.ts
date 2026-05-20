@@ -54,6 +54,7 @@ export interface Professional {
   email: string;
   phone: string;
   createdAt?: Date;
+  userId?: string | null;
 }
 
 export interface Appointment {
@@ -111,6 +112,8 @@ export interface Patient {
   notes?: string;
   avatarUrl?: string;
   createdAt: Date;
+  feedbackGiven?: boolean;
+  feedbackSentAt?: Date;
 }
 
 export type PhotoCategory = 'antes' | 'depois' | 'outro';
