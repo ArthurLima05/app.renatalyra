@@ -53,6 +53,11 @@ export default function Notificacoes() {
       return true;
     }
 
+    // Retorno sem resposta após 3 tentativas é sempre urgente
+    if (notification.title?.includes('Retorno pendente após 3 tentativas')) {
+      return true;
+    }
+
     switch (notification.type) {
       case 'cancelamento':
         return hoursDiff < 24;

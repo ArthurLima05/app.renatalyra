@@ -37,7 +37,7 @@ const Pacientes = () => {
     e.preventDefault();
     addPatient({
       ...formData,
-      birthDate: formData.birthDate ? new Date(formData.birthDate) : undefined,
+      birthDate: formData.birthDate ? new Date(formData.birthDate + 'T12:00:00') : undefined,
     });
     setFormData({
       fullName: '',
@@ -99,11 +99,11 @@ const Pacientes = () => {
               Adicionar Paciente
             </Button>
           </DialogTrigger>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-xl">
-            <DialogHeader>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-xl flex flex-col max-h-[90vh]">
+            <DialogHeader className="flex-none">
               <DialogTitle>Novo Paciente</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3 overflow-y-auto pr-1">
               <div>
                 <Label htmlFor="fullName">Nome Completo *</Label>
                 <Input
@@ -132,23 +132,25 @@ const Pacientes = () => {
                   placeholder="paciente@email.com"
                 />
               </div>
-              <div>
-                <Label htmlFor="birthDate">Data de Nascimento</Label>
-                <Input
-                  id="birthDate"
-                  type="date"
-                  value={formData.birthDate}
-                  onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="cpf">CPF</Label>
-                <Input
-                  id="cpf"
-                  value={formData.cpf}
-                  onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-                  placeholder="000.000.000-00"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="birthDate">Nascimento</Label>
+                  <Input
+                    id="birthDate"
+                    type="date"
+                    value={formData.birthDate}
+                    onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cpf">CPF</Label>
+                  <Input
+                    id="cpf"
+                    value={formData.cpf}
+                    onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                    placeholder="000.000.000-00"
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="origin">Origem *</Label>
@@ -171,10 +173,10 @@ const Pacientes = () => {
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="Observações sobre o paciente..."
-                  rows={3}
+                  rows={2}
                 />
               </div>
-              <Button type="submit" className="w-full">Cadastrar Paciente</Button>
+              <Button type="submit" className="w-full flex-none">Cadastrar Paciente</Button>
             </form>
           </DialogContent>
         </Dialog>

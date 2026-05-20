@@ -155,7 +155,7 @@ function DeleteAppointmentDialog({
   trigger: React.ReactNode;
   onDeleted?: () => void;
 }) {
-  const { deleteAppointment, patients, clinicSettings } = useClinic();
+  const { deleteAppointment, sendCancellationNotification, patients } = useClinic();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<"delete" | "notify" | null>(null);
@@ -169,46 +169,29 @@ function DeleteAppointmentDialog({
 
   const handleDelete = async () => {
     setLoading("delete");
-    try { await doDelete(); } finally { setLoading(null); }
+    try {
+      await doDelete();
+    } catch {
+      // erro já exibido pelo deleteAppointment via toast
+    } finally {
+      setLoading(null);
+    }
   };
 
   const handleDeleteAndNotify = async () => {
     setLoading("notify");
     try {
       await doDelete();
+    } catch {
+      setLoading(null);
+      return; // deleção falhou, não tenta enviar WhatsApp
+    }
 
-      if (!patient?.phone) {
-        toast({ title: "Sem telefone", description: "Agendamento excluído, mas o paciente não tem telefone cadastrado.", variant: "destructive" });
-        return;
-      }
-
-      const template = clinicSettings["msg_appointment_cancellation"]
-        ?? "Olá, {{nome_paciente}}! Sua consulta do dia *{{data}}* foi cancelada. Entre em contato para reagendar. 📞";
-      const dateStr = format(new Date(appointment.date), "dd/MM/yyyy", { locale: ptBR });
-      const message = template
-        .replace(/\{\{nome_paciente\}\}/g, appointment.patientName)
-        .replace(/\{\{data\}\}/g, dateStr);
-
-      const webhookUrl = (import.meta.env.VITE_N8N_CANCELAMENTO_WEBHOOK_URL as string | undefined)
-        ?? "http://localhost:5678/webhook-test/cancelar-consulta";
-
-      try {
-        await fetch(webhookUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            patientName: appointment.patientName,
-            phone: patient.phone,
-            appointmentDate: appointment.date.toISOString(),
-            appointmentTime: appointment.time,
-            message,
-          }),
-        });
-        toast({ title: "Paciente notificado", description: `Mensagem de cancelamento enviada para ${appointment.patientName}.` });
-      } catch {
-        toast({ title: "WhatsApp não enviado", description: "Agendamento excluído, mas a mensagem não foi enviada.", variant: "destructive" });
-      }
+    try {
+      await sendCancellationNotification(appointment.id);
+      toast({ title: "⏳ Em processo", description: `Mensagem enviada para processamento. Verifique as notificações se houver problema` });
+    } catch (e: any) {
+      toast({ title: "WhatsApp não enviado", description: `Agendamento excluído, mas a mensagem falhou: ${e?.message ?? 'Erro desconhecido'}`, variant: "destructive" });
     } finally {
       setLoading(null);
     }

@@ -67,6 +67,7 @@ interface ClinicContextType {
   addReturnAlert: (patientId: string, returnDate: Date, notes?: string) => Promise<void>;
   deleteReturnAlert: (id: string) => Promise<void>;
   sendReturnAlertWhatsApp: (id: string) => Promise<void>;
+  sendCancellationNotification: (appointmentId: string) => Promise<void>;
   clinicSettings: Record<string, string>;
   updateClinicSetting: (key: string, value: string) => Promise<void>;
   appUsers: AppUser[];
@@ -166,7 +167,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const newPatient: Patient = {
           ...raw,
           fullName: raw.full_name,
-          birthDate: raw.birth_date ? new Date(raw.birth_date) : undefined,
+          birthDate: raw.birth_date ? new Date(raw.birth_date + 'T12:00:00') : undefined,
           nickname: raw.nickname ?? undefined,
           gender: raw.gender ?? undefined,
           rg: raw.rg ?? undefined,
@@ -182,7 +183,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const updated: Patient = {
           ...raw,
           fullName: raw.full_name,
-          birthDate: raw.birth_date ? new Date(raw.birth_date) : undefined,
+          birthDate: raw.birth_date ? new Date(raw.birth_date + 'T12:00:00') : undefined,
           nickname: raw.nickname ?? undefined,
           gender: raw.gender ?? undefined,
           rg: raw.rg ?? undefined,
@@ -495,7 +496,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       allData.map((p: any) => ({
         ...p,
         fullName: p.full_name,
-        birthDate: p.birth_date ? new Date(p.birth_date) : undefined,
+        birthDate: p.birth_date ? new Date(p.birth_date + 'T12:00:00') : undefined,
         nickname: p.nickname ?? undefined,
         gender: p.gender ?? undefined,
         rg: p.rg ?? undefined,
@@ -511,6 +512,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const { data, error } = await supabase
       .from("appointments")
       .select("*, patients(full_name)")
+      .is("deleted_at" as any, null)
       .order("date", { ascending: false });
 
     if (error) {
@@ -985,7 +987,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       full_name: patient.fullName,
       phone: patient.phone,
       email: patient.email,
-      birth_date: patient.birthDate?.toISOString().split('T')[0],
+      birth_date: patient.birthDate
+        ? `${patient.birthDate.getFullYear()}-${String(patient.birthDate.getMonth() + 1).padStart(2, '0')}-${String(patient.birthDate.getDate()).padStart(2, '0')}`
+        : undefined,
       nickname: patient.nickname,
       gender: patient.gender,
       cpf: patient.cpf,
@@ -1009,7 +1013,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (patient.fullName) updateData.full_name = patient.fullName;
     if (patient.phone !== undefined) updateData.phone = patient.phone;
     if (patient.email !== undefined) updateData.email = patient.email;
-    if (patient.birthDate !== undefined) updateData.birth_date = patient.birthDate?.toISOString().split('T')[0];
+    if (patient.birthDate !== undefined) updateData.birth_date = patient.birthDate
+      ? `${patient.birthDate.getFullYear()}-${String(patient.birthDate.getMonth() + 1).padStart(2, '0')}-${String(patient.birthDate.getDate()).padStart(2, '0')}`
+      : null;
     if (patient.nickname !== undefined) updateData.nickname = patient.nickname;
     if (patient.gender !== undefined) updateData.gender = patient.gender;
     if (patient.cpf !== undefined) updateData.cpf = patient.cpf;
@@ -1253,7 +1259,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toast({ title: "Erro ao enviar WhatsApp", description: error.message, variant: "destructive" });
       throw error;
     }
-    toast({ title: "Mensagem enviada para o WhatsApp do paciente" });
+    toast({ title: "Mensagem em processamento. Verifique nas notificações em caso de erro" });
   };
 
   const getAnamneseByPatientId = (patientId: string) =>
@@ -1610,35 +1616,37 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const template = clinicSettings['msg_return_alert'] ?? 'Olá, {{nome_paciente}}! Aqui é a clínica Dra. Renata Lyra. Que tal agendar um retorno?';
     const message = template.replace('{{nome_paciente}}', patient.fullName);
 
-    const webhookUrl = import.meta.env.VITE_N8N_RETURN_ALERT_WEBHOOK_URL as string | undefined;
-    if (!webhookUrl) {
-      toast({
-        title: "WhatsApp não configurado",
-        description: "URL do webhook de retorno não está configurada.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    let res: Response;
     try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      res = await supabase.functions.invoke('trigger-return-alert', {
+        body: {
           patientName: patient.fullName,
           patientPhone: patient.phone,
           returnDate: alert.returnDate.toISOString().split('T')[0],
           notes: alert.notes ?? '',
           message,
-        }),
-      });
+        },
+      }) as unknown as Response;
     } catch (e) {
-      console.warn('Webhook de retorno falhou:', e);
+      console.error('Erro ao acionar alerta de retorno:', e);
       toast({
-        title: "WhatsApp não enviado",
-        description: `Não foi possível enviar a mensagem de retorno para ${patient.fullName}.`,
-        variant: "destructive",
+        title: 'WhatsApp não enviado',
+        description: `Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const data = (res as any).data;
+    const error = (res as any).error;
+
+    if (error || !data?.success) {
+      const msg = error?.message ?? data?.error ?? 'Erro desconhecido';
+      console.error('Falha no alerta de retorno:', msg);
+      toast({
+        title: 'WhatsApp não enviado',
+        description: `Falha ao enviar alerta para ${patient.fullName}: ${msg}`,
+        variant: 'destructive',
       });
       return;
     }
@@ -1649,7 +1657,36 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       whatsapp_sent_at: now.toISOString(),
     }).eq("id", id);
     setReturnAlerts(prev => prev.map(a => a.id === id ? { ...a, whatsappSent: true, whatsappSentAt: now } : a));
-    toast({ title: "WhatsApp enviado", description: `Alerta de retorno enviado para ${patient.fullName}` });
+    toast({ title: '✅ Alerta enviado', description: `Mensagem de retorno disparada para ${patient.fullName}` });
+  };
+
+  const sendCancellationNotification = async (appointmentId: string) => {
+    const appointment = appointments.find(a => a.id === appointmentId);
+    if (!appointment) throw new Error('Agendamento não encontrado');
+    const patient = getPatientById(appointment.patientId);
+    if (!patient?.phone) throw new Error('Paciente sem telefone cadastrado');
+
+    const template = clinicSettings['msg_appointment_cancellation']
+      ?? 'Olá, {{nome_paciente}}! Sua consulta do dia *{{data}}* foi cancelada. Entre em contato para reagendar. 📞';
+    const dateStr = new Date(appointment.date).toLocaleDateString('pt-BR');
+    const message = template
+      .replace(/\{\{nome_paciente\}\}/g, patient.fullName)
+      .replace(/\{\{data\}\}/g, dateStr);
+
+    const { data, error } = await supabase.functions.invoke('trigger-cancel-notification', {
+      body: {
+        patientName: patient.fullName,
+        phone: patient.phone,
+        appointmentDate: appointment.date.toISOString(),
+        appointmentTime: appointment.time,
+        message,
+      },
+    });
+
+    if (error || !data?.success) {
+      const msg = error?.message ?? data?.error ?? 'Erro desconhecido';
+      throw new Error(msg);
+    }
   };
 
   const updateInstallment = async (id: string, data: Partial<Installment>) => {
@@ -1776,6 +1813,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     addReturnAlert,
     deleteReturnAlert,
     sendReturnAlertWhatsApp,
+    sendCancellationNotification,
     clinicSettings,
     updateClinicSetting,
     appUsers,

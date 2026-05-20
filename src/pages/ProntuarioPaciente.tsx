@@ -124,7 +124,7 @@ const ProntuarioPaciente = () => {
         fullName: cadastroData.fullName,
         phone: cadastroData.phone,
         email: cadastroData.email || undefined,
-        birthDate: cadastroData.birthDate ? new Date(cadastroData.birthDate) : undefined,
+        birthDate: cadastroData.birthDate ? new Date(cadastroData.birthDate + 'T12:00:00') : undefined,
         nickname: cadastroData.nickname || undefined,
         gender: cadastroData.gender || undefined,
         cpf: cadastroData.cpf || undefined,
