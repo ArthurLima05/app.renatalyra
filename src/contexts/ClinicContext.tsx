@@ -412,15 +412,36 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updateUserPermission = async (userId: string, module: AppModule, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => {
     const colMap: Record<string, string> = { canView: 'can_view', canCreate: 'can_create', canEdit: 'can_edit', canDelete: 'can_delete' };
+    const existing = userPermissions.find(p => p.userId === userId && p.module === module);
     const { error } = await (supabase as any)
       .from('user_permissions')
-      .update({ [colMap[field]]: value, updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('module', module);
+      .upsert({
+        user_id: userId,
+        module,
+        can_view: existing?.canView ?? false,
+        can_create: existing?.canCreate ?? false,
+        can_edit: existing?.canEdit ?? false,
+        can_delete: existing?.canDelete ?? false,
+        [colMap[field]]: value,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,module' });
     if (error) { toast({ title: 'Erro ao salvar permissão', description: error.message, variant: 'destructive' }); throw error; }
-    setUserPermissions(prev => prev.map(p =>
-      p.userId === userId && p.module === module ? { ...p, [field]: value } : p
-    ));
+    if (existing) {
+      setUserPermissions(prev => prev.map(p =>
+        p.userId === userId && p.module === module ? { ...p, [field]: value } : p
+      ));
+    } else {
+      setUserPermissions(prev => [...prev, {
+        id: crypto.randomUUID(),
+        userId,
+        module,
+        canView: false,
+        canCreate: false,
+        canEdit: false,
+        canDelete: false,
+        [field]: value,
+      }]);
+    }
   };
 
   const loadClinicSettings = async () => {
