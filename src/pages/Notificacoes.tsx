@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { Bell, Calendar, X, FileText, DollarSign, Trash2, ExternalLink, MoreVertical, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Bell, Calendar, X, FileText, DollarSign, Trash2, MoreVertical, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationType } from '@/types';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
@@ -49,7 +49,11 @@ export default function Notificacoes() {
     const hoursDiff = (now.getTime() - notifDate.getTime()) / (1000 * 60 * 60);
 
     // Notificações de remarcação são sempre urgentes
-    if (notification.title?.includes('Solicitação de Remarcação')) {
+    if (
+      notification.title?.includes('Solicitação de Remarcação') ||
+      notification.title?.includes('Paciente quer reagendar') ||
+      notification.title?.includes('quer reagendar')
+    ) {
       return true;
     }
 
@@ -173,56 +177,25 @@ export default function Notificacoes() {
   };
   const getNotificationIcon = (type: NotificationType) => getNotifConfig(type, false).icon;
 
-      const getActionButton = (notification: any) => {
-        switch (notification.type) {
-          case 'lembrete_prontuario':
-            if (notification.patientId) {
-              return (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/prontuario/${notification.patientId}`)}
-                  className="gap-2 text-xs w-full sm:w-auto"
-                >
-                  <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">Ir ao Prontuário</span>
-                  <span className="sm:hidden">Prontuário</span>
-                </Button>
-              );
-            }
-            break;
-          case 'lembrete_pagamento':
-            if (notification.patientId) {
-              return (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/prontuario/${notification.patientId}`)}
-                  className="gap-2 text-xs w-full sm:w-auto"
-                >
-                  <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">Ver Pagamentos</span>
-                  <span className="sm:hidden">Pagamentos</span>
-                </Button>
-              );
-            }
-            break;
-          case 'lembrete_consulta':
-            return (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/agendamentos')}
-                className="gap-2 text-xs w-full sm:w-auto"
-              >
-                <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Ver Agendamentos</span>
-                <span className="sm:hidden">Agendamentos</span>
-              </Button>
-            );
-        }
+  const getNotificationLink = (notification: any): string | null => {
+    switch (notification.type) {
+      case 'agendamento':
+      case 'cancelamento':
+      case 'falta':
+      case 'lembrete_consulta':
+        return notification.appointmentId
+          ? `/agendamentos?appointmentId=${notification.appointmentId}`
+          : '/agendamentos';
+      case 'lembrete_prontuario':
+      case 'lembrete_pagamento':
+      case 'feedback':
+      case 'lembrete_feedback':
+      case 'erro_whatsapp':
+        return notification.patientId ? `/prontuario/${notification.patientId}` : null;
+      default:
         return null;
-      };
+    }
+  };
 
   const handleDelete = async (id: string) => {
     await deleteNotification(id);
@@ -452,7 +425,19 @@ export default function Notificacoes() {
                                       <div className="flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0">
                                           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                                            <h3 className="text-sm sm:text-base font-semibold break-words">{notification.title}</h3>
+                                            {(() => {
+                                              const link = getNotificationLink(notification);
+                                              return link ? (
+                                                <button
+                                                  onClick={() => { markNotificationRead(notification.id); navigate(link); }}
+                                                  className="text-sm sm:text-base font-semibold break-words text-left hover:underline cursor-pointer"
+                                                >
+                                                  {notification.title}
+                                                </button>
+                                              ) : (
+                                                <h3 className="text-sm sm:text-base font-semibold break-words">{notification.title}</h3>
+                                              );
+                                            })()}
                                             {urgent && (
                                               <Badge variant="destructive" className="text-[10px] sm:text-xs">
                                                 URGENTE
@@ -506,9 +491,6 @@ export default function Notificacoes() {
                                         </DropdownMenu>
                                       </div>
                                       
-                                      <div className="flex items-center gap-2">
-                                        {getActionButton(notification)}
-                                      </div>
                                     </div>
                                   </div>
                                 </div>

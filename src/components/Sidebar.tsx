@@ -189,7 +189,7 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
 
         {/* Símbolo decorativo */}
         {!collapsed && (
-          <div className="relative h-36 shrink-0 overflow-hidden pointer-events-none select-none">
+          <div className="relative max-h-36 min-h-0 shrink overflow-hidden pointer-events-none select-none">
             <img
               src={simboloBranco}
               aria-hidden="true"

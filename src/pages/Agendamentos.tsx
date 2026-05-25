@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -535,6 +535,18 @@ export default function Agendamentos() {
   const [calendarSubView, setCalendarSubView] = useState<CalendarSubView>("dia");
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const id = searchParams.get('appointmentId');
+    if (!id || appointments.length === 0) return;
+    const found = appointments.find(a => a.id === id);
+    if (found) {
+      setDetailAppointment(found);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, appointments]);
+
   const [formData, setFormData] = useState({
     patientId: "",
     professionalId: myProfessionalId ?? "",

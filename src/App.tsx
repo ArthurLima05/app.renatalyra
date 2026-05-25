@@ -66,6 +66,7 @@ const App = () => (
             </ProtectedRoute>
           }>
             <Route path="/" element={<Agendamentos />} />
+            <Route path="/agendamentos" element={<Agendamentos />} />
             <Route path="/dashboard" element={
               <ModuleRoute module="dashboard"><Dashboard /></ModuleRoute>
             } />

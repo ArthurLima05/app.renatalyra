@@ -31,6 +31,7 @@ const COUNTRIES: Country[] = [
   { code: 'JP', ddi: '81',  flag: '🇯🇵', name: 'Japão',         minLocal: 9,  maxLocal: 10 },
   { code: 'CN', ddi: '86',  flag: '🇨🇳', name: 'China',         minLocal: 10, maxLocal: 11 },
   { code: 'AU', ddi: '61',  flag: '🇦🇺', name: 'Austrália',     minLocal: 8,  maxLocal: 9  },
+  { code: 'SE', ddi: '46',  flag: '🇸🇪', name: 'Suécia',         minLocal: 7,  maxLocal: 9  },
 ];
 
 // Sorted longest-DDI first for unambiguous matching
@@ -99,6 +100,15 @@ function formatPT(digits: string): string {
   );
 }
 
+function formatSE(digits: string): string {
+  const d = digits.slice(0, 9);
+  if (!d) return '';
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)} ${d.slice(2)}`;
+  if (d.length <= 7) return `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}`;
+  return `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5, 7)} ${d.slice(7)}`;
+}
+
 function formatGeneric(digits: string, max: number): string {
   const d = digits.slice(0, max);
   return d.replace(/(\d{4})(?=\d)/g, '$1 ');
@@ -109,6 +119,7 @@ function formatLocal(country: Country, localDigits: string): string {
     case 'BR': return formatBR(localDigits);
     case 'US': return formatUS(localDigits);
     case 'PT': return formatPT(localDigits);
+    case 'SE': return formatSE(localDigits);
     default:   return formatGeneric(localDigits, country.maxLocal);
   }
 }
@@ -165,6 +176,7 @@ export function PhoneInput({ value, onChange, id, required, className }: PhoneIn
 
   const placeholder = country.code === 'BR' ? '(11) 98765-4321'
     : country.code === 'US' ? '(212) 555-1234'
+    : country.code === 'SE' ? '70 123 45 67'
     : 'Número';
 
   return (

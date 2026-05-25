@@ -492,10 +492,9 @@ const ProntuarioPaciente = () => {
                           <SelectItem value="1">1 mês</SelectItem>
                           <SelectItem value="2">2 meses</SelectItem>
                           <SelectItem value="3">3 meses</SelectItem>
+                          <SelectItem value="4">4 meses</SelectItem>
                           <SelectItem value="6">6 meses</SelectItem>
                           <SelectItem value="12">1 ano</SelectItem>
-                          <SelectItem value="18">1 ano e meio</SelectItem>
-                          <SelectItem value="24">2 anos</SelectItem>
                           <SelectItem value="custom">Data específica</SelectItem>
                         </SelectContent>
                       </Select>
@@ -942,7 +941,7 @@ const ProntuarioPaciente = () => {
               <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Novo Plano Parcelado</DialogTitle>
-                  <DialogDescription>Divide o valor em até 72 parcelas mensais automáticas.</DialogDescription>
+                  <DialogDescription>Divide o valor em até 18 parcelas mensais automáticas.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handlePlanoSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -963,7 +962,7 @@ const ProntuarioPaciente = () => {
                       <Input
                         type="number"
                         min="1"
-                        max="72"
+                        max="18"
                         value={planoData.installmentsCount}
                         onChange={(e) => setPlanoData({ ...planoData, installmentsCount: e.target.value })}
                         placeholder="Ex: 12"

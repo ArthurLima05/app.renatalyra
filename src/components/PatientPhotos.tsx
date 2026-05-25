@@ -31,11 +31,13 @@ import { PhotoCategory } from "@/types";
 
 const CATEGORY_LABEL: Record<PhotoCategory, string> = {
   antes: "Antes",
+  durante: "Em Andamento",
   depois: "Depois",
   outro: "Outro",
 };
 const CATEGORY_BADGE: Record<PhotoCategory, string> = {
   antes: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
+  durante: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200",
   depois: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200",
   outro: "bg-muted text-muted-foreground",
 };
@@ -43,6 +45,7 @@ const CATEGORY_BADGE: Record<PhotoCategory, string> = {
 const FILTERS: { label: string; value: PhotoCategory | "todas" }[] = [
   { label: "Todas", value: "todas" },
   { label: "Antes", value: "antes" },
+  { label: "Em Andamento", value: "durante" },
   { label: "Depois", value: "depois" },
   { label: "Outro", value: "outro" },
 ];
@@ -314,7 +317,7 @@ export function PatientPhotos({ patientId }: { patientId: string }) {
             <div className="space-y-1.5">
               <Label className="text-xs">Categoria</Label>
               <div className="flex gap-2">
-                {(["antes", "depois", "outro"] as PhotoCategory[]).map((c) => (
+                {(["antes", "durante", "depois", "outro"] as PhotoCategory[]).map((c) => (
                   <button
                     key={c}
                     type="button"

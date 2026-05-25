@@ -337,10 +337,10 @@ export default function AnamnesePaciente() {
             </div>
 
             <div className="space-y-5">
-              {questions.map((q) => (
+              {questions.map((q, idx) => (
                 <div key={q.id} className="space-y-2 pb-4 border-b last:border-0">
                   <Label className="text-sm font-medium leading-snug">
-                    <span className="text-muted-foreground mr-1.5">{q.sequence}.</span>
+                    <span className="text-muted-foreground mr-1.5">{idx + 1}.</span>
                     {q.question}
                   </Label>
 

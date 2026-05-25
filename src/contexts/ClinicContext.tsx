@@ -770,58 +770,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
-    // Se o agendamento foi marcado como "Realizado", enviar para o webhook do n8n
-    if (status === "realizado") {
-      const appointment = appointments.find((a) => a.id === id);
-      if (appointment) {
-        const patient = patients.find((p) => p.id === appointment.patientId);
-        if (patient) {
-          const feedbackLink = `https://search.google.com/local/writereview?placeid=ChIJ542NAkYfqwcR-l-sSWB3u_0`;
-          const webhookUrl = import.meta.env.VITE_N8N_FEEDBACK_WEBHOOK_URL as string
-            ?? "http://localhost:5678/webhook/enviar-feedback";
-
-          // Monta mensagem a partir do template das configurações do sistema
-          const template = clinicSettings["msg_feedback"]
-            ?? "Olá, {{nome_paciente}}! 😊\n\nObrigada por comparecer à sua consulta!\n\nGostaríamos muito de saber sua opinião. Sua avaliação nos ajuda a melhorar cada vez mais.\n\n⭐ Avalie agora: {{link_avaliacao}}";
-          const message = template
-            .replace(/\{\{nome_paciente\}\}/g, patient.fullName)
-            .replace(/\{\{link_avaliacao\}\}/g, feedbackLink);
-
-          try {
-            await fetch(webhookUrl, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                patientId: patient.id,
-                patientName: patient.fullName,
-                phone: patient.phone,
-                feedbackLink: feedbackLink,
-                message: message,
-                appointmentId: appointment.id,
-                appointmentDate: appointment.date.toISOString(),
-                appointmentTime: appointment.time,
-                status: "realizado",
-              }),
-            });
-          } catch (error) {
-            console.error("Erro ao enviar para webhook n8n:", error);
-            await supabase.from("notifications").insert({
-              type: "erro_whatsapp",
-              title: "Falha no WhatsApp",
-              message: `Não foi possível enviar o link de avaliação para ${patient.fullName}. Verifique a conexão com o n8n.`,
-              patient_id: patient.id,
-              appointment_id: appointment.id,
-            });
-            toast({
-              title: "WhatsApp não enviado",
-              description: `Não foi possível enviar o link de avaliação para ${patient.fullName}.`,
-              variant: "destructive",
-            });
-          }
-        }
-      }
-    }
   };
 
   const updateAppointmentTime = async (id: string, date: Date, time: string, duration: number) => {

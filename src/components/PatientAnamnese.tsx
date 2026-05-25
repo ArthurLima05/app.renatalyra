@@ -92,18 +92,14 @@ function QuestionsManager({ onClose }: { onClose: () => void }) {
     } finally { setSaving(false); }
   };
 
-  // Troca o sequence de duas perguntas vizinhas (swap real, paralelo)
   const moveQuestion = (index: number, direction: -1 | 1) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= active.length) return;
-    const a = active[index];
-    const b = active[targetIndex];
-    // Dispara os dois updates em paralelo sem await — o estado local
-    // já é atualizado instantaneamente dentro de updateAnamneseQuestion
-    Promise.all([
-      updateAnamneseQuestion(a.id, { sequence: b.sequence }),
-      updateAnamneseQuestion(b.id, { sequence: a.sequence }),
-    ]);
+    const reordered = [...active];
+    const [item] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, item);
+    // Renormaliza TODAS as sequências para 1..N, eliminando gaps e duplicatas
+    Promise.all(reordered.map((q, i) => updateAnamneseQuestion(q.id, { sequence: i + 1 })));
   };
 
   return (

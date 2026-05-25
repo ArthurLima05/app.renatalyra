@@ -116,7 +116,7 @@ export interface Patient {
   feedbackSentAt?: Date;
 }
 
-export type PhotoCategory = 'antes' | 'depois' | 'outro';
+export type PhotoCategory = 'antes' | 'durante' | 'depois' | 'outro';
 
 export interface PatientPhoto {
   id: string;

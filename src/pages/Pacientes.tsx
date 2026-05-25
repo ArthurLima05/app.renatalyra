@@ -55,16 +55,20 @@ const Pacientes = () => {
   const INITIAL_LIMIT = 6;
   const searching = searchTerm.trim().length > 0;
 
+  const normalizeStr = (s: string) =>
+    s.normalize('NFD').replace(new RegExp('[\u0300-\u036f]', 'g'), '').toLowerCase().trim();
+
+  const matchesSearch = (p: (typeof patients)[0]) =>
+    normalizeStr(p.fullName ?? '').includes(normalizeStr(searchTerm));
+
   const filteredPatients = searching
-    ? patients
-        .filter(p => p.fullName.toLowerCase().includes(searchTerm.toLowerCase()))
-        .slice(0, LIMIT)
+    ? patients.filter(matchesSearch).slice(0, LIMIT)
     : [...patients]
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .slice(0, INITIAL_LIMIT);
 
   const totalMatch = searching
-    ? patients.filter(p => p.fullName.toLowerCase().includes(searchTerm.toLowerCase())).length
+    ? patients.filter(matchesSearch).length
     : patients.length;
 
   const getLastAppointment = (patientId: string) => {
