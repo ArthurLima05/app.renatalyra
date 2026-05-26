@@ -65,13 +65,18 @@ Deno.serve(async (req) => {
     const { data: settings } = await supabase
       .from('clinic_settings')
       .select('key, value')
-      .in('key', ['feedback_link', 'msg_feedback'])
+      .in('key', ['feedback_link', 'msg_feedback_request'])
 
     const settingsMap: Record<string, string> = {}
     for (const s of (settings ?? [])) settingsMap[s.key] = s.value
 
     const feedbackLink = settingsMap['feedback_link'] ?? ''
-    const msgTemplate = settingsMap['msg_feedback'] ?? ''
+    const msgTemplate = settingsMap['msg_feedback_request']
+      ?? 'Olá, {{nome_paciente}}! 🌟 Esperamos que sua consulta tenha sido excelente. Deixe sua avaliação: {{link}}'
+
+    const message = msgTemplate
+      .replace(/\{\{nome_paciente\}\}/g, patient.full_name)
+      .replace(/\{\{link\}\}/g, feedbackLink)
 
     // Chama o webhook do n8n
     const n8nRes = await fetch(webhookUrl, {
@@ -81,7 +86,7 @@ Deno.serve(async (req) => {
         patientName: patient.full_name,
         phone: patient.phone,
         feedbackLink,
-        message: msgTemplate,
+        message,
       }),
     })
 

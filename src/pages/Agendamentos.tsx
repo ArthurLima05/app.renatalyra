@@ -245,7 +245,7 @@ function AppointmentDetailCard({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
-  const { patients, professionals, appointments: allAppointments, updateAppointmentStatus, updateAppointmentTime, updateAppointmentProfessional, deleteAppointment, updatePatient, sendFeedbackRequest } = useClinic();
+  const { patients, professionals, appointments: allAppointments, updateAppointmentStatus, updateAppointmentTime, updateAppointmentProfessional, deleteAppointment, updatePatient, sendFeedbackRequest, sendFaltaNotification } = useClinic();
   const { canDelete } = usePermissionsCtx();
   const patient = patients.find((p) => p.id === appointment.patientId);
   const professional = professionals.find((p) => p.id === appointment.professionalId);
@@ -257,6 +257,7 @@ function AppointmentDetailCard({
   const [newDuration, setNewDuration] = useState(appointment.duration ?? 1);
   const [saving, setSaving] = useState(false);
   const [feedbackEnabled, setFeedbackEnabled] = useState(!patient?.feedbackGiven);
+  const [showFaltaDialog, setShowFaltaDialog] = useState(false);
 
   const handleFeedbackToggle = (v: boolean) => {
     setFeedbackEnabled(v);
@@ -267,6 +268,9 @@ function AppointmentDetailCard({
     await updateAppointmentStatus(appointment.id, newStatus);
     if (newStatus === 'realizado' && patient && !patient.feedbackGiven) {
       sendFeedbackRequest(patient.id).catch(() => {});
+    }
+    if (newStatus === 'falta') {
+      setShowFaltaDialog(true);
     }
   };
 
@@ -498,6 +502,24 @@ function AppointmentDetailCard({
           }
         />
       )}
+
+      {/* Dialog: enviar lembrete de reagendamento ao marcar falta */}
+      <AlertDialog open={showFaltaDialog} onOpenChange={setShowFaltaDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enviar lembrete de reagendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja enviar uma mensagem de WhatsApp para {patient?.fullName ?? 'o paciente'} informando a falta e oferecendo reagendamento?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não enviar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => sendFaltaNotification(appointment.id).catch(() => {})}>
+              Enviar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -521,10 +543,12 @@ export default function Agendamentos() {
     sendReturnAlertWhatsApp,
     getPatientById,
     clinicSettings,
+    sendFaltaNotification,
   } = useClinic();
 
   const [isOpen, setIsOpen] = useState(false);
   const [mainTab, setMainTab] = useState<MainTab>("agendamentos");
+  const [faltaDialogAppointmentId, setFaltaDialogAppointmentId] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter>("dia");
   const [searchOpen, setSearchOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1263,7 +1287,10 @@ export default function Agendamentos() {
                           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
                             <Select value={appointment.status}
                               disabled={!canEdit('agenda')}
-                              onValueChange={(v) => updateAppointmentStatus(appointment.id, v as AppointmentStatus)}>
+                              onValueChange={async (v) => {
+                                await updateAppointmentStatus(appointment.id, v as AppointmentStatus);
+                                if (v === 'falta') setFaltaDialogAppointmentId(appointment.id);
+                              }}>
                               <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="agendado">Agendado</SelectItem>
@@ -1540,6 +1567,24 @@ export default function Agendamentos() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: lembrete de reagendamento (tab histórico) */}
+      <AlertDialog open={!!faltaDialogAppointmentId} onOpenChange={(open) => { if (!open) setFaltaDialogAppointmentId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enviar lembrete de reagendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja enviar uma mensagem de WhatsApp ao paciente informando a falta e oferecendo reagendamento?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não enviar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (faltaDialogAppointmentId) sendFaltaNotification(faltaDialogAppointmentId).catch(() => {}); }}>
+              Enviar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

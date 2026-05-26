@@ -68,6 +68,7 @@ interface ClinicContextType {
   deleteReturnAlert: (id: string) => Promise<void>;
   sendReturnAlertWhatsApp: (id: string) => Promise<void>;
   sendCancellationNotification: (appointmentId: string) => Promise<void>;
+  sendFaltaNotification: (appointmentId: string) => Promise<void>;
   myProfessionalId: string | null;
   linkProfessionalToUser: (professionalId: string | null, userId: string) => Promise<void>;
   sendFeedbackRequest: (patientId: string) => Promise<void>;
@@ -767,6 +768,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           patient_id: appointment.patientId,
           appointment_id: id,
         });
+
       }
     }
 
@@ -1735,6 +1737,36 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const sendFaltaNotification = async (appointmentId: string) => {
+    const appointment = appointments.find(a => a.id === appointmentId);
+    if (!appointment) return;
+    const patient = getPatientById(appointment.patientId);
+    if (!patient?.phone) return;
+
+    const template = clinicSettings['msg_falta_notification']
+      ?? 'Olá, {{nome_paciente}}! 😊 Notamos que você não pôde comparecer à sua consulta do dia *{{data}}* às *{{hora}}*. Sabemos que imprevistos acontecem! Caso queira reagendar, é só responder *REAGENDAR*. 📅';
+    const dateStr = new Date(appointment.date).toLocaleDateString('pt-BR');
+    const message = template
+      .replace(/\{\{nome_paciente\}\}/g, patient.fullName)
+      .replace(/\{\{data\}\}/g, dateStr)
+      .replace(/\{\{hora\}\}/g, appointment.time);
+
+    const { data, error } = await supabase.functions.invoke('trigger-falta-notification', {
+      body: {
+        patientName: patient.fullName,
+        phone: patient.phone,
+        appointmentDate: appointment.date.toISOString(),
+        appointmentTime: appointment.time,
+        message,
+      },
+    });
+
+    if (error || !data?.success) {
+      const msg = error?.message ?? data?.error ?? 'Erro desconhecido';
+      throw new Error(msg);
+    }
+  };
+
   const sendFeedbackRequest = async (patientId: string) => {
     const { data, error } = await supabase.functions.invoke('trigger-feedback-bot', {
       body: { patientId },
@@ -1887,6 +1919,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     deleteReturnAlert,
     sendReturnAlertWhatsApp,
     sendCancellationNotification,
+    sendFaltaNotification,
     myProfessionalId,
     linkProfessionalToUser,
     sendFeedbackRequest,

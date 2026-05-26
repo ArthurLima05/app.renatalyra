@@ -85,6 +85,13 @@ const MESSAGE_TEMPLATES = [
     defaultValue: 'Olá, {{nome_paciente}}! Sua consulta do dia *{{data}}* foi cancelada. Entre em contato para reagendar. 📞',
   },
   {
+    key: 'msg_falta_notification',
+    label: 'Aviso de Falta',
+    description: 'Enviada automaticamente ao paciente quando o status da consulta é marcado como falta.',
+    variables: ['{{nome_paciente}}', '{{data}}', '{{hora}}'],
+    defaultValue: 'Olá, {{nome_paciente}}! 😊 Notamos que você não pôde comparecer à sua consulta do dia *{{data}}* às *{{hora}}*. Sabemos que imprevistos acontecem! Caso queira reagendar, é só responder *REAGENDAR*. 📅',
+  },
+  {
     key: 'msg_feedback_request',
     label: 'Solicitação de Feedback',
     description: 'Enviada após a consulta pedindo avaliação no Google.',
@@ -248,6 +255,19 @@ function MensagensSection() {
     finally { setSaving(p => ({ ...p, [key]: false })); }
   };
 
+  const [feedbackLink, setFeedbackLink] = useState('');
+  const [savingLink, setSavingLink] = useState(false);
+
+  useEffect(() => {
+    setFeedbackLink(clinicSettings['feedback_link'] ?? '');
+  }, [clinicSettings]);
+
+  const handleSaveFeedbackLink = async () => {
+    setSavingLink(true);
+    try { await updateClinicSetting('feedback_link', feedbackLink); toast({ title: 'Link salvo' }); }
+    finally { setSavingLink(false); }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -256,6 +276,34 @@ function MensagensSection() {
           Edite os textos enviados automaticamente. As variáveis são substituídas pelos dados reais.
         </p>
       </div>
+
+      {/* Link Google Reviews */}
+      <Card>
+        <CardContent className="pt-5 space-y-3">
+          <div>
+            <Label className="text-sm font-semibold">Link do Google Reviews</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              URL usada como <code className="bg-muted px-1 rounded text-xs">{'{{link}}'}</code> na mensagem de feedback. Cole o link de avaliação da clínica no Google.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={feedbackLink}
+              onChange={e => setFeedbackLink(e.target.value)}
+              placeholder="https://g.page/r/..."
+              disabled={!canEdit('configuracoes')}
+            />
+            <Button
+              size="sm"
+              disabled={savingLink || feedbackLink === (clinicSettings['feedback_link'] ?? '') || !canEdit('configuracoes')}
+              onClick={handleSaveFeedbackLink}
+            >
+              {savingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="space-y-4">
         {MESSAGE_TEMPLATES.map(tpl => {
           const saved = clinicSettings[tpl.key] ?? tpl.defaultValue;
