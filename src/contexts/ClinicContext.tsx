@@ -55,7 +55,7 @@ interface ClinicContextType {
   addPatient: (patient: Omit<Patient, "id" | "createdAt">) => Promise<void>;
   updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
   deletePatient: (id: string) => Promise<void>;
-  addSession: (session: Omit<Session, "id"> & { installmentsCount?: number; firstPaymentDate?: Date; paymentMethod?: PaymentMethod }) => Promise<void>;
+  addSession: (session: Omit<Session, "id"> & { installmentsCount?: number; firstPaymentDate?: Date; paymentMethod?: PaymentMethod; cardInstallments?: number }) => Promise<void>;
   updateSession: (id: string, session: Partial<Session>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   getPatientById: (id: string) => Patient | undefined;
@@ -230,6 +230,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           amount: Number(payload.new.amount),
           paymentStatus: payload.new.payment_status,
           paymentMethod: (payload.new as any).payment_method || undefined,
+          installmentCount: (payload.new as any).installment_count || undefined,
           nextAppointment: payload.new.next_appointment ? new Date(payload.new.next_appointment) : undefined,
           professionalId: payload.new.professional_id || undefined,
           notes: payload.new.notes || undefined,
@@ -247,6 +248,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           amount: Number(payload.new.amount),
           paymentStatus: payload.new.payment_status,
           paymentMethod: (payload.new as any).payment_method || undefined,
+          installmentCount: (payload.new as any).installment_count || undefined,
           nextAppointment: payload.new.next_appointment ? new Date(payload.new.next_appointment) : undefined,
           professionalId: payload.new.professional_id || undefined,
           notes: payload.new.notes || undefined,
@@ -268,6 +270,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           patientId: payload.new.patient_id || undefined,
           sessionId: payload.new.session_id || undefined,
           comprovanteUrl: (payload.new as any).comprovante_url || undefined,
+          paymentMethod: (payload.new as any).payment_method || undefined,
+          installmentCount: (payload.new as any).installment_count || undefined,
         } as Transaction;
         setTransactions((prev) => [newTrans, ...prev]);
       })
@@ -646,6 +650,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         amount: Number(s.amount),
         paymentStatus: s.payment_status as any,
         paymentMethod: (s as any).payment_method || undefined,
+        installmentCount: (s as any).installment_count || undefined,
         nextAppointment: s.next_appointment ? new Date(s.next_appointment) : undefined,
         professionalId: s.professional_id || undefined,
       })),
@@ -666,6 +671,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         patientId: t.patient_id || undefined,
         sessionId: t.session_id || undefined,
         comprovanteUrl: (t as any).comprovante_url || undefined,
+        paymentMethod: (t as any).payment_method || undefined,
+        installmentCount: (t as any).installment_count || undefined,
       })),
     );
   };
@@ -831,6 +838,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       date: transaction.date.toISOString(),
       category: transaction.category,
       comprovante_url: transaction.comprovanteUrl ?? null,
+      payment_method: transaction.paymentMethod ?? null,
+      installment_count: transaction.installmentCount ?? null,
     } as any);
 
     if (error) {
@@ -1118,7 +1127,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     toast({ title: "Paciente excluído com sucesso" });
   };
 
-  const addSession = async (session: Omit<Session, "id"> & { installmentsCount?: number; firstPaymentDate?: Date; paymentMethod?: PaymentMethod }) => {
+  const addSession = async (session: Omit<Session, "id"> & { installmentsCount?: number; firstPaymentDate?: Date; paymentMethod?: PaymentMethod; cardInstallments?: number }) => {
     const { data, error } = await supabase.rpc("create_session_with_installments", {
       p_patient_id:         session.patientId,
       p_date:               session.date.toISOString(),
@@ -1158,6 +1167,32 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const newOnes = mapped.filter((n) => !prev.some((p) => p.id === n.id));
         return [...prev, ...newOnes];
       });
+    }
+
+    if (session.cardInstallments && session.cardInstallments > 1) {
+      const sessionId =
+        (data as any)?.session_id ??
+        (data as any)?.installments?.[0]?.session_id;
+
+      if (sessionId) {
+        await (supabase as any).from("sessions")
+          .update({ installment_count: session.cardInstallments })
+          .eq("id", sessionId);
+      } else {
+        // fallback: busca a sessão mais recente deste paciente e atualiza
+        const { data: recent } = await (supabase as any)
+          .from("sessions")
+          .select("id")
+          .eq("patient_id", session.patientId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        if (recent?.id) {
+          await (supabase as any).from("sessions")
+            .update({ installment_count: session.cardInstallments })
+            .eq("id", recent.id);
+        }
+      }
     }
 
     toast({ title: "Lançamento adicionado com sucesso" });

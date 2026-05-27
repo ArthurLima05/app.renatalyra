@@ -82,6 +82,8 @@ export interface Transaction {
   patientId?: string;
   sessionId?: string;
   comprovanteUrl?: string;
+  paymentMethod?: PaymentMethod;
+  installmentCount?: number;
 }
 
 export interface Notification {
@@ -139,6 +141,7 @@ export interface Session {
   amount: number;
   paymentStatus: PaymentStatus;
   paymentMethod?: PaymentMethod;
+  installmentCount?: number;
   nextAppointment?: Date;
   professionalId?: string;
 }

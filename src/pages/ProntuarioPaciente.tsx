@@ -192,6 +192,7 @@ const ProntuarioPaciente = () => {
     paymentStatus: 'em_aberto' as PaymentStatus,
     paymentMethod: '' as PaymentMethod | '',
     professionalId: '',
+    cardInstallments: '',
   });
 
   // Dialog: Adicionar Plano Parcelado
@@ -237,8 +238,9 @@ const ProntuarioPaciente = () => {
       paymentStatus: lancamentoData.paymentStatus,
       paymentMethod: lancamentoData.paymentMethod || undefined,
       professionalId: lancamentoData.professionalId || undefined,
+      cardInstallments: lancamentoData.cardInstallments ? parseInt(lancamentoData.cardInstallments) : undefined,
     });
-    setLancamentoData({ description: '', amount: '', date: '', paymentStatus: 'em_aberto', paymentMethod: '', professionalId: '' });
+    setLancamentoData({ description: '', amount: '', date: '', paymentStatus: 'em_aberto', paymentMethod: '', professionalId: '', cardInstallments: '' });
     setIsLancamentoOpen(false);
   };
 
@@ -876,7 +878,7 @@ const ProntuarioPaciente = () => {
                       <Label>Forma de Pagamento</Label>
                       <Select
                         value={lancamentoData.paymentMethod}
-                        onValueChange={(v) => setLancamentoData({ ...lancamentoData, paymentMethod: v as PaymentMethod })}
+                        onValueChange={(v) => setLancamentoData({ ...lancamentoData, paymentMethod: v as PaymentMethod, cardInstallments: '' })}
                       >
                         <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                         <SelectContent>
@@ -903,6 +905,19 @@ const ProntuarioPaciente = () => {
                       </Select>
                     </div>
                   </div>
+                  {lancamentoData.paymentMethod === 'cartao_credito' && (
+                    <div>
+                      <Label>Nº de Parcelas do Cartão</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="72"
+                        placeholder="1 = à vista"
+                        value={lancamentoData.cardInstallments}
+                        onChange={(e) => setLancamentoData({ ...lancamentoData, cardInstallments: e.target.value })}
+                      />
+                    </div>
+                  )}
                   <div>
                     <Label>Dentista</Label>
                     <Select

@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2, CheckCircle2, User, CreditCard, Paperclip, ExternalLink, Pencil } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2, CheckCircle2, User, CreditCard, Paperclip, ExternalLink, Pencil, ChevronLeft, ChevronRight, Target } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, eachMonthOfInterval } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, addMonths, eachMonthOfInterval, eachDayOfInterval, getDay, isSameDay, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
@@ -47,9 +47,121 @@ export default function Financeiro() {
     amount: '',
     category: '',
     comprovanteUrl: '',
+    paymentMethod: '' as import('@/types').PaymentMethod | '',
+    installmentCount: '',
   });
   const [editingComprovante, setEditingComprovante] = useState(false);
   const [comprovanteInput, setComprovanteInput] = useState('');
+  const [relatorioMes, setRelatorioMes] = useState(startOfMonth(new Date()));
+  const [showFullRelatorio, setShowFullRelatorio] = useState(false);
+  const [showCaixaDiaria, setShowCaixaDiaria] = useState(false);
+  const [metaDiaria, setMetaDiaria] = useState<number>(() => {
+    try { const s = localStorage.getItem('techclin_meta_diaria'); return s ? parseFloat(s) : 8500; } catch { return 8500; }
+  });
+  const [metaDiariaInput, setMetaDiariaInput] = useState<string>(() => {
+    try { const s = localStorage.getItem('techclin_meta_diaria'); return s ?? '8500'; } catch { return '8500'; }
+  });
+
+  const handleMetaDiariaChange = (value: string) => {
+    setMetaDiariaInput(value);
+    const num = parseFloat(value.replace(',', '.'));
+    if (!isNaN(num) && num >= 0) {
+      setMetaDiaria(num);
+      try { localStorage.setItem('techclin_meta_diaria', String(num)); } catch {}
+    }
+  };
+
+  const relatorioData = (() => {
+    const days = eachDayOfInterval({ start: startOfMonth(relatorioMes), end: endOfMonth(relatorioMes) });
+    const today = startOfDay(new Date());
+    return days.map(day => {
+      const dow = getDay(day);
+      const isWeekend = dow === 0 || dow === 6;
+      const weekendLabel = dow === 6 ? 'sábado' : 'domingo';
+      const isFutureDay = isAfter(startOfDay(day), today);
+      const isToday = isSameDay(day, today);
+      const realizado = isWeekend ? null : transactions
+        .filter(t => isSameDay(new Date(t.date), day))
+        .reduce((acc, t) => acc + (t.type === 'entrada' ? t.amount : -t.amount), 0);
+      const meta = isWeekend ? null : metaDiaria;
+      const diferenca = realizado !== null && meta !== null ? realizado - meta : null;
+      const percentual = realizado !== null && meta !== null && meta > 0 ? (realizado / meta) * 100 : (realizado !== null ? 0 : null);
+      return { day, isWeekend, weekendLabel, realizado, meta, diferenca, percentual, isFutureDay, isToday };
+    });
+  })();
+
+  const relatorioTotalMeta = relatorioData.filter(d => !d.isWeekend).reduce((a, d) => a + (d.meta ?? 0), 0);
+  const relatorioTotalRealizado = relatorioData.filter(d => !d.isWeekend).reduce((a, d) => a + (d.realizado ?? 0), 0);
+  const relatorioTotalDiferenca = relatorioTotalRealizado - relatorioTotalMeta;
+
+  const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmtDiff = (v: number) => `${v >= 0 ? '+' : ''}${fmtBRL(v)}`;
+
+  const pmLabel = (method?: string, count?: number): string => {
+    if (!method) return '—';
+    const base: Record<string, string> = {
+      pix: 'PIX', dinheiro: 'Espécie', cartao_debito: 'Débito',
+      cartao_credito: 'Crédito', boleto: 'Boleto', cheque: 'Cheque',
+    };
+    const label = base[method] ?? method;
+    if (method === 'cartao_credito') return 'Crédito';
+    return label;
+  };
+
+  const caixaData = (() => {
+    const monthStart = startOfMonth(relatorioMes);
+    const monthEnd = endOfMonth(relatorioMes);
+    const items = transactions
+      .filter(t => { const d = new Date(t.date); return d >= monthStart && d <= monthEnd; })
+      .map(t => {
+        const session = t.sessionId ? sessions.find(s => s.id === t.sessionId) : null;
+        const patient = t.patientId ? getPatientById(t.patientId) : session?.patientId ? getPatientById(session.patientId) : null;
+        return {
+          id: t.id,
+          type: t.type,
+          date: new Date(t.date),
+          dayKey: format(new Date(t.date), 'dd/MM'),
+          clientName: patient?.fullName ?? 'Sistema',
+          service: session?.procedure ?? t.description,
+          amount: t.amount,
+          paymentMethod: t.paymentMethod ?? (session as any)?.paymentMethod,
+          installmentCount: t.installmentCount ?? (session as any)?.installmentCount,
+        };
+      })
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    const byDay: Record<string, typeof items> = {};
+    for (const item of items) {
+      if (!byDay[item.dayKey]) byDay[item.dayKey] = [];
+      byDay[item.dayKey].push(item);
+    }
+    return byDay;
+  })();
+
+  const exportCaixaDiaria = () => {
+    const wb = XLSX.utils.book_new();
+    const mesLabel = format(relatorioMes, 'MMMM yyyy', { locale: ptBR }).toUpperCase();
+    const wsData: any[][] = [
+      [`CAIXA - ${mesLabel}`], [],
+      ['DATA', 'CLIENTE', 'SERVIÇO', 'VALOR', 'FORMA PGT.', 'PARCELAS', 'VALOR LÍQUIDO'],
+    ];
+    for (const [dayKey, items] of Object.entries(caixaData)) {
+      for (const item of items) {
+        wsData.push([dayKey, item.clientName, item.service,
+          item.type === 'saida' ? -item.amount : item.amount,
+          pmLabel(item.paymentMethod, item.installmentCount),
+          item.installmentCount && item.installmentCount > 1 ? item.installmentCount : '', '']);
+      }
+      const liquido = items.reduce((a, i) => a + (i.type === 'entrada' ? i.amount : -i.amount), 0);
+      wsData.push(['TOTAL DO DIA', '', '', liquido, '', '', '']);
+      wsData.push([]);
+    }
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{ wch: 8 }, { wch: 26 }, { wch: 32 }, { wch: 14 }, { wch: 18 }, { wch: 10 }, { wch: 14 }];
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+    XLSX.utils.book_append_sheet(wb, ws, mesLabel.substring(0, 31));
+    XLSX.writeFile(wb, `Caixa_${format(relatorioMes, 'MM-yyyy')}.xlsx`);
+  };
 
   const getDateRange = (): { start: Date; end: Date } => {
     const now = new Date();
@@ -162,6 +274,8 @@ export default function Financeiro() {
       amount: parseFloat(transactionData.amount),
       date: selectedDate,
       comprovanteUrl: transactionData.comprovanteUrl.trim() || undefined,
+      paymentMethod: transactionData.paymentMethod || undefined,
+      installmentCount: transactionData.installmentCount ? parseInt(transactionData.installmentCount) : undefined,
     });
 
     setIsOpen(false);
@@ -173,6 +287,8 @@ export default function Financeiro() {
       amount: '',
       category: '',
       comprovanteUrl: '',
+      paymentMethod: '',
+      installmentCount: '',
     });
   };
 
@@ -512,6 +628,37 @@ export default function Financeiro() {
                 </div>
               </div>
               
+              <div>
+                <Label>Forma de Pagamento</Label>
+                <Select
+                  value={transactionData.paymentMethod}
+                  onValueChange={(v) => setTransactionData({ ...transactionData, paymentMethod: v as any, installmentCount: '' })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecionar (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="dinheiro">Espécie / Dinheiro</SelectItem>
+                    <SelectItem value="cartao_debito">Débito</SelectItem>
+                    <SelectItem value="cartao_credito">Crédito</SelectItem>
+                    <SelectItem value="boleto">Boleto</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {transactionData.paymentMethod === 'cartao_credito' && (
+                <div>
+                  <Label htmlFor="installmentCount">Nº de Parcelas</Label>
+                  <Input
+                    id="installmentCount"
+                    type="number"
+                    min="1"
+                    max="72"
+                    placeholder="1 = à vista"
+                    value={transactionData.installmentCount}
+                    onChange={(e) => setTransactionData({ ...transactionData, installmentCount: e.target.value })}
+                  />
+                </div>
+              )}
               {transactionData.type === 'saida' && (
                 <div>
                   <Label htmlFor="comprovante">Link do Comprovante (opcional)</Label>
@@ -814,6 +961,262 @@ export default function Financeiro() {
         </motion.div>
       )}
 
+      {/* Caixa Diária */}
+      {canView('financeiro') && !isSecretaria && (
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.43 }}>
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg sm:text-xl">Caixa Diária</CardTitle>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioMes(subMonths(relatorioMes, 1))}><ChevronLeft className="h-4 w-4" /></Button>
+                    <span className="text-sm font-medium min-w-[130px] text-center capitalize">{format(relatorioMes, 'MMMM yyyy', { locale: ptBR })}</span>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioMes(addMonths(relatorioMes, 1))}><ChevronRight className="h-4 w-4" /></Button>
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-2 h-8" onClick={exportCaixaDiaria}>
+                    <Download className="h-4 w-4" />Excel
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {Object.keys(caixaData).length === 0 ? (
+                <p className="text-center text-muted-foreground py-8 text-sm">Nenhuma entrada registrada neste mês</p>
+              ) : (
+                <>
+                  <div className="relative overflow-x-auto -mx-4 sm:mx-0">
+                    <div className={cn('overflow-hidden transition-all duration-300', !showCaixaDiaria && 'max-h-[360px]')}>
+                      <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                        <Table className="min-w-[560px]">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-16 text-xs">Data</TableHead>
+                              <TableHead className="text-xs">Cliente</TableHead>
+                              <TableHead className="text-xs">Serviço</TableHead>
+                              <TableHead className="text-right text-xs">Valor</TableHead>
+                              <TableHead className="text-xs">Forma Pgto</TableHead>
+                              <TableHead className="text-center text-xs">Parcelas</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {Object.entries(caixaData).map(([dayKey, items]) => {
+                              const totalEntrada = items.filter(i => i.type === 'entrada').reduce((a, i) => a + i.amount, 0);
+                              const totalSaida = items.filter(i => i.type === 'saida').reduce((a, i) => a + i.amount, 0);
+                              const liquido = totalEntrada - totalSaida;
+                              return (
+                                <Fragment key={dayKey}>
+                                  {items.map((item, idx) => (
+                                    <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
+                                      <TableCell className="text-sm py-2.5 text-muted-foreground whitespace-nowrap font-mono">{idx === 0 ? dayKey : ''}</TableCell>
+                                      <TableCell className="text-sm py-2.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-medium">{item.clientName}</span>
+                                          {item.type === 'saida' && (
+                                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-400 leading-none shrink-0">saída</span>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-sm py-2.5 text-muted-foreground">{item.service}</TableCell>
+                                      <TableCell className={cn('text-right text-sm py-2.5 tabular-nums font-semibold', item.type === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400')}>
+                                        {item.type === 'saida' ? '− ' : ''}{fmtBRL(item.amount)}
+                                      </TableCell>
+                                      <TableCell className="text-sm py-2.5 text-muted-foreground">{pmLabel(item.paymentMethod, item.installmentCount)}</TableCell>
+                                      <TableCell className="text-center text-sm py-2.5 text-muted-foreground">{item.installmentCount && item.installmentCount > 1 ? `${item.installmentCount}x` : ''}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                  <TableRow>
+                                    <TableCell colSpan={6} className="p-0 pb-3">
+                                      <div className={cn(
+                                        'mx-1 mt-1 rounded-lg px-4 py-2.5 flex items-center justify-between gap-4',
+                                        liquido >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-rose-50 dark:bg-rose-950/30'
+                                      )}>
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total {dayKey}</span>
+                                          {totalSaida > 0 && (
+                                            <div className="flex items-center gap-2 text-xs">
+                                              <span className="text-emerald-600 dark:text-emerald-400">↑ {fmtBRL(totalEntrada)}</span>
+                                              <span className="text-rose-500 dark:text-rose-400">↓ {fmtBRL(totalSaida)}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <span className={cn('text-lg font-bold tabular-nums', liquido >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}>
+                                          {fmtBRL(liquido)}
+                                        </span>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                </Fragment>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                    {!showCaixaDiaria && <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />}
+                  </div>
+                  <div className="mt-2 text-center">
+                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground gap-1" onClick={() => setShowCaixaDiaria(v => !v)}>
+                      {showCaixaDiaria ? <><ChevronLeft className="h-3 w-3 rotate-90" />Recolher</> : <><ChevronRight className="h-3 w-3 rotate-90" />Exibir Mais</>}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Relatório de Faturamento */}
+      {canView('financeiro') && !isSecretaria && (
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.45 }}
+        >
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg sm:text-xl">Relatório de Faturamento</CardTitle>
+                </div>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioMes(subMonths(relatorioMes, 1))}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium min-w-[130px] text-center capitalize">
+                      {format(relatorioMes, 'MMMM yyyy', { locale: ptBR })}
+                    </span>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioMes(addMonths(relatorioMes, 1))}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Meta diária (R$):</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="100"
+                      value={metaDiariaInput}
+                      onChange={(e) => handleMetaDiariaChange(e.target.value)}
+                      className="w-28 text-right h-8 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="relative overflow-x-auto -mx-4 sm:mx-0">
+                <div
+                  className={cn(
+                    'overflow-hidden transition-all duration-300',
+                    !showFullRelatorio && 'max-h-[340px]',
+                  )}
+                >
+                <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                  <Table className="min-w-[520px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-20 text-xs">Data</TableHead>
+                        <TableHead className="text-right text-xs">Meta do dia</TableHead>
+                        <TableHead className="text-right text-xs">Realizado</TableHead>
+                        <TableHead className="text-right text-xs">Diferença</TableHead>
+                        <TableHead className="text-right text-xs">% da meta</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {relatorioData.map(({ day, isWeekend, weekendLabel, realizado, meta, diferenca, percentual, isFutureDay, isToday }) => (
+                        <TableRow
+                          key={format(day, 'yyyy-MM-dd')}
+                          className={cn(
+                            isWeekend && 'bg-orange-50/60 dark:bg-orange-950/20',
+                            isToday && !isWeekend && 'bg-blue-50/60 dark:bg-blue-950/20',
+                          )}
+                        >
+                          <TableCell className={cn(
+                            'text-sm font-medium py-2',
+                            isWeekend && 'text-orange-500',
+                            isToday && !isWeekend && 'text-blue-600 dark:text-blue-400',
+                            isFutureDay && !isWeekend && 'text-muted-foreground',
+                          )}>
+                            {format(day, 'dd/MM')}
+                          </TableCell>
+                          {isWeekend ? (
+                            <TableCell colSpan={4} className="text-orange-500 text-sm text-center py-2 italic">
+                              {weekendLabel}
+                            </TableCell>
+                          ) : (
+                            <>
+                              <TableCell className="text-right text-sm py-2 text-muted-foreground tabular-nums">
+                                {meta !== null ? fmtBRL(meta) : '—'}
+                              </TableCell>
+                              <TableCell className={cn('text-right text-sm py-2 tabular-nums', isFutureDay && 'text-muted-foreground')}>
+                                {isFutureDay ? '—' : fmtBRL(realizado ?? 0)}
+                              </TableCell>
+                              <TableCell className={cn(
+                                'text-right text-sm py-2 font-medium tabular-nums',
+                                diferenca !== null && diferenca >= 0 && !isFutureDay && 'text-emerald-600 dark:text-emerald-400',
+                                (diferenca === null || diferenca < 0 || isFutureDay) && 'text-rose-600 dark:text-rose-400',
+                              )}>
+                                {diferenca !== null ? fmtDiff(isFutureDay ? -(meta ?? 0) : diferenca) : '—'}
+                              </TableCell>
+                              <TableCell className={cn(
+                                'text-right text-sm py-2 tabular-nums',
+                                percentual !== null && percentual >= 100 && !isFutureDay && 'text-emerald-600 dark:text-emerald-400 font-semibold',
+                                (percentual === null || percentual < 100 || isFutureDay) && 'text-rose-500 dark:text-rose-400',
+                              )}>
+                                {isFutureDay ? '0,00%' : percentual !== null ? `${percentual.toFixed(2).replace('.', ',')}%` : '—'}
+                              </TableCell>
+                            </>
+                          )}
+                        </TableRow>
+                      ))}
+                      <TableRow className="border-t-2 border-border font-bold bg-muted/40">
+                        <TableCell className="text-sm font-bold py-3">TOTAL</TableCell>
+                        <TableCell className="text-right text-sm font-bold py-3 tabular-nums">{fmtBRL(relatorioTotalMeta)}</TableCell>
+                        <TableCell className="text-right text-sm font-bold py-3 tabular-nums">{fmtBRL(relatorioTotalRealizado)}</TableCell>
+                        <TableCell className={cn(
+                          'text-right text-sm font-bold py-3 tabular-nums',
+                          relatorioTotalDiferenca >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400',
+                        )}>
+                          {fmtDiff(relatorioTotalDiferenca)}
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-bold py-3 tabular-nums text-muted-foreground">
+                          {relatorioTotalMeta > 0 ? `${((relatorioTotalRealizado / relatorioTotalMeta) * 100).toFixed(2).replace('.', ',')}%` : '—'}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                </div>
+                {!showFullRelatorio && (
+                  <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+                )}
+              </div>
+              <div className="mt-2 text-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground hover:text-foreground gap-1"
+                  onClick={() => setShowFullRelatorio(v => !v)}
+                >
+                  {showFullRelatorio ? (
+                    <><ChevronLeft className="h-3 w-3 rotate-90" /> Recolher</>
+                  ) : (
+                    <><ChevronRight className="h-3 w-3 rotate-90" /> Exibir Mais</>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Filtros e Histórico - apenas para quem tem canView */}
       {!canView('financeiro') && canCreate('financeiro') && (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground text-sm">
@@ -941,10 +1344,6 @@ export default function Financeiro() {
         const dtInstallments = dtSession
           ? installments.filter(i => i.sessionId === dtSession.id)
           : [];
-        const paymentMethodLabels: Record<string, string> = {
-          pix: 'PIX', dinheiro: 'Dinheiro', cartao_credito: 'Cartão de Crédito',
-          cartao_debito: 'Cartão de Débito', boleto: 'Boleto', cheque: 'Cheque',
-        };
         return (
           <Dialog open={!!detailTransaction} onOpenChange={(o) => { if (!o) { setDetailTransaction(null); setEditingComprovante(false); } }}>
             <DialogContent className="max-w-md">
@@ -979,10 +1378,16 @@ export default function Financeiro() {
                     <span>{dtProfessional.name}</span>
                   </div>
                 )}
-                {(dtSession as any)?.paymentMethod && (
+                {(detailTransaction.paymentMethod || (dtSession as any)?.paymentMethod) && (
                   <div className="flex justify-between items-center py-2 border-b">
                     <span className="text-muted-foreground">Forma de Pagamento</span>
-                    <span>{paymentMethodLabels[(dtSession as any).paymentMethod] ?? (dtSession as any).paymentMethod}</span>
+                    <span>{pmLabel(detailTransaction.paymentMethod ?? (dtSession as any)?.paymentMethod, detailTransaction.installmentCount)}</span>
+                  </div>
+                )}
+                {detailTransaction.installmentCount && detailTransaction.installmentCount > 1 && (
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-muted-foreground">Parcelas</span>
+                    <span>{detailTransaction.installmentCount}x</span>
                   </div>
                 )}
                 {dtSession?.notes && (
