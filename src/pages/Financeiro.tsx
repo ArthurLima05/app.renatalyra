@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2, CheckCircle2, User, CreditCard } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2, CheckCircle2, User, CreditCard, Paperclip, ExternalLink, Pencil } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -26,7 +26,7 @@ import * as XLSX from 'xlsx';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
-  const { transactions, addTransaction, deleteTransaction, installments, updateInstallment, sessions, getPatientById, professionals } = useClinic();
+  const { transactions, addTransaction, updateTransactionComprovante, deleteTransaction, installments, updateInstallment, sessions, getPatientById, professionals } = useClinic();
   const { canView, canCreate, canDelete } = usePermissionsCtx();
   const { role, isSecretaria, loading: roleLoading } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +46,10 @@ export default function Financeiro() {
     description: '',
     amount: '',
     category: '',
+    comprovanteUrl: '',
   });
+  const [editingComprovante, setEditingComprovante] = useState(false);
+  const [comprovanteInput, setComprovanteInput] = useState('');
 
   const getDateRange = (): { start: Date; end: Date } => {
     const now = new Date();
@@ -158,8 +161,9 @@ export default function Financeiro() {
       ...transactionData,
       amount: parseFloat(transactionData.amount),
       date: selectedDate,
+      comprovanteUrl: transactionData.comprovanteUrl.trim() || undefined,
     });
-    
+
     setIsOpen(false);
     setDateOption('hoje');
     setCustomDate(undefined);
@@ -168,6 +172,7 @@ export default function Financeiro() {
       description: '',
       amount: '',
       category: '',
+      comprovanteUrl: '',
     });
   };
 
@@ -200,7 +205,8 @@ export default function Financeiro() {
         format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
         t.description,
         t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-        t.category || ''
+        t.category || '',
+        t.comprovanteUrl || ''
       ]);
 
       // Criar título com o período do mês
@@ -210,21 +216,33 @@ export default function Financeiro() {
       const wsData = [
         [title],
         [],
-        ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'],
+        ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES', 'COMPROVANTE'],
         ...tableData
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-      // Mesclar células do título (A1 até D1)
-      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+      // Adicionar hyperlinks nas células de comprovante
+      monthTransactions.forEach((t, rowIdx) => {
+        if (t.comprovanteUrl) {
+          const cellRef = `E${rowIdx + 4}`;
+          if (ws[cellRef]) {
+            ws[cellRef].l = { Target: t.comprovanteUrl };
+            ws[cellRef].v = 'Ver comprovante';
+          }
+        }
+      });
+
+      // Mesclar células do título (A1 até E1)
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
 
       // Definir larguras das colunas
       ws['!cols'] = [
         { wch: 12 },
         { wch: 40 },
         { wch: 15 },
-        { wch: 25 }
+        { wch: 25 },
+        { wch: 20 }
       ];
 
       // Aplicar estilos ao título
@@ -236,7 +254,7 @@ export default function Financeiro() {
       }
 
       // Estilo dos headers
-      ['A3', 'B3', 'C3', 'D3'].forEach(cell => {
+      ['A3', 'B3', 'C3', 'D3', 'E3'].forEach(cell => {
         if (ws[cell]) {
           ws[cell].s = {
             font: { bold: true },
@@ -249,7 +267,7 @@ export default function Financeiro() {
       if (monthIndex === currentMonth) {
         // Aplicar cor de fundo nas células de dados do mês atual
         for (let row = 3; row < wsData.length; row++) {
-          ['A', 'B', 'C', 'D'].forEach(col => {
+          ['A', 'B', 'C', 'D', 'E'].forEach(col => {
             const cellRef = `${col}${row + 1}`;
             if (ws[cellRef]) {
               ws[cellRef].s = {
@@ -283,25 +301,38 @@ export default function Financeiro() {
       format(new Date(t.date), 'dd/MM/yyyy', { locale: ptBR }),
       t.description,
       t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      t.category || ''
+      t.category || '',
+      t.comprovanteUrl || ''
     ]);
 
     const wsData = [
       [title],
       [],
-      ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES'],
+      ['DATA', 'DESCRIÇÃO DA DESPESA', 'VALOR', 'OBSERVAÇÕES', 'COMPROVANTE'],
       ...tableData
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+    // Adicionar hyperlinks nas células de comprovante
+    dataToExport.forEach((t, rowIdx) => {
+      if (t.comprovanteUrl) {
+        const cellRef = `E${rowIdx + 4}`;
+        if (ws[cellRef]) {
+          ws[cellRef].l = { Target: t.comprovanteUrl };
+          ws[cellRef].v = 'Ver comprovante';
+        }
+      }
+    });
+
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
 
     ws['!cols'] = [
       { wch: 12 },
       { wch: 40 },
       { wch: 15 },
-      { wch: 25 }
+      { wch: 25 },
+      { wch: 20 }
     ];
 
     if (ws['A1']) {
@@ -311,7 +342,7 @@ export default function Financeiro() {
       };
     }
 
-    ['A3', 'B3', 'C3', 'D3'].forEach(cell => {
+    ['A3', 'B3', 'C3', 'D3', 'E3'].forEach(cell => {
       if (ws[cell]) {
         ws[cell].s = {
           font: { bold: true },
@@ -481,6 +512,17 @@ export default function Financeiro() {
                 </div>
               </div>
               
+              {transactionData.type === 'saida' && (
+                <div>
+                  <Label htmlFor="comprovante">Link do Comprovante (opcional)</Label>
+                  <Input
+                    id="comprovante"
+                    placeholder="Cole o link do Google Drive, Dropbox, etc."
+                    value={transactionData.comprovanteUrl}
+                    onChange={(e) => setTransactionData({ ...transactionData, comprovanteUrl: e.target.value })}
+                  />
+                </div>
+              )}
               <Button type="submit" className="w-full">Adicionar</Button>
             </form>
           </DialogContent>
@@ -847,6 +889,12 @@ export default function Financeiro() {
                               {professional.name}
                             </span>
                           )}
+                          {transaction.comprovanteUrl && (
+                            <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                              <Paperclip className="h-3 w-3 flex-shrink-0" />
+                              Comprovante
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 w-full sm:w-auto" onClick={e => e.stopPropagation()}>
@@ -898,7 +946,7 @@ export default function Financeiro() {
           cartao_debito: 'Cartão de Débito', boleto: 'Boleto', cheque: 'Cheque',
         };
         return (
-          <Dialog open={!!detailTransaction} onOpenChange={(o) => !o && setDetailTransaction(null)}>
+          <Dialog open={!!detailTransaction} onOpenChange={(o) => { if (!o) { setDetailTransaction(null); setEditingComprovante(false); } }}>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Detalhes da Transação</DialogTitle>
@@ -941,6 +989,64 @@ export default function Financeiro() {
                   <div className="py-2 border-b">
                     <span className="text-muted-foreground block mb-1">Observações</span>
                     <p className="bg-muted rounded p-2 text-xs">{dtSession.notes}</p>
+                  </div>
+                )}
+                {detailTransaction.type === 'saida' && (
+                  <div className="py-2 border-b">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-muted-foreground">Comprovante</span>
+                      {!editingComprovante && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => {
+                            setComprovanteInput(detailTransaction.comprovanteUrl ?? '');
+                            setEditingComprovante(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          {detailTransaction.comprovanteUrl ? 'Editar' : 'Adicionar'}
+                        </Button>
+                      )}
+                    </div>
+                    {editingComprovante ? (
+                      <div className="flex gap-2">
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder="Cole o link do comprovante"
+                          value={comprovanteInput}
+                          onChange={(e) => setComprovanteInput(e.target.value)}
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 px-3 text-xs"
+                          onClick={async () => {
+                            await updateTransactionComprovante(detailTransaction.id, comprovanteInput.trim() || null);
+                            setDetailTransaction({ ...detailTransaction, comprovanteUrl: comprovanteInput.trim() || undefined });
+                            setEditingComprovante(false);
+                          }}
+                        >
+                          Salvar
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setEditingComprovante(false)}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    ) : detailTransaction.comprovanteUrl ? (
+                      <a
+                        href={detailTransaction.comprovanteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Ver comprovante
+                      </a>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Nenhum comprovante anexado</p>
+                    )}
                   </div>
                 )}
                 {dtInstallments.length > 0 && (

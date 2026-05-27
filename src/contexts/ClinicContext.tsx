@@ -45,6 +45,7 @@ interface ClinicContextType {
   updateAppointmentProfessional: (id: string, professionalId: string) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
+  updateTransactionComprovante: (id: string, comprovanteUrl: string | null) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addProfessional: (professional: Omit<Professional, "id">) => Promise<void>;
   updateProfessional: (id: string, data: Partial<Omit<Professional, "id">>) => Promise<void>;
@@ -266,6 +267,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           amount: Number(payload.new.amount),
           patientId: payload.new.patient_id || undefined,
           sessionId: payload.new.session_id || undefined,
+          comprovanteUrl: (payload.new as any).comprovante_url || undefined,
         } as Transaction;
         setTransactions((prev) => [newTrans, ...prev]);
       })
@@ -276,6 +278,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           amount: Number(payload.new.amount),
           patientId: payload.new.patient_id || undefined,
           sessionId: payload.new.session_id || undefined,
+          comprovanteUrl: (payload.new as any).comprovante_url || undefined,
         } as Transaction;
         setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       })
@@ -662,6 +665,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         amount: Number(t.amount),
         patientId: t.patient_id || undefined,
         sessionId: t.session_id || undefined,
+        comprovanteUrl: (t as any).comprovante_url || undefined,
       })),
     );
   };
@@ -826,7 +830,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       amount: transaction.amount,
       date: transaction.date.toISOString(),
       category: transaction.category,
-    });
+      comprovante_url: transaction.comprovanteUrl ?? null,
+    } as any);
 
     if (error) {
       toast({ title: "Erro ao adicionar transação", description: error.message, variant: "destructive" });
@@ -834,6 +839,23 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     toast({ title: "Transação adicionada com sucesso" });
+  };
+
+  const updateTransactionComprovante = async (id: string, comprovanteUrl: string | null) => {
+    const { error } = await (supabase as any)
+      .from("transactions")
+      .update({ comprovante_url: comprovanteUrl })
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Erro ao salvar comprovante", description: error.message, variant: "destructive" });
+      throw error;
+    }
+
+    setTransactions((prev) =>
+      prev.map((t) => t.id === id ? { ...t, comprovanteUrl: comprovanteUrl ?? undefined } : t)
+    );
+    toast({ title: "Comprovante salvo com sucesso" });
   };
 
   const deleteTransaction = async (id: string) => {
@@ -1896,6 +1918,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     updateAppointmentProfessional,
     deleteAppointment,
     addTransaction,
+    updateTransactionComprovante,
     deleteTransaction,
     addProfessional,
     updateProfessional,

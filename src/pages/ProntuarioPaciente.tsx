@@ -14,14 +14,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History, MessageCircle } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History, MessageCircle, FileText } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input';
 import { Odontograma } from '@/components/Odontograma';
 import { PatientPhotos } from '@/components/PatientPhotos';
 import { PatientAnamnese } from '@/components/PatientAnamnese';
 import { PatientDocuments } from '@/components/PatientDocuments';
-import { PaymentStatus, PaymentMethod, PatientGender, MaritalStatus, PatientOrigin } from '@/types';
+import { ReciboModal } from '@/components/ReciboModal';
+import { PaymentStatus, PaymentMethod, PatientGender, MaritalStatus, PatientOrigin, Session } from '@/types';
 import { useRef } from 'react';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { useToast } from '@/hooks/use-toast';
@@ -178,6 +179,9 @@ const ProntuarioPaciente = () => {
     setReturnAlertData({ months: '6', customDate: '', notes: '' });
     setIsReturnAlertOpen(false);
   };
+
+  // Dialog: Recibo
+  const [reciboSession, setReciboSession] = useState<Session | null>(null);
 
   // Dialog: Adicionar Lançamento
   const [isLancamentoOpen, setIsLancamentoOpen] = useState(false);
@@ -915,7 +919,7 @@ const ProntuarioPaciente = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>Observação</Label>
+                    <Label>Procedimento</Label>
                     <Input
                       value={lancamentoData.description}
                       onChange={(e) => setLancamentoData({ ...lancamentoData, description: e.target.value })}
@@ -1019,7 +1023,7 @@ const ProntuarioPaciente = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>Observação</Label>
+                    <Label>Procedimento</Label>
                     <Input
                       value={planoData.description}
                       onChange={(e) => setPlanoData({ ...planoData, description: e.target.value })}
@@ -1100,31 +1104,57 @@ const ProntuarioPaciente = () => {
                         </div>
 
                         {/* Ações para lançamento sem parcelas */}
-                        {!hasInstallments && effectiveStatus === 'em_aberto' && (
-                          <div className="mt-3 pt-3 border-t">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateSession(session.id, { paymentStatus: 'pago' })}
-                              className="text-xs"
-                            >
-                              <Banknote className="h-3.5 w-3.5 mr-1.5" />
-                              Registrar Pagamento
-                            </Button>
+                        {!hasInstallments && (effectiveStatus === 'em_aberto' || effectiveStatus === 'pago') && (
+                          <div className="mt-3 pt-3 border-t flex items-center gap-2">
+                            {effectiveStatus === 'em_aberto' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateSession(session.id, { paymentStatus: 'pago' })}
+                                className="text-xs"
+                              >
+                                <Banknote className="h-3.5 w-3.5 mr-1.5" />
+                                Registrar Pagamento
+                              </Button>
+                            )}
+                            {effectiveStatus === 'pago' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setReciboSession(session)}
+                                className="text-xs"
+                              >
+                                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                                Gerar Recibo
+                              </Button>
+                            )}
                           </div>
                         )}
 
                         {/* Expand/collapse parcelas */}
                         {hasInstallments && (
                           <div className="mt-3 pt-3 border-t">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
-                              className="text-xs h-7 px-2"
-                            >
-                              {isExpanded ? 'Ocultar' : 'Ver'} parcelas
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                                className="text-xs h-7 px-2"
+                              >
+                                {isExpanded ? 'Ocultar' : 'Ver'} parcelas
+                              </Button>
+                              {allInstallmentsPaid && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setReciboSession(session)}
+                                  className="text-xs h-7"
+                                >
+                                  <FileText className="h-3.5 w-3.5 mr-1.5" />
+                                  Gerar Recibo
+                                </Button>
+                              )}
+                            </div>
 
                             {isExpanded && (
                               <div className="mt-2 space-y-1.5">
@@ -1284,6 +1314,15 @@ const ProntuarioPaciente = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {reciboSession && patient && (
+        <ReciboModal
+          open={!!reciboSession}
+          onClose={() => setReciboSession(null)}
+          patient={patient}
+          session={reciboSession}
+        />
+      )}
     </motion.div>
   );
 };

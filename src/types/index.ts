@@ -81,6 +81,7 @@ export interface Transaction {
   category: string;
   patientId?: string;
   sessionId?: string;
+  comprovanteUrl?: string;
 }
 
 export interface Notification {
