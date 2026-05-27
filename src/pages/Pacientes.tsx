@@ -157,7 +157,7 @@ const Pacientes = () => {
                 </div>
               </div>
               <div>
-                <Label htmlFor="origin">Origem *</Label>
+                <Label htmlFor="origin">Canal *</Label>
                 <Select value={formData.origin} onValueChange={(value: PatientOrigin) => setFormData({ ...formData, origin: value })}>
                   <SelectTrigger>
                     <SelectValue />

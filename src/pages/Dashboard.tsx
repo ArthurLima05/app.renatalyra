@@ -244,7 +244,7 @@ export default function Dashboard() {
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5 }}>
           <Card className="h-full">
             <CardHeader className="items-start sm:items-center text-left sm:text-center pb-2">
-              <CardTitle>Origem dos Pacientes</CardTitle>
+              <CardTitle>Canal dos Pacientes</CardTitle>
             </CardHeader>
             <CardContent>
               {originDataFiltered.length > 0 ? (
@@ -274,9 +274,9 @@ export default function Dashboard() {
                 </>
               ) : (
                 <div className="h-[260px] flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                  <p className="text-sm">Sem dados de origem identificados</p>
+                  <p className="text-sm">Sem dados de canal identificados</p>
                   {outroCount > 0 && (
-                    <p className="text-xs">{outroCount} atendimentos sem origem definida</p>
+                    <p className="text-xs">{outroCount} atendimentos sem canal definido</p>
                   )}
                 </div>
               )}

@@ -14,7 +14,7 @@ const PAGE_NAMES: Record<string, string> = {
   '/financeiro':    'Financeiro',
   '/notificacoes':  'Notificações',
   '/dashboard':     'Dashboard',
-  '/funil':         'Funil',
+  '/funil':         'Marketing',
   '/configuracoes': 'Configurações',
 };
 

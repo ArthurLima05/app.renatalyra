@@ -29,7 +29,7 @@ const NAV_ITEMS = [
   { to: '/financeiro',    module: 'financeiro',    icon: DollarSign,      label: 'Financeiro' },
   { to: '/notificacoes',  module: 'notificacoes',  icon: Bell,            label: 'Notificações' },
   { to: '/dashboard',     module: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/funil',         module: 'funil',         icon: TrendingUp,      label: 'Funil' },
+  { to: '/funil',         module: 'funil',         icon: TrendingUp,      label: 'Marketing' },
 ];
 
 interface SidebarProps {

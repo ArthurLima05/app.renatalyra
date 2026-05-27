@@ -205,9 +205,11 @@ export interface OdontogramProcedure {
 export type LeadStage =
   | 'novo_lead'
   | 'em_contato'
+  | 'follow_up_1'
+  | 'follow_up_2'
+  | 'follow_up_3'
   | 'consulta_agendada'
   | 'avaliacao_realizada'
-  | 'proposta_enviada'
   | 'convertido'
   | 'perdido';
 

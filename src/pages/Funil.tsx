@@ -17,23 +17,38 @@ import {
   Plus, Phone, ChevronRight, ChevronLeft, Trash2, Edit, UserPlus,
   Calendar, TrendingUp, Users, DollarSign, ExternalLink, X,
 } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input';
 
 // ── Estágios ──────────────────────────────────────────────────────────────────
 const STAGES: { id: LeadStage; label: string; color: string; dot: string }[] = [
-  { id: 'novo_lead',          label: 'Novo Lead',           color: 'bg-slate-100 dark:bg-slate-800',   dot: 'bg-slate-400' },
-  { id: 'em_contato',         label: 'Em Contato',          color: 'bg-blue-50 dark:bg-blue-950/40',   dot: 'bg-blue-400' },
+  { id: 'novo_lead',          label: 'Novo Lead',           color: 'bg-slate-100 dark:bg-slate-800',     dot: 'bg-slate-400' },
+  { id: 'em_contato',         label: 'Em Contato',          color: 'bg-blue-50 dark:bg-blue-950/40',     dot: 'bg-blue-400' },
+  { id: 'follow_up_1',        label: 'Follow-Up 1',         color: 'bg-teal-50 dark:bg-teal-950/40',     dot: 'bg-teal-400' },
+  { id: 'follow_up_2',        label: 'Follow-Up 2',         color: 'bg-cyan-50 dark:bg-cyan-950/40',     dot: 'bg-cyan-500' },
+  { id: 'follow_up_3',        label: 'Follow-Up 3',         color: 'bg-sky-50 dark:bg-sky-950/40',       dot: 'bg-sky-500' },
   { id: 'consulta_agendada',  label: 'Consulta Agendada',   color: 'bg-violet-50 dark:bg-violet-950/40', dot: 'bg-violet-500' },
-  { id: 'avaliacao_realizada',label: 'Avaliação Realizada', color: 'bg-amber-50 dark:bg-amber-950/40', dot: 'bg-amber-500' },
-  { id: 'proposta_enviada',   label: 'Proposta Enviada',    color: 'bg-orange-50 dark:bg-orange-950/40', dot: 'bg-orange-500' },
-  { id: 'convertido',         label: 'Convertido',          color: 'bg-green-50 dark:bg-green-950/40', dot: 'bg-green-500' },
-  { id: 'perdido',            label: 'Perdido',             color: 'bg-red-50 dark:bg-red-950/40',     dot: 'bg-red-400' },
+  { id: 'avaliacao_realizada',label: 'Avaliação Realizada', color: 'bg-amber-50 dark:bg-amber-950/40',   dot: 'bg-amber-500' },
+  { id: 'convertido',         label: 'Convertido',          color: 'bg-green-50 dark:bg-green-950/40',   dot: 'bg-green-500' },
+  { id: 'perdido',            label: 'Perdido',             color: 'bg-red-50 dark:bg-red-950/40',       dot: 'bg-red-400' },
 ];
 
 const STAGE_INDEX = Object.fromEntries(STAGES.map((s, i) => [s.id, i]));
+
+const SERVICES = [
+  'Implantes',
+  'Coroas',
+  'Facetas',
+  'Ortodontia',
+  'Limpeza e Restaurações',
+  'Clareamento',
+  'Endodontia',
+  'Cirurgias/Exodontias',
+  'Plastia Gengival',
+  'Odontopediatria',
+] as const;
 
 const ORIGIN_COLORS: Record<PatientOrigin, string> = {
   'Google Ads':  'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
@@ -92,7 +107,7 @@ function LeadForm({
           <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} />
         </div>
         <div>
-          <Label>Origem *</Label>
+          <Label>Canal *</Label>
           <Select value={form.origin} onValueChange={v => set('origin', v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -104,8 +119,19 @@ function LeadForm({
           </Select>
         </div>
         <div>
-          <Label>Tratamento de interesse</Label>
-          <Input value={form.treatmentInterest} onChange={e => set('treatmentInterest', e.target.value)} placeholder="Ex: Implante, Clareamento..." />
+          <Label>Procedimento de interesse</Label>
+          <Select
+            value={form.treatmentInterest || '_none'}
+            onValueChange={v => set('treatmentInterest', v === '_none' ? '' : v)}
+          >
+            <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+            <SelectContent position="popper" className="max-h-60 overflow-y-auto">
+              <SelectItem value="_none">
+                <span className="text-muted-foreground">Não identificado</span>
+              </SelectItem>
+              {SERVICES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div className="col-span-2">
           <Label>Valor estimado (R$)</Label>
@@ -125,8 +151,18 @@ function LeadForm({
 }
 
 // ── Card do lead ──────────────────────────────────────────────────────────────
-function LeadCard({ lead, stageInfo, onSelect }: { lead: Lead; stageInfo: typeof STAGES[0]; onSelect: () => void }) {
+function LeadCard({ lead, stageInfo, onSelect, onDragStart, onDragEnd }: {
+  lead: Lead; stageInfo: typeof STAGES[0]; onSelect: () => void;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>, leadId: string) => void;
+  onDragEnd: () => void;
+}) {
+  const draggable = lead.stage !== 'convertido' && lead.stage !== 'perdido';
   return (
+    <div
+      draggable={draggable}
+      onDragStart={(e) => { if (draggable) onDragStart(e, lead.id); }}
+      onDragEnd={onDragEnd}
+    >
     <motion.div
       onClick={onSelect}
       className="bg-card border border-border/80 rounded-xl p-3 space-y-3 cursor-pointer"
@@ -144,9 +180,14 @@ function LeadCard({ lead, stageInfo, onSelect }: { lead: Lead; stageInfo: typeof
           {lead.origin}
         </span>
       </div>
-      {lead.treatmentInterest && (
+      {lead.treatmentInterest ? (
         <p className="text-xs text-muted-foreground truncate">{lead.treatmentInterest}</p>
-      )}
+      ) : lead.stage !== 'novo_lead' && lead.stage !== 'convertido' && lead.stage !== 'perdido' ? (
+        <span className="text-[10px] text-amber-500/70 flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+          Sem procedimento
+        </span>
+      ) : null}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5"><Phone className="h-3 w-3" />{formatPhoneDisplay(lead.phone)}</span>
         <span className="tabular-nums">{daysInStage(lead.updatedAt)}</span>
@@ -155,6 +196,7 @@ function LeadCard({ lead, stageInfo, onSelect }: { lead: Lead; stageInfo: typeof
         <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{fmt(lead.estimatedValue)}</p>
       )}
     </motion.div>
+    </div>
   );
 }
 
@@ -371,9 +413,14 @@ function LeadDetailPanel({ lead, onClose }: { lead: Lead; onClose: () => void })
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function Funil() {
-  const { leads, addLead } = useClinic();
+  const { leads, addLead, moveLeadStage, patients } = useClinic();
+  const navigate = useNavigate();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<LeadStage | null>(null);
+  const [showBlockedDialog, setShowBlockedDialog] = useState(false);
+  const [pendingDropLead, setPendingDropLead] = useState<Lead | null>(null);
 
   const byStage = useMemo(() => {
     const map: Record<LeadStage, Lead[]> = {} as any;
@@ -389,13 +436,94 @@ export default function Funil() {
     ? Math.round((convertedLeads.length / leads.length) * 100)
     : 0;
 
+  // ── Estatísticas de canal ─────────────────────────────────────────────────
+  const CHANNELS = [
+    { name: 'Google Ads' as PatientOrigin, badge: ORIGIN_COLORS['Google Ads'], dot: 'bg-blue-400' },
+    { name: 'Instagram'  as PatientOrigin, badge: ORIGIN_COLORS['Instagram'],  dot: 'bg-pink-400' },
+    { name: 'Indicação'  as PatientOrigin, badge: ORIGIN_COLORS['Indicação'],  dot: 'bg-green-500' },
+  ];
+
+  const channelLeadStats = CHANNELS.map(ch => {
+    const chLeads = leads.filter(l => l.origin === ch.name);
+    const active    = chLeads.filter(l => l.stage !== 'convertido' && l.stage !== 'perdido').length;
+    const converted = chLeads.filter(l => l.stage === 'convertido').length;
+    const lost      = chLeads.filter(l => l.stage === 'perdido').length;
+    const closed    = converted + lost;
+    const rate      = closed > 0 ? Math.round((converted / closed) * 100) : null;
+    return { ...ch, active, converted, lost, total: chLeads.length, rate };
+  });
+
+  const thirtyDaysAgo = subDays(new Date(), 30);
+  const newPatients30d = patients.filter(p => new Date((p as any).createdAt ?? 0) >= thirtyDaysAgo).length;
+
+  const patientChannelStats = CHANNELS.map(ch => ({
+    ...ch,
+    count: patients.filter(p => p.origin === ch.name).length,
+  }));
+
+  const serviceStats = SERVICES
+    .map(name => ({
+      name,
+      active:    leads.filter(l => l.treatmentInterest === name && l.stage !== 'convertido' && l.stage !== 'perdido').length,
+      converted: leads.filter(l => l.treatmentInterest === name && l.stage === 'convertido').length,
+    }))
+    .filter(s => s.active + s.converted > 0);
+
+  const unidentifiedActive    = leads.filter(l => !l.treatmentInterest && l.stage !== 'convertido' && l.stage !== 'perdido').length;
+  const unidentifiedConverted = leads.filter(l => !l.treatmentInterest && l.stage === 'convertido').length;
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, leadId: string) => {
+    setDraggedLeadId(leadId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = () => {
+    setDraggedLeadId(null);
+    setDragOverStage(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, stageId: LeadStage) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverStage(stageId);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverStage(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>, targetStage: LeadStage) => {
+    e.preventDefault();
+    setDragOverStage(null);
+    if (!draggedLeadId) return;
+    const lead = leads.find(l => l.id === draggedLeadId);
+    setDraggedLeadId(null);
+    if (!lead || lead.stage === targetStage) return;
+    if (targetStage === 'consulta_agendada' && !lead.patientId) {
+      setPendingDropLead(lead);
+      setShowBlockedDialog(true);
+      return;
+    }
+    await moveLeadStage(lead.id, targetStage);
+  };
+
+  const handleRegisterAndSchedule = async () => {
+    if (!pendingDropLead) return;
+    const result = await moveLeadStage(pendingDropLead.id, 'consulta_agendada');
+    setShowBlockedDialog(false);
+    setPendingDropLead(null);
+    if (result?.patientId) navigate('/');
+  };
+
   return (
     <div className="space-y-6">
       <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl">Funil de Vendas</h1>
-          <p className="text-sm text-muted-foreground font-cocon">Acompanhe leads do primeiro contato até a conversão</p>
+          <h1 className="text-2xl sm:text-3xl">Marketing</h1>
+          <p className="text-sm text-muted-foreground font-cocon">Canais de aquisição, leads e conversão</p>
         </div>
         <Button className="gap-2 shrink-0" onClick={() => setIsAddOpen(true)}>
           <Plus className="h-4 w-4" />
@@ -403,25 +531,111 @@ export default function Funil() {
         </Button>
       </motion.div>
 
-      {/* Métricas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* ── Números gerais ────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-px bg-border rounded-xl overflow-hidden border border-border">
         {[
-          { icon: Users,       label: 'Leads ativos',      value: activeLeads.length,   color: 'text-blue-600' },
-          { icon: TrendingUp,  label: 'Taxa de conversão', value: `${conversionRate}%`, color: 'text-green-600' },
-          { icon: DollarSign,  label: 'Pipeline total',    value: fmt(pipelineValue) ?? 'R$ 0', color: 'text-amber-600' },
-          { icon: UserPlus,    label: 'Convertidos',       value: convertedLeads.length, color: 'text-violet-600' },
-        ].map(m => (
-          <Card key={m.label}>
-            <CardContent className="p-4 flex items-center gap-3">
-              <m.icon className={cn("h-5 w-5 shrink-0", m.color)} />
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground truncate">{m.label}</p>
-                <p className="font-bold text-base">{m.value}</p>
-              </div>
-            </CardContent>
-          </Card>
+          { label: 'Pacientes',    value: patients.length },
+          { label: 'Novos (30d)',  value: newPatients30d > 0 ? `+${newPatients30d}` : '0' },
+          { label: 'Leads ativos', value: activeLeads.length },
+          { label: 'Convertidos',  value: convertedLeads.length },
+          { label: 'Taxa conv.',   value: `${conversionRate}%` },
+          { label: 'Pipeline',     value: fmt(pipelineValue) ?? 'R$ 0' },
+        ].map(stat => (
+          <div key={stat.label} className="bg-card px-4 py-3.5">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide leading-none mb-1.5">{stat.label}</p>
+            <p className="text-xl font-bold tabular-nums leading-none">{stat.value}</p>
+          </div>
         ))}
       </div>
+
+      {/* ── Canais de Aquisição ──────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Canais de Aquisição</p>
+        <Card>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2.5 px-4 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Canal</th>
+                  <th className="text-right py-2.5 px-4 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Pacientes</th>
+                  <th className="text-right py-2.5 px-4 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">No funil</th>
+                  <th className="text-right py-2.5 px-4 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Convertidos</th>
+                  <th className="text-right py-2.5 px-4 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Taxa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {channelLeadStats.map((ch, i) => {
+                  const patCount = patientChannelStats.find(p => p.name === ch.name)?.count ?? 0;
+                  return (
+                    <tr key={ch.name} className={i < channelLeadStats.length - 1 ? 'border-b border-border' : ''}>
+                      <td className="py-3 px-4">
+                        <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', ch.badge)}>
+                          {ch.name}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right font-bold tabular-nums">{patCount}</td>
+                      <td className="py-3 px-4 text-right font-bold tabular-nums">{ch.active}</td>
+                      <td className="py-3 px-4 text-right font-bold tabular-nums text-green-600 dark:text-green-400">{ch.converted}</td>
+                      <td className="py-3 px-4 text-right font-bold tabular-nums">
+                        {ch.rate !== null ? `${ch.rate}%` : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Serviços ─────────────────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Serviços</p>
+        <Card>
+          <CardContent className="p-0 overflow-x-auto">
+            {serviceStats.length === 0 && unidentifiedActive === 0 && unidentifiedConverted === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhum procedimento registrado ainda</p>
+            ) : (
+              <table className="w-full text-sm min-w-[320px]">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2.5 px-4 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Procedimento</th>
+                    <th className="text-right py-2.5 px-4 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">No funil</th>
+                    <th className="text-right py-2.5 px-4 text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Convertidos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serviceStats.map((svc, i) => {
+                    const isLast = i === serviceStats.length - 1 && unidentifiedActive === 0 && unidentifiedConverted === 0;
+                    return (
+                      <tr key={svc.name} className={!isLast ? 'border-b border-border' : ''}>
+                        <td className="py-3 px-4">{svc.name}</td>
+                        <td className="py-3 px-4 text-right font-bold tabular-nums">{svc.active}</td>
+                        <td className="py-3 px-4 text-right font-bold tabular-nums text-green-600 dark:text-green-400">{svc.converted}</td>
+                      </tr>
+                    );
+                  })}
+                  {(unidentifiedActive > 0 || unidentifiedConverted > 0) && (
+                    <tr>
+                      <td className="py-3 px-4">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                          Não identificado
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right font-bold tabular-nums text-muted-foreground">{unidentifiedActive}</td>
+                      <td className="py-3 px-4 text-right font-bold tabular-nums text-muted-foreground">{unidentifiedConverted}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Funil de Vendas ──────────────────────────────────────────────────── */}
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Funil de Vendas</p>
 
       {/* Kanban */}
       <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory">
@@ -429,7 +643,17 @@ export default function Funil() {
           const cards = byStage[stage.id] ?? [];
           const stageValue = cards.reduce((s, l) => s + (l.estimatedValue ?? 0), 0);
           return (
-            <div key={stage.id} className={cn("flex-none w-[82vw] sm:w-64 snap-center rounded-xl p-3 space-y-3", stage.color)}>
+            <div
+              key={stage.id}
+              className={cn(
+                "flex-none w-[82vw] sm:w-64 snap-center rounded-xl p-3 space-y-3 transition-all duration-150",
+                stage.color,
+                dragOverStage === stage.id && 'ring-2 ring-primary/60 brightness-95',
+              )}
+              onDragOver={(e) => handleDragOver(e, stage.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, stage.id)}
+            >
               <div>
                 <div className="flex items-center justify-between mb-0.5">
                   <div className="flex items-center gap-1.5">
@@ -455,6 +679,8 @@ export default function Funil() {
                       lead={lead}
                       stageInfo={stage}
                       onSelect={() => setSelectedLead(lead)}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
                     />
                   ))
                 )}
@@ -485,6 +711,30 @@ export default function Funil() {
               setIsAddOpen(false);
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: consulta agendada bloqueada por falta de cadastro */}
+      <Dialog
+        open={showBlockedDialog}
+        onOpenChange={(open) => { if (!open) { setShowBlockedDialog(false); setPendingDropLead(null); } }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Paciente não cadastrado</DialogTitle>
+            <DialogDescription>
+              Para mover este lead para &quot;Consulta Agendada&quot;, é necessário que ele esteja cadastrado como paciente primeiro.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="outline" onClick={() => { setShowBlockedDialog(false); setPendingDropLead(null); }}>
+              Cancelar
+            </Button>
+            <Button className="gap-2" onClick={handleRegisterAndSchedule}>
+              <UserPlus className="h-4 w-4" />
+              Cadastrar e Agendar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
