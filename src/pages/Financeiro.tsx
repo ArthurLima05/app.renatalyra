@@ -3,10 +3,9 @@ import { useState, Fragment } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, Trash2, CheckCircle2, User, CreditCard, Paperclip, ExternalLink, Pencil, ChevronLeft, ChevronRight, Target } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, CheckCircle2, ChevronLeft, ChevronRight, Target } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,21 +25,16 @@ import * as XLSX from 'xlsx';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
-  const { transactions, addTransaction, updateTransactionComprovante, deleteTransaction, installments, updateInstallment, sessions, getPatientById, professionals } = useClinic();
-  const { canView, canCreate, canDelete } = usePermissionsCtx();
+  const { transactions, addTransaction, installments, updateInstallment, sessions, getPatientById, professionals } = useClinic();
+  const { canView, canCreate } = usePermissionsCtx();
   const { role, isSecretaria, loading: roleLoading } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<'all' | 'entrada' | 'saida'>('all');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
   const [datePeriod, setDatePeriod] = useState<DatePeriod>('mes');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [dateOption, setDateOption] = useState<'hoje' | 'personalizado'>('hoje');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [showAllInstallments, setShowAllInstallments] = useState(false);
-  const [detailTransaction, setDetailTransaction] = useState<typeof transactions[0] | null>(null);
   const [transactionData, setTransactionData] = useState({
     type: 'entrada' as TransactionType,
     description: '',
@@ -50,8 +44,6 @@ export default function Financeiro() {
     paymentMethod: '' as import('@/types').PaymentMethod | '',
     installmentCount: '',
   });
-  const [editingComprovante, setEditingComprovante] = useState(false);
-  const [comprovanteInput, setComprovanteInput] = useState('');
   const [relatorioMes, setRelatorioMes] = useState(startOfMonth(new Date()));
   const [showFullRelatorio, setShowFullRelatorio] = useState(false);
   const [showCaixaDiaria, setShowCaixaDiaria] = useState(false);
@@ -190,12 +182,6 @@ export default function Financeiro() {
   const filteredByDateTransactions = transactions.filter(t => {
     const transactionDate = new Date(t.date);
     return transactionDate >= dateRange.start && transactionDate <= dateRange.end;
-  });
-
-  const filteredTransactions = filteredByDateTransactions.filter(t => {
-    if (filterType !== 'all' && t.type !== filterType) return false;
-    if (filterCategory !== 'all' && t.category !== filterCategory) return false;
-    return true;
   });
 
   const totalEntradas = filteredByDateTransactions
@@ -473,16 +459,7 @@ export default function Financeiro() {
     XLSX.writeFile(wb, fileName);
   };
 
-  const handleDeleteTransaction = async () => {
-    if (transactionToDelete) {
-      await deleteTransaction(transactionToDelete);
-      setDeleteDialogOpen(false);
-      setTransactionToDelete(null);
-    }
-  };
-
   const COLORS = ['#DBC192', '#9CA0A0'];
-  const allCategories = Array.from(new Set(transactions.map(t => t.category)));
 
   if (roleLoading) {
     return (
@@ -1217,280 +1194,6 @@ export default function Financeiro() {
         </motion.div>
       )}
 
-      {/* Filtros e Histórico - apenas para quem tem canView */}
-      {!canView('financeiro') && canCreate('financeiro') && (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground text-sm">
-          Você tem permissão para criar lançamentos, mas não para visualizar o histórico financeiro.
-        </div>
-      )}
-      {canView('financeiro') && <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.5 }}
-      >
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <CardTitle className="text-lg sm:text-xl">Histórico de Transações</CardTitle>
-              <div className="flex gap-2 flex-wrap w-full sm:w-auto">
-                <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue placeholder="Tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="entrada">Entradas</SelectItem>
-                    <SelectItem value="saida">Saídas</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredTransactions.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma transação encontrada
-                </p>
-              ) : (
-                filteredTransactions.slice().reverse().map((transaction) => {
-                  const session = transaction.sessionId ? sessions.find(s => s.id === transaction.sessionId) : null;
-                  const patient = transaction.patientId
-                    ? getPatientById(transaction.patientId)
-                    : session?.patientId ? getPatientById(session.patientId) : null;
-                  const professional = session?.professionalId
-                    ? professionals.find(p => p.id === session.professionalId)
-                    : null;
-
-                  return (
-                    <div
-                      key={transaction.id}
-                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-secondary/50 transition-colors gap-3 cursor-pointer"
-                      onClick={() => setDetailTransaction(transaction)}
-                    >
-                      <div className="flex-1 min-w-0 w-full sm:w-auto">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-foreground text-sm sm:text-base truncate">{transaction.description}</p>
-                          <Badge variant={transaction.type === 'entrada' ? 'default' : 'destructive'} className="text-xs flex-shrink-0">
-                            {transaction.type === 'entrada' ? 'Entrada' : 'Saída'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <CalendarIcon className="h-3 w-3 flex-shrink-0" />
-                            {transaction.date.toLocaleDateString('pt-BR')}
-                          </span>
-                          {patient && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <User className="h-3 w-3 flex-shrink-0" />
-                              {patient.fullName}
-                            </span>
-                          )}
-                          {professional && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <CreditCard className="h-3 w-3 flex-shrink-0" />
-                              {professional.name}
-                            </span>
-                          )}
-                          {transaction.comprovanteUrl && (
-                            <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-                              <Paperclip className="h-3 w-3 flex-shrink-0" />
-                              Comprovante
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 w-full sm:w-auto" onClick={e => e.stopPropagation()}>
-                        {!isSecretaria && (
-                          <div className="text-right flex-1 sm:flex-shrink-0">
-                            <p className={`font-bold text-base sm:text-lg ${transaction.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
-                              {transaction.type === 'entrada' ? '+' : '-'} R$ {transaction.amount.toFixed(2)}
-                            </p>
-                          </div>
-                        )}
-                        {!isSecretaria && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled={!canDelete('financeiro')}
-                            onClick={() => {
-                              setTransactionToDelete(transaction.id);
-                              setDeleteDialogOpen(true);
-                            }}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>}
-
-      {/* Popup de detalhes da transação */}
-      {detailTransaction && (() => {
-        const dtSession = detailTransaction.sessionId ? sessions.find(s => s.id === detailTransaction.sessionId) : null;
-        const dtPatient = detailTransaction.patientId
-          ? getPatientById(detailTransaction.patientId)
-          : dtSession?.patientId ? getPatientById(dtSession.patientId) : null;
-        const dtProfessional = dtSession?.professionalId
-          ? professionals.find(p => p.id === dtSession.professionalId)
-          : null;
-        const dtInstallments = dtSession
-          ? installments.filter(i => i.sessionId === dtSession.id)
-          : [];
-        return (
-          <Dialog open={!!detailTransaction} onOpenChange={(o) => { if (!o) { setDetailTransaction(null); setEditingComprovante(false); } }}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Detalhes da Transação</DialogTitle>
-                <DialogDescription>
-                  {detailTransaction.date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-muted-foreground">Valor</span>
-                  <span className={`font-bold text-base ${detailTransaction.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
-                    {detailTransaction.type === 'entrada' ? '+' : '-'} R$ {detailTransaction.amount.toFixed(2)}
-                  </span>
-                </div>
-                {detailTransaction.description && (
-                  <div className="flex justify-between items-start gap-4 py-2 border-b">
-                    <span className="text-muted-foreground shrink-0">Descrição</span>
-                    <span className="text-right">{detailTransaction.description}</span>
-                  </div>
-                )}
-                {dtPatient && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-muted-foreground">Paciente</span>
-                    <span className="font-medium">{dtPatient.fullName}</span>
-                  </div>
-                )}
-                {dtProfessional && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-muted-foreground">Dentista</span>
-                    <span>{dtProfessional.name}</span>
-                  </div>
-                )}
-                {(detailTransaction.paymentMethod || (dtSession as any)?.paymentMethod) && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-muted-foreground">Forma de Pagamento</span>
-                    <span>{pmLabel(detailTransaction.paymentMethod ?? (dtSession as any)?.paymentMethod, detailTransaction.installmentCount)}</span>
-                  </div>
-                )}
-                {detailTransaction.installmentCount && detailTransaction.installmentCount > 1 && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-muted-foreground">Parcelas</span>
-                    <span>{detailTransaction.installmentCount}x</span>
-                  </div>
-                )}
-                {dtSession?.notes && (
-                  <div className="py-2 border-b">
-                    <span className="text-muted-foreground block mb-1">Observações</span>
-                    <p className="bg-muted rounded p-2 text-xs">{dtSession.notes}</p>
-                  </div>
-                )}
-                {detailTransaction.type === 'saida' && (
-                  <div className="py-2 border-b">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-muted-foreground">Comprovante</span>
-                      {!editingComprovante && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 text-xs"
-                          onClick={() => {
-                            setComprovanteInput(detailTransaction.comprovanteUrl ?? '');
-                            setEditingComprovante(true);
-                          }}
-                        >
-                          <Pencil className="h-3 w-3 mr-1" />
-                          {detailTransaction.comprovanteUrl ? 'Editar' : 'Adicionar'}
-                        </Button>
-                      )}
-                    </div>
-                    {editingComprovante ? (
-                      <div className="flex gap-2">
-                        <Input
-                          className="h-8 text-xs"
-                          placeholder="Cole o link do comprovante"
-                          value={comprovanteInput}
-                          onChange={(e) => setComprovanteInput(e.target.value)}
-                          autoFocus
-                        />
-                        <Button
-                          size="sm"
-                          className="h-8 px-3 text-xs"
-                          onClick={async () => {
-                            await updateTransactionComprovante(detailTransaction.id, comprovanteInput.trim() || null);
-                            setDetailTransaction({ ...detailTransaction, comprovanteUrl: comprovanteInput.trim() || undefined });
-                            setEditingComprovante(false);
-                          }}
-                        >
-                          Salvar
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setEditingComprovante(false)}>
-                          Cancelar
-                        </Button>
-                      </div>
-                    ) : detailTransaction.comprovanteUrl ? (
-                      <a
-                        href={detailTransaction.comprovanteUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        Ver comprovante
-                      </a>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Nenhum comprovante anexado</p>
-                    )}
-                  </div>
-                )}
-                {dtInstallments.length > 0 && (
-                  <div className="py-2">
-                    <span className="text-muted-foreground block mb-2">Parcelas</span>
-                    <div className="space-y-1">
-                      {dtInstallments.sort((a, b) => a.installmentNumber - b.installmentNumber).map(inst => (
-                        <div key={inst.id} className="flex justify-between items-center text-xs bg-muted rounded px-2 py-1">
-                          <span>{inst.installmentNumber}/{inst.totalInstallments} — {inst.predictedDate.toLocaleDateString('pt-BR')}</span>
-                          <span className={inst.paid ? 'text-green-600 font-medium' : inst.predictedDate < new Date() ? 'text-destructive font-medium' : 'text-muted-foreground'}>
-                            {inst.paid ? 'Pago' : inst.predictedDate < new Date() ? 'Vencido' : 'Pendente'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        );
-      })()}
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTransaction} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

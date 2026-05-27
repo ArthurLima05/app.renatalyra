@@ -60,12 +60,15 @@ const ProntuarioPaciente = () => {
     addReturnAlert,
     returnAlerts,
     sendFeedbackRequest,
+    getOdontogramByPatientId,
   } = useClinic();
 
   const { canEdit, canDelete, canCreate, canView } = usePermissionsCtx();
   const patient = id ? getPatientById(id) : undefined;
   const sessions = id ? getSessionsByPatientId(id) : [];
   const transactions = id ? getTransactionsByPatientId(id) : [];
+  const odontogramProcs = id ? getOdontogramByPatientId(id) : [];
+  const procedureSuggestions = [...new Set(odontogramProcs.map(p => p.procedureDescription).filter(Boolean))];
 
   // Gera horários de 30 em 30 minutos das 8h às 18h
   const generateTimeSlots = () => {
@@ -939,7 +942,18 @@ const ProntuarioPaciente = () => {
                       value={lancamentoData.description}
                       onChange={(e) => setLancamentoData({ ...lancamentoData, description: e.target.value })}
                       placeholder="Ex: Clareamento, Extração..."
+                      list="lancamento-proc-suggestions"
                     />
+                    {procedureSuggestions.length > 0 && (
+                      <datalist id="lancamento-proc-suggestions">
+                        {procedureSuggestions.map(s => <option key={s} value={s} />)}
+                      </datalist>
+                    )}
+                    {procedureSuggestions.length > 0 && !lancamentoData.description && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Sugestões do odontograma disponíveis
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button type="button" variant="outline" onClick={() => setIsLancamentoOpen(false)}>Cancelar</Button>
@@ -1039,7 +1053,18 @@ const ProntuarioPaciente = () => {
                       value={planoData.description}
                       onChange={(e) => setPlanoData({ ...planoData, description: e.target.value })}
                       placeholder="Ex: Tratamento ortodôntico..."
+                      list="plano-proc-suggestions"
                     />
+                    {procedureSuggestions.length > 0 && (
+                      <datalist id="plano-proc-suggestions">
+                        {procedureSuggestions.map(s => <option key={s} value={s} />)}
+                      </datalist>
+                    )}
+                    {procedureSuggestions.length > 0 && !planoData.description && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Sugestões do odontograma disponíveis
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button type="button" variant="outline" onClick={() => setIsPlanoOpen(false)}>Cancelar</Button>
