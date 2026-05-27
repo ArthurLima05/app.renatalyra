@@ -356,9 +356,18 @@ const emptyForm = () => ({
 });
 
 export function Odontograma({ patientId }: { patientId: string }) {
-  const { professionals, addOdontogramProcedure, getOdontogramByPatientId, getPatientById } = useClinic();
+  const { professionals, addOdontogramProcedure, getOdontogramByPatientId, getPatientById, odontogramProcedures } = useClinic();
   const patient = getPatientById(patientId);
   const procedures = getOdontogramByPatientId(patientId);
+
+  const procedureSuggestions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of odontogramProcedures) {
+      const desc = p.procedureDescription.trim();
+      if (desc) counts.set(desc, (counts.get(desc) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([desc]) => desc);
+  }, [odontogramProcedures]);
 
   const [dentitionView, setDentitionView] = useState<Dentition>("permanente");
   const [selectedToothNums, setSelectedToothNums] = useState<string[]>([]);
@@ -730,11 +739,17 @@ export function Odontograma({ patientId }: { patientId: string }) {
             <div className="space-y-1">
               <Label className="text-xs">Procedimento *</Label>
               <Input
+                list="odontogram-procedures-list"
                 className="text-sm"
                 placeholder="Ex: Extração, Restauração, Canal..."
                 value={form.procedureDescription}
                 onChange={(e) => setForm({ ...form, procedureDescription: e.target.value })}
               />
+              <datalist id="odontogram-procedures-list">
+                {procedureSuggestions.map((desc) => (
+                  <option key={desc} value={desc} />
+                ))}
+              </datalist>
             </div>
 
             {/* Situação */}
@@ -908,7 +923,11 @@ export function Odontograma({ patientId }: { patientId: string }) {
                     <span>{format(proc.executionDate, "dd/MM/yyyy", { locale: ptBR })}</span>
                     {pro && <span>· {pro.name}</span>}
                     {proc.toothNumbers.length > 0 && (
-                      <span>· {proc.toothNumbers.join(", ")}</span>
+                      <span>· {proc.toothNumbers.map((tooth) => {
+                        const entry = proc.toothFaces.find((f) => f.startsWith(`${tooth}:`));
+                        const faces = entry ? entry.split(":")[1] : "";
+                        return faces ? `${tooth} (${faces})` : tooth;
+                      }).join(", ")}</span>
                     )}
                   </div>
                   {proc.notes && (

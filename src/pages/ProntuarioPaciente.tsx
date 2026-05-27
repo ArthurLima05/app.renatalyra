@@ -988,12 +988,8 @@ const ProntuarioPaciente = () => {
                       >
                         <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="pix">PIX</SelectItem>
-                          <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                          <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-                          <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                          <SelectItem value="pix">PIX Parcelado</SelectItem>
                           <SelectItem value="boleto">Boleto</SelectItem>
-                          <SelectItem value="cheque">Cheque</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

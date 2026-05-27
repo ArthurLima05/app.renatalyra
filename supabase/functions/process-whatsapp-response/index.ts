@@ -54,12 +54,14 @@ Deno.serve(async (req) => {
 
     console.log('Paciente encontrado:', patient)
 
-    // 2. Busca o agendamento pendente (inclui professional_id para notificações segmentadas)
+    // 2. Busca o agendamento pendente de hoje ou futuro (evita confirmar consultas passadas esquecidas)
+    const today = new Date().toISOString().split('T')[0]
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
       .select('id, date, time, status, professional_id')
       .eq('patient_id', patient.id)
       .eq('status', 'agendado')
+      .gte('date', today)
       .order('date', { ascending: true })
       .limit(1)
       .maybeSingle()

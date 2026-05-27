@@ -998,7 +998,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       // 4. Lembrete de pagamento (parcelas vencidas)
-      const overdueInstallments = installments.filter((i) => !i.paid && new Date(i.predictedDate) < now);
+      const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+      const overdueInstallments = installments.filter((i) => !i.paid && new Date(i.predictedDate) < startOfToday);
 
       for (const installment of overdueInstallments) {
         const existingNotification = notifications.find(

@@ -72,12 +72,14 @@ Deno.serve(async (req) => {
 
       appointment = appointmentData
     } else {
-      // Prioriza o próximo agendamento confirmado/agendado (paciente quer remarcar antes de ser cancelado)
+      // Prioriza o próximo agendamento confirmado/agendado de hoje ou futuro
+      const today = new Date().toISOString().split('T')[0]
       const { data: agendado } = await supabase
         .from('appointments')
         .select('id, date, time, status')
         .eq('patient_id', patient.id)
         .in('status', ['agendado', 'confirmado'])
+        .gte('date', today)
         .order('date', { ascending: true })
         .limit(1)
         .maybeSingle()
