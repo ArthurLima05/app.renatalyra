@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useClinic } from "@/contexts/ClinicContext";
+import { useProntuario } from "@/contexts/ProntuarioContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,7 +51,7 @@ const FILTERS: { label: string; value: PhotoCategory | "todas" }[] = [
 ];
 
 export function PatientPhotos({ patientId }: { patientId: string }) {
-  const { addPatientPhoto, deletePatientPhoto, getPhotosByPatientId } = useClinic();
+  const { addPatientPhoto, deletePatientPhoto, getPhotosByPatientId } = useProntuario();
   const photos = getPhotosByPatientId(patientId);
 
   const fileInputRef = useRef<HTMLInputElement>(null);

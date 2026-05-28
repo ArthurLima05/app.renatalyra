@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useAdmin } from '@/contexts/AdminContext';
 import { Lead, LeadStage, PatientOrigin } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -202,7 +203,7 @@ function LeadCard({ lead, stageInfo, onSelect, onDragStart, onDragEnd }: {
 
 // ── Painel de detalhes ────────────────────────────────────────────────────────
 function LeadDetailPanel({ lead, onClose }: { lead: Lead; onClose: () => void }) {
-  const { moveLeadStage, updateLead, deleteLead } = useClinic();
+  const { moveLeadStage, updateLead, deleteLead } = useAdmin();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [lostReason, setLostReason] = useState('');
@@ -413,7 +414,8 @@ function LeadDetailPanel({ lead, onClose }: { lead: Lead; onClose: () => void })
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function Funil() {
-  const { leads, addLead, moveLeadStage, patients } = useClinic();
+  const { patients } = useClinic();
+  const { leads, addLead, moveLeadStage } = useAdmin();
   const navigate = useNavigate();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);

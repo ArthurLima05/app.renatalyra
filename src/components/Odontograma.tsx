@@ -4,6 +4,7 @@ import { Odontogram as OdontogramChart } from "react-odontogram";
 // @ts-ignore
 import "react-odontogram/style.css";
 import { useClinic } from "@/contexts/ClinicContext";
+import { useProntuario } from "@/contexts/ProntuarioContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -356,7 +357,8 @@ const emptyForm = () => ({
 });
 
 export function Odontograma({ patientId }: { patientId: string }) {
-  const { professionals, addOdontogramProcedure, getOdontogramByPatientId, getPatientById, odontogramProcedures } = useClinic();
+  const { professionals, getPatientById } = useClinic();
+  const { addOdontogramProcedure, getOdontogramByPatientId, odontogramProcedures } = useProntuario();
   const patient = getPatientById(patientId);
   const procedures = getOdontogramByPatientId(patientId);
 

@@ -9,23 +9,7 @@ import {
   SessionStatus,
   AppointmentStatus,
   Installment,
-  OdontogramProcedure,
-  PatientPhoto,
-  PhotoCategory,
-  AnamneseQuestion,
-  AnamneseResponse,
-  AnamneseAnswerRecord,
-  AnamneseQuestionType,
-  AnamneseStatus,
   PaymentMethod,
-  ReturnAlert,
-  AppUser,
-  UserProfile,
-  AppModule,
-  UserPermission,
-  PatientDocument,
-  Lead,
-  LeadStage,
 } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -64,49 +48,13 @@ interface ClinicContextType {
   linkAppointmentToSession: (sessionId: string, appointmentDate: Date, appointmentTime: string) => Promise<void>;
   getSuggestedSessionsByPatientId: (patientId: string) => Session[];
   updateInstallment: (id: string, data: Partial<Installment>) => Promise<void>;
-  returnAlerts: ReturnAlert[];
-  addReturnAlert: (patientId: string, returnDate: Date, notes?: string) => Promise<void>;
-  deleteReturnAlert: (id: string) => Promise<void>;
-  sendReturnAlertWhatsApp: (id: string) => Promise<void>;
-  sendCancellationNotification: (appointmentId: string) => Promise<void>;
-  sendFaltaNotification: (appointmentId: string) => Promise<void>;
   myProfessionalId: string | null;
   linkProfessionalToUser: (professionalId: string | null, userId: string) => Promise<void>;
   sendFeedbackRequest: (patientId: string) => Promise<void>;
   clinicSettings: Record<string, string>;
   updateClinicSetting: (key: string, value: string) => Promise<void>;
-  appUsers: AppUser[];
-  userPermissions: UserPermission[];
-  inviteAppUser: (data: { email: string; fullName: string; phone?: string; profile: UserProfile }) => Promise<void>;
-  toggleAppUserActive: (id: string, active: boolean) => Promise<void>;
-  updateUserPermission: (userId: string, module: AppModule, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => Promise<void>;
-  odontogramProcedures: OdontogramProcedure[];
-  addOdontogramProcedure: (proc: Omit<OdontogramProcedure, "id" | "createdAt">) => Promise<void>;
-  getOdontogramByPatientId: (patientId: string) => OdontogramProcedure[];
-  anamneseQuestions: AnamneseQuestion[];
-  anamneseResponses: AnamneseResponse[];
-  addAnamneseQuestion: (question: string, type: AnamneseQuestionType, sequence: number) => Promise<void>;
-  updateAnamneseQuestion: (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active'>>) => Promise<void>;
-  deleteAnamneseQuestion: (id: string) => Promise<void>;
-  saveAnamneseResponse: (patientId: string, answers: Omit<AnamneseAnswerRecord, 'id' | 'responseId'>[]) => Promise<void>;
-  requestAnamneseForPatient: (patientId: string) => Promise<{ link: string; code: string }>;
-  sendAnamneseViaWhatsapp: (patientId: string, responseId: string, token: string, code: string) => Promise<void>;
-  deleteAnamneseResponse: (id: string) => Promise<void>;
-  getAnamneseByPatientId: (patientId: string) => AnamneseResponse[];
-  patientPhotos: PatientPhoto[];
-  addPatientPhoto: (patientId: string, file: File, caption: string, category: PhotoCategory) => Promise<void>;
-  deletePatientPhoto: (id: string, url: string) => Promise<void>;
-  updatePatientAvatar: (patientId: string, file: File) => Promise<void>;
-  getPhotosByPatientId: (patientId: string) => PatientPhoto[];
-  patientDocuments: PatientDocument[];
-  addPatientDocument: (patientId: string, file: File) => Promise<void>;
-  deletePatientDocument: (id: string, url: string) => Promise<void>;
-  getDocumentsByPatientId: (patientId: string) => PatientDocument[];
-  leads: Lead[];
-  addLead: (data: Omit<Lead, 'id' | 'stage' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateLead: (id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>) => Promise<void>;
-  moveLeadStage: (id: string, stage: LeadStage, extra?: { lostReason?: string }) => Promise<{ patientId?: string }>;
-  deleteLead: (id: string) => Promise<void>;
+  sendCancellationNotification: (appointmentId: string) => Promise<void>;
+  sendFaltaNotification: (appointmentId: string) => Promise<void>;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -125,27 +73,16 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [installments, setInstallments] = useState<Installment[]>([]);
-  const [odontogramProcedures, setOdontogramProcedures] = useState<OdontogramProcedure[]>([]);
-  const [patientPhotos, setPatientPhotos] = useState<PatientPhoto[]>([]);
-  const [patientDocuments, setPatientDocuments] = useState<PatientDocument[]>([]);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [anamneseQuestions, setAnamneseQuestions] = useState<AnamneseQuestion[]>([]);
-  const [anamneseResponses, setAnamneseResponses] = useState<AnamneseResponse[]>([]);
-  const [returnAlerts, setReturnAlerts] = useState<ReturnAlert[]>([]);
   const [clinicSettings, setClinicSettings] = useState<Record<string, string>>({});
-  const [appUsers, setAppUsers] = useState<AppUser[]>([]);
-  const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [myProfessionalId, setMyProfessionalId] = useState<string | null>(null);
   const myProfessionalIdRef = useRef<string | null>(null);
   const { toast } = useToast();
   const isCheckingNotifications = useRef(false);
 
-  // Carregar todos os dados
   useEffect(() => {
     loadAllData();
 
-    // Configurar realtime otimizado para atualizar apenas items modificados
     const professionalsChannel = supabase
       .channel("professionals-changes")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "professionals" }, (payload) => {
@@ -221,7 +158,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const appointmentsChannel = supabase
       .channel("appointments-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
-        loadAppointments(); // Mantém carregamento completo por causa do join com patients
+        loadAppointments();
       })
       .subscribe();
 
@@ -305,7 +242,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const profId = myProfessionalIdRef.current;
         const notifProfId = (payload.new as any).professional_id ?? null;
 
-        // Dentista: ignora notificações de outros profissionais
         if (profId && notifProfId && notifProfId !== profId) return;
 
         const newNotif = {
@@ -319,7 +255,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const profId = myProfessionalIdRef.current;
         const notifProfId = (payload.new as any).professional_id ?? null;
 
-        // Dentista: remove do estado se a notificação não é mais dela
         if (profId && notifProfId && notifProfId !== profId) {
           setNotifications((prev) => prev.filter((n) => n.id !== payload.new.id));
           return;
@@ -388,78 +323,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
-  const loadAppUsers = async () => {
-    const { data, error } = await (supabase as any).from('app_users').select('*').order('full_name');
-    if (error) { console.error('Error loading app_users:', error); return; }
-    setAppUsers((data || []).map((u: any) => ({
-      id: u.id, email: u.email, fullName: u.full_name,
-      phone: u.phone ?? undefined, profile: u.profile, active: u.active,
-      createdAt: new Date(u.created_at),
-    })));
-  };
-
-  const loadUserPermissions = async () => {
-    const { data, error } = await (supabase as any).from('user_permissions').select('*');
-    if (error) { console.error('Error loading user_permissions:', error); return; }
-    setUserPermissions((data || []).map((p: any) => ({
-      id: p.id, userId: p.user_id, module: p.module,
-      canView: p.can_view, canCreate: p.can_create, canEdit: p.can_edit, canDelete: p.can_delete,
-    })));
-  };
-
-  const inviteAppUser = async (data: { email: string; fullName: string; phone?: string; profile: UserProfile }) => {
-    const { error } = await supabase.functions.invoke('invite-user', {
-      body: { email: data.email, fullName: data.fullName, phone: data.phone, profile: data.profile },
-    });
-    if (error) {
-      toast({ title: 'Erro ao convidar usuário', description: error.message, variant: 'destructive' });
-      throw error;
-    }
-    await loadAppUsers();
-    await loadUserPermissions();
-    toast({ title: 'Convite enviado', description: `${data.email} receberá um e-mail para definir a senha.` });
-  };
-
-  const toggleAppUserActive = async (id: string, active: boolean) => {
-    const { error } = await (supabase as any).from('app_users').update({ active }).eq('id', id);
-    if (error) { toast({ title: 'Erro ao atualizar usuário', description: error.message, variant: 'destructive' }); throw error; }
-    setAppUsers(prev => prev.map(u => u.id === id ? { ...u, active } : u));
-  };
-
-  const updateUserPermission = async (userId: string, module: AppModule, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => {
-    const colMap: Record<string, string> = { canView: 'can_view', canCreate: 'can_create', canEdit: 'can_edit', canDelete: 'can_delete' };
-    const existing = userPermissions.find(p => p.userId === userId && p.module === module);
-    const { error } = await (supabase as any)
-      .from('user_permissions')
-      .upsert({
-        user_id: userId,
-        module,
-        can_view: existing?.canView ?? false,
-        can_create: existing?.canCreate ?? false,
-        can_edit: existing?.canEdit ?? false,
-        can_delete: existing?.canDelete ?? false,
-        [colMap[field]]: value,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,module' });
-    if (error) { toast({ title: 'Erro ao salvar permissão', description: error.message, variant: 'destructive' }); throw error; }
-    if (existing) {
-      setUserPermissions(prev => prev.map(p =>
-        p.userId === userId && p.module === module ? { ...p, [field]: value } : p
-      ));
-    } else {
-      setUserPermissions(prev => [...prev, {
-        id: crypto.randomUUID(),
-        userId,
-        module,
-        canView: false,
-        canCreate: false,
-        canEdit: false,
-        canDelete: false,
-        [field]: value,
-      }]);
-    }
-  };
-
   const loadClinicSettings = async () => {
     const { data, error } = await (supabase as any).from("clinic_settings").select("key, value");
     if (error) { console.error("Error loading settings:", error); return; }
@@ -479,26 +342,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setClinicSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const loadReturnAlerts = async () => {
-    const { data, error } = await (supabase as any).from("return_alerts").select("*").order("return_date", { ascending: true });
-    if (error) { console.error("Error loading return alerts:", error); return; }
-    setReturnAlerts(
-      (data || []).map((r: any) => ({
-        id: r.id,
-        patientId: r.patient_id,
-        returnDate: new Date(r.return_date + 'T12:00:00'),
-        notes: r.notes ?? undefined,
-        whatsappSent: r.whatsapp_sent,
-        whatsappSentAt: r.whatsapp_sent_at ? new Date(r.whatsapp_sent_at) : undefined,
-        createdAt: new Date(r.created_at),
-      }))
-    );
-  };
-
   const loadAllData = async () => {
     setLoading(true);
 
-    // Verifica se o usuário logado está vinculado a um profissional
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: prof } = await (supabase as any)
@@ -519,15 +365,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loadTransactions(),
       loadNotifications(),
       loadInstallments(),
-      loadOdontogramProcedures(),
-      loadPatientPhotos(),
-      loadAnamneseData(),
-      loadReturnAlerts(),
       loadClinicSettings(),
-      loadAppUsers(),
-      loadUserPermissions(),
-      loadPatientDocuments(),
-      loadLeads(),
     ]);
     setLoading(false);
   };
@@ -548,7 +386,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const loadPatients = async () => {
-    // Se for dentista, busca apenas os IDs dos seus pacientes via appointments
     let patientIdFilter: string[] | null = null;
     if (myProfessionalIdRef.current) {
       const { data: apptData } = await (supabase as any)
@@ -562,7 +399,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
-    // Carrega em lotes de 1000 até buscar todos os pacientes
     const PAGE = 1000;
     let from = 0;
     let allData: any[] = [];
@@ -582,7 +418,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (!data || data.length === 0) break;
 
       allData = allData.concat(data);
-      if (data.length < PAGE) break; // última página
+      if (data.length < PAGE) break;
       from += PAGE;
     }
 
@@ -693,7 +529,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let q = (supabase as any).from("notifications").select("*").order("date", { ascending: false });
 
     if (myProfessionalIdRef.current) {
-      // Dentista vê apenas notificações da sua agenda ou sem profissional vinculado
       q = q.or(`professional_id.eq.${myProfessionalIdRef.current},professional_id.is.null`);
     }
 
@@ -742,7 +577,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addAppointment = async (appointment: Omit<Appointment, "id" | "createdAt">) => {
     const patient = patients.find((p) => p.id === appointment.patientId);
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("appointments")
       .insert({
         patient_id: appointment.patientId,
@@ -763,7 +598,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
-    // Criar notificação
     await supabase.from("notifications").insert({
       type: "agendamento",
       title: "Novo agendamento",
@@ -791,10 +625,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           patient_id: appointment.patientId,
           appointment_id: id,
         });
-
       }
     }
-
   };
 
   const updateAppointmentTime = async (id: string, date: Date, time: string, duration: number) => {
@@ -948,7 +780,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Função auxiliar para criar notificações
   const createNotification = async (notification: Omit<Notification, "id">) => {
     const { error } = await supabase.from("notifications").insert({
       type: notification.type,
@@ -967,18 +798,15 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Verificar e criar notificações automáticas
   useEffect(() => {
     const checkNotifications = async () => {
       const now = new Date();
 
-      // 1. Lembrete de consultas (3h antes)
       const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
 
       const upcomingIn3Hours = appointments.filter((a) => {
         if (!(a.status === "agendado" || a.status === "confirmado")) return false;
         const appointmentDateTime = new Date(a.date);
-        // Combina a data com o horário HH:mm do agendamento
         const [hh, mm] = (a.time || "00:00").split(":");
         appointmentDateTime.setHours(parseInt(hh || "0", 10), parseInt(mm || "0", 10), 0, 0);
         const diff = appointmentDateTime.getTime() - now.getTime();
@@ -986,13 +814,11 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
 
       for (const apt of upcomingIn3Hours) {
-        // Evitar duplicatas (independente de lida ou não)
         const exists = notifications.find(
           (n) => n.type === "lembrete_consulta" && n.appointmentId === apt.id,
         );
 
         if (!exists) {
-          // Verificação adicional no backend para evitar duplicações por corrida de eventos
           const { count, error: existsError } = await supabase
             .from("notifications")
             .select("id", { count: "exact", head: true })
@@ -1018,7 +844,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
-      // 4. Lembrete de pagamento (parcelas vencidas)
       const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
       const overdueInstallments = installments.filter((i) => !i.paid && new Date(i.predictedDate) < startOfToday);
 
@@ -1028,7 +853,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         );
 
         if (!existingNotification) {
-          // Verificação adicional no backend para evitar duplicações
           const { count, error: existsError } = await supabase
             .from("notifications")
             .select("id", { count: "exact", head: true })
@@ -1053,25 +877,12 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
 
-  if (loading || isCheckingNotifications.current) return;
+    if (loading || isCheckingNotifications.current) return;
     isCheckingNotifications.current = true;
     checkNotifications().finally(() => {
       isCheckingNotifications.current = false;
     });
   }, [appointments, sessions, installments, patients, loading]);
-
-  // Auto-envio de alertas de retorno vencidos ao carregar o app
-  useEffect(() => {
-    if (loading || returnAlerts.length === 0) return;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const overdue = returnAlerts.filter(a => {
-      if (a.whatsappSent) return false;
-      const rd = new Date(a.returnDate); rd.setHours(0, 0, 0, 0);
-      return rd <= today;
-    });
-    overdue.forEach(a => sendReturnAlertWhatsApp(a.id));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
 
   const addPatient = async (patient: Omit<Patient, "id" | "createdAt">) => {
     const { error } = await supabase.from("patients").insert({
@@ -1168,7 +979,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
-    // Atualizar parcelas no estado local imediatamente (realtime também as captura)
     const rawInstallments: any[] = data?.installments ?? [];
     if (rawInstallments.length > 0) {
       const mapped = rawInstallments.map((i) => ({
@@ -1199,7 +1009,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .update({ installment_count: session.cardInstallments })
           .eq("id", sessionId);
       } else {
-        // fallback: busca a sessão mais recente deste paciente e atualiza
         const { data: recent } = await (supabase as any)
           .from("sessions")
           .select("id")
@@ -1239,7 +1048,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
-    // Atualizar transação se necessário
     if (session.paymentStatus === "pago") {
       const existingSession = sessions.find((s) => s.id === id);
       if (existingSession && existingSession.paymentStatus !== "pago") {
@@ -1267,523 +1075,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     toast({ title: "Sessão excluída com sucesso" });
-  };
-
-  const loadAnamneseData = async () => {
-    const [qRes, rRes, tRes] = await Promise.all([
-      (supabase as any).from("anamnese_questions").select("*").order("sequence"),
-      (supabase as any).from("anamnese_responses").select("*, anamnese_answers(*)").order("created_at", { ascending: false }),
-      (supabase as any).from("anamnese_tokens").select("response_id, token, code"),
-    ]);
-    if (!qRes.error) {
-      setAnamneseQuestions(
-        (qRes.data || []).map((q: any) => ({
-          id: q.id, question: q.question, sequence: q.sequence,
-          type: q.type, active: q.active, createdAt: new Date(q.created_at),
-        }))
-      );
-    }
-    const tokenMap: Record<string, { token: string; code: string }> = {};
-    for (const t of tRes.data || []) tokenMap[t.response_id] = { token: t.token, code: t.code };
-
-    if (!rRes.error) {
-      setAnamneseResponses(
-        (rRes.data || []).map((r: any) => ({
-          id: r.id,
-          patientId: r.patient_id,
-          status: (r.status ?? "sent") as AnamneseStatus,
-          token: tokenMap[r.id]?.token,
-          code: tokenMap[r.id]?.code,
-          completedAt: r.completed_at ? new Date(r.completed_at) : undefined,
-          signedName: r.patient_signed_name ?? undefined,
-          signedAt: r.signed_at ? new Date(r.signed_at) : undefined,
-          createdAt: new Date(r.created_at),
-          ipAddress: r.ip_address ?? undefined,
-          userAgent: r.user_agent ?? undefined,
-          verifiedPhone: r.verified_phone ?? undefined,
-          answers: (r.anamnese_answers || []).map((a: any) => ({
-            id: a.id, responseId: a.response_id, questionId: a.question_id ?? undefined,
-            questionText: a.question_text, questionType: a.question_type,
-            questionSequence: a.question_sequence,
-            answerBool: a.answer_bool ?? undefined,
-            answerText: a.answer_text ?? undefined,
-          })),
-        }))
-      );
-    }
-  };
-
-  const addAnamneseQuestion = async (question: string, type: AnamneseQuestionType, sequence: number) => {
-    const { error } = await (supabase as any).from("anamnese_questions").insert({ question, type, sequence, active: true });
-    if (error) { toast({ title: "Erro ao adicionar pergunta", description: error.message, variant: "destructive" }); throw error; }
-    await loadAnamneseData();
-  };
-
-  const updateAnamneseQuestion = async (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active'>>) => {
-    const { error } = await (supabase as any).from("anamnese_questions").update(data).eq("id", id);
-    if (error) { toast({ title: "Erro ao atualizar pergunta", description: error.message, variant: "destructive" }); throw error; }
-    // Atualiza estado local diretamente — evita recarregar tudo do banco
-    setAnamneseQuestions(prev => prev.map(q => q.id === id ? { ...q, ...data } : q));
-  };
-
-  const deleteAnamneseQuestion = async (id: string) => {
-    // Soft delete: marca como inativa em vez de deletar
-    // (DELETE falha por FK constraint com anamnese_answers.question_id)
-    const { error } = await (supabase as any).from("anamnese_questions").update({ active: false }).eq("id", id);
-    if (error) { toast({ title: "Erro ao excluir pergunta", description: error.message, variant: "destructive" }); throw error; }
-    setAnamneseQuestions(prev => prev.map(q => q.id === id ? { ...q, active: false } : q));
-    toast({ title: "Pergunta excluída" });
-  };
-
-  const saveAnamneseResponse = async (patientId: string, answers: Omit<AnamneseAnswerRecord, 'id' | 'responseId'>[]) => {
-    const { data: resp, error: respErr } = await (supabase as any)
-      .from("anamnese_responses").insert({ patient_id: patientId, completed_at: new Date().toISOString() }).select().single();
-    if (respErr) { toast({ title: "Erro ao salvar anamnese", description: respErr.message, variant: "destructive" }); throw respErr; }
-    const rows = answers.map((a) => ({
-      response_id: resp.id,
-      question_id: a.questionId ?? null,
-      question_text: a.questionText,
-      question_type: a.questionType,
-      question_sequence: a.questionSequence,
-      answer_bool: a.answerBool ?? null,
-      answer_text: a.answerText ?? null,
-    }));
-    const { error: ansErr } = await (supabase as any).from("anamnese_answers").insert(rows);
-    if (ansErr) { toast({ title: "Erro ao salvar respostas", description: ansErr.message, variant: "destructive" }); throw ansErr; }
-    await loadAnamneseData();
-    toast({ title: "Anamnese salva com sucesso" });
-  };
-
-  const requestAnamneseForPatient = async (patientId: string) => {
-    const { data: resp, error: respErr } = await (supabase as any)
-      .from("anamnese_responses")
-      .insert({ patient_id: patientId, status: "sent" })
-      .select().single();
-    if (respErr) { toast({ title: "Erro ao solicitar anamnese", description: respErr.message, variant: "destructive" }); throw respErr; }
-
-    const token = crypto.randomUUID();
-    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 dígitos
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-    const { error: tokenErr } = await (supabase as any).from("anamnese_tokens").insert({
-      response_id: resp.id, patient_id: patientId,
-      token, code, expires_at: expiresAt.toISOString(),
-    });
-    if (tokenErr) { toast({ title: "Erro ao gerar token", description: tokenErr.message, variant: "destructive" }); throw tokenErr; }
-
-    await loadAnamneseData();
-    const link = `https://app.renatalyra.com.br/anamnese/${token}`;
-    toast({ title: "Link gerado com sucesso" });
-    return { link, code };
-  };
-
-  const sendAnamneseViaWhatsapp = async (patientId: string, responseId: string, token: string, code: string) => {
-    const { error } = await supabase.functions.invoke("send-anamnese-link", {
-      body: { patientId, responseId, token, code },
-    });
-    if (error) {
-      toast({ title: "Erro ao enviar WhatsApp", description: error.message, variant: "destructive" });
-      throw error;
-    }
-    toast({ title: "Mensagem em processamento. Verifique nas notificações em caso de erro" });
-  };
-
-  const getAnamneseByPatientId = (patientId: string) =>
-    anamneseResponses.filter((r) => r.patientId === patientId);
-
-  const deleteAnamneseResponse = async (id: string) => {
-    await Promise.all([
-      (supabase as any).from("anamnese_answers").delete().eq("response_id", id),
-      (supabase as any).from("anamnese_tokens").delete().eq("response_id", id),
-    ]);
-    const { error } = await (supabase as any).from("anamnese_responses").delete().eq("id", id);
-    if (error) { toast({ title: "Erro ao excluir anamnese", description: error.message, variant: "destructive" }); throw error; }
-    setAnamneseResponses(prev => prev.filter(r => r.id !== id));
-    toast({ title: "Anamnese excluída" });
-  };
-
-  const loadPatientPhotos = async () => {
-    const { data, error } = await (supabase as any)
-      .from("patient_photos")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) { console.error("Error loading photos:", error); return; }
-    setPatientPhotos(
-      (data || []).map((r: any) => ({
-        id: r.id,
-        patientId: r.patient_id,
-        url: r.url,
-        caption: r.caption ?? undefined,
-        category: r.category,
-        createdAt: new Date(r.created_at),
-      }))
-    );
-  };
-
-  const addPatientPhoto = async (patientId: string, file: File, caption: string, category: PhotoCategory) => {
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `${patientId}/${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("patient-photos")
-      .upload(path, file, { cacheControl: "3600", upsert: false });
-    if (uploadError) {
-      toast({ title: "Erro ao enviar foto", description: uploadError.message, variant: "destructive" });
-      throw uploadError;
-    }
-    const { data: { publicUrl } } = supabase.storage.from("patient-photos").getPublicUrl(path);
-    const { error } = await (supabase as any).from("patient_photos").insert({
-      patient_id: patientId,
-      url: publicUrl,
-      caption: caption || null,
-      category,
-    });
-    if (error) {
-      toast({ title: "Erro ao salvar foto", description: error.message, variant: "destructive" });
-      throw error;
-    }
-    await loadPatientPhotos();
-    toast({ title: "Foto adicionada com sucesso" });
-  };
-
-  const deletePatientPhoto = async (id: string, url: string) => {
-    const { error } = await (supabase as any).from("patient_photos").delete().eq("id", id);
-    if (error) {
-      toast({ title: "Erro ao excluir foto", description: error.message, variant: "destructive" });
-      throw error;
-    }
-    // Remove do storage (extrai o path da URL)
-    try {
-      const parts = url.split("/patient-photos/");
-      if (parts[1]) await supabase.storage.from("patient-photos").remove([parts[1]]);
-    } catch (_) { /* ignora erro de storage */ }
-    await loadPatientPhotos();
-    toast({ title: "Foto excluída" });
-  };
-
-  const updatePatientAvatar = async (patientId: string, file: File) => {
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `${patientId}/avatar.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("patient-photos")
-      .upload(path, file, { cacheControl: "3600", upsert: true });
-    if (uploadError) {
-      toast({ title: "Erro ao enviar foto", description: uploadError.message, variant: "destructive" });
-      throw uploadError;
-    }
-    const { data: { publicUrl } } = supabase.storage.from("patient-photos").getPublicUrl(path);
-    const avatarUrl = `${publicUrl}?t=${Date.now()}`;
-    await updatePatient(patientId, { avatarUrl } as any);
-  };
-
-  const getPhotosByPatientId = (patientId: string) =>
-    patientPhotos.filter((p) => p.patientId === patientId);
-
-  const loadPatientDocuments = async () => {
-    const { data, error } = await (supabase as any)
-      .from("patient_documents")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) { console.error("Error loading documents:", error); return; }
-    setPatientDocuments(
-      (data || []).map((r: any) => ({
-        id: r.id,
-        patientId: r.patient_id,
-        name: r.name,
-        url: r.url,
-        fileType: r.file_type ?? undefined,
-        fileSize: r.file_size ?? undefined,
-        createdAt: new Date(r.created_at),
-      }))
-    );
-  };
-
-  const addPatientDocument = async (patientId: string, file: File) => {
-    const ext = file.name.split(".").pop() ?? "bin";
-    const path = `${patientId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const { error: uploadError } = await supabase.storage
-      .from("patient-documents")
-      .upload(path, file, { cacheControl: "3600", upsert: false });
-    if (uploadError) {
-      toast({ title: "Erro ao enviar documento", description: uploadError.message, variant: "destructive" });
-      throw uploadError;
-    }
-    const { data: { publicUrl } } = supabase.storage.from("patient-documents").getPublicUrl(path);
-    const { error } = await (supabase as any).from("patient_documents").insert({
-      patient_id: patientId,
-      name: file.name,
-      url: publicUrl,
-      file_type: file.type || ext,
-      file_size: file.size,
-    });
-    if (error) {
-      toast({ title: "Erro ao salvar documento", description: error.message, variant: "destructive" });
-      throw error;
-    }
-    await loadPatientDocuments();
-    toast({ title: "Documento adicionado" });
-  };
-
-  const deletePatientDocument = async (id: string, url: string) => {
-    const { error } = await (supabase as any).from("patient_documents").delete().eq("id", id);
-    if (error) {
-      toast({ title: "Erro ao excluir documento", description: error.message, variant: "destructive" });
-      throw error;
-    }
-    try {
-      const parts = url.split("/patient-documents/");
-      if (parts[1]) await supabase.storage.from("patient-documents").remove([parts[1]]);
-    } catch (_) { /* ignora erro de storage */ }
-    await loadPatientDocuments();
-    toast({ title: "Documento excluído" });
-  };
-
-  const getDocumentsByPatientId = (patientId: string) =>
-    patientDocuments.filter((d) => d.patientId === patientId);
-
-  // ── Leads (Funil de Vendas) ──────────────────────────────────────────────
-  const mapLead = (r: any): Lead => ({
-    id: r.id,
-    name: r.name,
-    phone: r.phone,
-    email: r.email ?? undefined,
-    origin: r.origin,
-    treatmentInterest: r.treatment_interest ?? undefined,
-    stage: r.stage as LeadStage,
-    estimatedValue: r.estimated_value ? Number(r.estimated_value) : undefined,
-    notes: r.notes ?? undefined,
-    patientId: r.patient_id ?? undefined,
-    lostReason: r.lost_reason ?? undefined,
-    createdAt: new Date(r.created_at),
-    updatedAt: new Date(r.updated_at),
-  });
-
-  const loadLeads = async () => {
-    const { data, error } = await (supabase as any)
-      .from('leads').select('*').order('created_at', { ascending: false });
-    if (error) { console.error('Error loading leads:', error); return; }
-    setLeads((data || []).map(mapLead));
-  };
-
-  const addLead = async (data: Omit<Lead, 'id' | 'stage' | 'createdAt' | 'updatedAt'>) => {
-    const { error } = await (supabase as any).from('leads').insert({
-      name: data.name,
-      phone: data.phone,
-      email: data.email ?? null,
-      origin: data.origin,
-      treatment_interest: data.treatmentInterest ?? null,
-      estimated_value: data.estimatedValue ?? null,
-      notes: data.notes ?? null,
-    });
-    if (error) { toast({ title: 'Erro ao adicionar lead', description: error.message, variant: 'destructive' }); throw error; }
-    await loadLeads();
-    toast({ title: 'Lead adicionado ao funil' });
-  };
-
-  const updateLead = async (id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>) => {
-    const update: any = { updated_at: new Date().toISOString() };
-    if (data.name !== undefined) update.name = data.name;
-    if (data.phone !== undefined) update.phone = data.phone;
-    if (data.email !== undefined) update.email = data.email ?? null;
-    if (data.origin !== undefined) update.origin = data.origin;
-    if (data.treatmentInterest !== undefined) update.treatment_interest = data.treatmentInterest ?? null;
-    if (data.estimatedValue !== undefined) update.estimated_value = data.estimatedValue ?? null;
-    if (data.notes !== undefined) update.notes = data.notes ?? null;
-    if (data.stage !== undefined) update.stage = data.stage;
-    if (data.lostReason !== undefined) update.lost_reason = data.lostReason ?? null;
-    if (data.patientId !== undefined) update.patient_id = data.patientId ?? null;
-    const { error } = await (supabase as any).from('leads').update(update).eq('id', id);
-    if (error) { toast({ title: 'Erro ao atualizar lead', description: error.message, variant: 'destructive' }); throw error; }
-    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...data, updatedAt: new Date() } : l));
-  };
-
-  const moveLeadStage = async (id: string, stage: LeadStage, extra?: { lostReason?: string }): Promise<{ patientId?: string }> => {
-    const lead = leads.find(l => l.id === id);
-    if (!lead) return {};
-
-    let patientId = lead.patientId;
-
-    // Se está avançando para consulta agendada e ainda não tem paciente, cria paciente mínimo
-    if (stage === 'consulta_agendada' && !patientId) {
-      const { data: newPatient, error: patientError } = await supabase.from('patients').insert({
-        full_name: lead.name,
-        phone: lead.phone,
-        email: lead.email ?? null,
-        origin: lead.origin,
-      }).select().single();
-      if (patientError) {
-        toast({ title: 'Erro ao criar paciente', description: patientError.message, variant: 'destructive' });
-        throw patientError;
-      }
-      patientId = newPatient.id;
-    }
-
-    // Se convertido e ainda não tem paciente, cria agora
-    if (stage === 'convertido' && !patientId) {
-      const { data: newPatient, error: patientError } = await supabase.from('patients').insert({
-        full_name: lead.name,
-        phone: lead.phone,
-        email: lead.email ?? null,
-        origin: lead.origin,
-      }).select().single();
-      if (!patientError && newPatient) patientId = newPatient.id;
-    }
-
-    const update: any = { stage, updated_at: new Date().toISOString() };
-    if (patientId) update.patient_id = patientId;
-    if (extra?.lostReason) update.lost_reason = extra.lostReason;
-
-    await (supabase as any).from('leads').update(update).eq('id', id);
-    setLeads(prev => prev.map(l =>
-      l.id === id ? { ...l, stage, patientId: patientId ?? l.patientId, lostReason: extra?.lostReason ?? l.lostReason, updatedAt: new Date() } : l
-    ));
-    await loadPatients();
-    return { patientId };
-  };
-
-  const deleteLead = async (id: string) => {
-    const { error } = await (supabase as any).from('leads').delete().eq('id', id);
-    if (error) { toast({ title: 'Erro ao excluir lead', description: error.message, variant: 'destructive' }); throw error; }
-    setLeads(prev => prev.filter(l => l.id !== id));
-  };
-
-  const loadOdontogramProcedures = async () => {
-    const { data, error } = await supabase
-      .from("odontogram_procedures")
-      .select("*")
-      .order("execution_date", { ascending: false });
-    if (error) { console.error("Error loading odontogram:", error); return; }
-    setOdontogramProcedures(
-      (data || []).map((r: any) => ({
-        id: r.id,
-        patientId: r.patient_id,
-        toothNumbers: r.tooth_numbers ?? [],
-        toothFaces: r.tooth_faces ?? [],
-        dentition: r.dentition,
-        procedureDescription: r.procedure_description,
-        status: r.status,
-        professionalId: r.professional_id,
-        executionDate: new Date(r.execution_date),
-        nextAppointmentDate: r.next_appointment_date ? new Date(r.next_appointment_date) : undefined,
-        notes: r.notes ?? undefined,
-        createdAt: new Date(r.created_at),
-      }))
-    );
-  };
-
-  const addOdontogramProcedure = async (proc: Omit<OdontogramProcedure, "id" | "createdAt">) => {
-    const { error } = await supabase.from("odontogram_procedures").insert({
-      patient_id: proc.patientId,
-      tooth_numbers: proc.toothNumbers,
-      tooth_faces: proc.toothFaces,
-      dentition: proc.dentition,
-      procedure_description: proc.procedureDescription,
-      status: proc.status,
-      professional_id: proc.professionalId,
-      execution_date: proc.executionDate.toISOString().split("T")[0],
-      next_appointment_date: proc.nextAppointmentDate?.toISOString().split("T")[0] ?? null,
-      notes: proc.notes ?? null,
-    } as any);
-    if (error) {
-      toast({ title: "Erro ao salvar procedimento", description: error.message, variant: "destructive" });
-      throw error;
-    }
-    toast({ title: "Procedimento salvo com sucesso" });
-    await loadOdontogramProcedures();
-  };
-
-  const getOdontogramByPatientId = (patientId: string) =>
-    odontogramProcedures.filter((p) => p.patientId === patientId);
-
-  const addReturnAlert = async (patientId: string, returnDate: Date, notes?: string) => {
-    const { data, error } = await (supabase as any).from("return_alerts").insert({
-      patient_id: patientId,
-      return_date: returnDate.toISOString().split('T')[0],
-      notes: notes ?? null,
-    }).select().single();
-    if (error) {
-      toast({ title: "Erro ao criar alerta", description: error.message, variant: "destructive" });
-      throw error;
-    }
-    setReturnAlerts(prev => [...prev, {
-      id: data.id,
-      patientId: data.patient_id,
-      returnDate: new Date(data.return_date + 'T12:00:00'),
-      notes: data.notes ?? undefined,
-      whatsappSent: false,
-      createdAt: new Date(data.created_at),
-    }]);
-    toast({ title: "Alerta de retorno criado" });
-  };
-
-  const deleteReturnAlert = async (id: string) => {
-    const { error } = await (supabase as any).from("return_alerts").delete().eq("id", id);
-    if (error) {
-      toast({ title: "Erro ao excluir alerta", description: error.message, variant: "destructive" });
-      throw error;
-    }
-    setReturnAlerts(prev => prev.filter(a => a.id !== id));
-  };
-
-  const sendReturnAlertWhatsApp = async (id: string) => {
-    const alert = returnAlerts.find(a => a.id === id);
-    if (!alert) return;
-    const patient = getPatientById(alert.patientId);
-    if (!patient) return;
-
-    if (!patient.phone || patient.phone.trim() === '') {
-      toast({
-        title: 'Telefone não cadastrado',
-        description: `Cadastre o telefone de ${patient.fullName} antes de enviar o WhatsApp.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const template = clinicSettings['msg_return_alert'] ?? 'Olá, {{nome_paciente}}! Aqui é a clínica Dra. Renata Lyra. Que tal agendar um retorno?';
-    const message = template.replace('{{nome_paciente}}', patient.fullName);
-
-    let res: Response;
-    try {
-      res = await supabase.functions.invoke('trigger-return-alert', {
-        body: {
-          patientName: patient.fullName,
-          patientPhone: patient.phone,
-          returnDate: alert.returnDate.toISOString().split('T')[0],
-          notes: alert.notes ?? '',
-          message,
-        },
-      }) as unknown as Response;
-    } catch (e) {
-      console.error('Erro ao acionar alerta de retorno:', e);
-      toast({
-        title: 'WhatsApp não enviado',
-        description: `Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const data = (res as any).data;
-    const error = (res as any).error;
-
-    if (error || !data?.success) {
-      const msg = error?.message ?? data?.error ?? 'Erro desconhecido';
-      console.error('Falha no alerta de retorno:', msg);
-      toast({
-        title: 'WhatsApp não enviado',
-        description: `Falha ao enviar alerta para ${patient.fullName}: ${msg}`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const now = new Date();
-    await (supabase as any).from("return_alerts").update({
-      whatsapp_sent: true,
-      whatsapp_sent_at: now.toISOString(),
-    }).eq("id", id);
-    setReturnAlerts(prev => prev.map(a => a.id === id ? { ...a, whatsappSent: true, whatsappSentAt: now } : a));
-    toast({ title: '✅ Alerta enviado', description: `Mensagem de retorno disparada para ${patient.fullName}` });
   };
 
   const sendCancellationNotification = async (appointmentId: string) => {
@@ -1886,7 +1177,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
-    // Atualização otimista local para refletir imediatamente na UI
     setInstallments((prev) =>
       prev.map((i) =>
         i.id === id
@@ -1900,7 +1190,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ),
     );
 
-    // Se a parcela foi marcada como paga, criar uma transação de entrada
     if (data.paid === true) {
       const installment = installments.find((i) => i.id === id);
       if (installment && installment.sessionId) {
@@ -1917,7 +1206,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           session_id: installment.sessionId,
         });
 
-        // Se todas as parcelas desta sessão estiverem pagas, marcar sessão como paga (sem criar transação extra)
         const sessionInstallments = installments.filter((i) => i.sessionId === installment.sessionId);
         const allPaidNow = sessionInstallments.every((i) => (i.id === id ? true : i.paid));
         if (allPaidNow) {
@@ -1926,7 +1214,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             .update({ payment_status: "pago" })
             .eq("id", installment.sessionId);
           if (!sessErr) {
-            // Atualização otimista local da sessão para atualizar totais/badges
             setSessions((prev) =>
               prev.map((s) => (s.id === installment.sessionId ? { ...s, paymentStatus: "pago" } : s)),
             );
@@ -1993,49 +1280,13 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     linkAppointmentToSession,
     getSuggestedSessionsByPatientId,
     updateInstallment,
-    returnAlerts,
-    addReturnAlert,
-    deleteReturnAlert,
-    sendReturnAlertWhatsApp,
-    sendCancellationNotification,
-    sendFaltaNotification,
     myProfessionalId,
     linkProfessionalToUser,
     sendFeedbackRequest,
     clinicSettings,
     updateClinicSetting,
-    appUsers,
-    userPermissions,
-    inviteAppUser,
-    toggleAppUserActive,
-    updateUserPermission,
-    odontogramProcedures,
-    addOdontogramProcedure,
-    getOdontogramByPatientId,
-    anamneseQuestions,
-    anamneseResponses,
-    addAnamneseQuestion,
-    updateAnamneseQuestion,
-    deleteAnamneseQuestion,
-    saveAnamneseResponse,
-    requestAnamneseForPatient,
-    sendAnamneseViaWhatsapp,
-    deleteAnamneseResponse,
-    getAnamneseByPatientId,
-    patientPhotos,
-    addPatientPhoto,
-    deletePatientPhoto,
-    updatePatientAvatar,
-    getPhotosByPatientId,
-    patientDocuments,
-    addPatientDocument,
-    deletePatientDocument,
-    getDocumentsByPatientId,
-    leads,
-    addLead,
-    updateLead,
-    moveLeadStage,
-    deleteLead,
+    sendCancellationNotification,
+    sendFaltaNotification,
   };
 
   if (loading) {

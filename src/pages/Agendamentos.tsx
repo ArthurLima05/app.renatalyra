@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { useClinic } from "@/contexts/ClinicContext";
+import { useProntuario } from "@/contexts/ProntuarioContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -538,13 +539,12 @@ export default function Agendamentos() {
     addSession,
     professionals,
     myProfessionalId,
-    returnAlerts,
-    deleteReturnAlert,
-    sendReturnAlertWhatsApp,
     getPatientById,
     clinicSettings,
     sendFaltaNotification,
   } = useClinic();
+
+  const { returnAlerts, deleteReturnAlert, sendReturnAlertWhatsApp } = useProntuario();
 
   const [isOpen, setIsOpen] = useState(false);
   const [mainTab, setMainTab] = useState<MainTab>("agendamentos");

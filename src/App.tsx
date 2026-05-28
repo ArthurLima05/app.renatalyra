@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ClinicProvider } from "./contexts/ClinicContext";
+import { ProntuarioProvider } from "./contexts/ProntuarioContext";
+import { AdminProvider } from "./contexts/AdminContext";
 import { PermissionsProvider, usePermissionsCtx } from "./contexts/PermissionsContext";
 
 import { Layout } from "./components/Layout";
@@ -59,9 +61,13 @@ const App = () => (
           <Route element={
             <ProtectedRoute>
               <ClinicProvider>
-                <PermissionsProvider>
-                  <Layout />
-                </PermissionsProvider>
+                <ProntuarioProvider>
+                  <AdminProvider>
+                    <PermissionsProvider>
+                      <Layout />
+                    </PermissionsProvider>
+                  </AdminProvider>
+                </ProntuarioProvider>
               </ClinicProvider>
             </ProtectedRoute>
           }>

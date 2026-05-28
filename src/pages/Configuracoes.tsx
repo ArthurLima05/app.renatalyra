@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useAdmin } from '@/contexts/AdminContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -411,7 +412,8 @@ function ModulePermissionRow({
 
 // ── Detalhe do usuário ────────────────────────────────────────────────────────
 function UserDetail({ user, onBack }: { user: AppUser; onBack: () => void }) {
-  const { userPermissions, updateUserPermission, toggleAppUserActive, professionals, linkProfessionalToUser } = useClinic();
+  const { professionals, linkProfessionalToUser } = useClinic();
+  const { userPermissions, updateUserPermission, toggleAppUserActive } = useAdmin();
   const { isAdmin } = usePermissionsCtx();
   const perms = userPermissions.filter(p => p.userId === user.id);
   const linkedProfessional = professionals.find(p => p.userId === user.id);
@@ -591,7 +593,7 @@ function PreferenciasSection() {
 
 // ── Seção: Usuários ───────────────────────────────────────────────────────────
 function UsuariosSection() {
-  const { appUsers, inviteAppUser } = useClinic();
+  const { appUsers, inviteAppUser } = useAdmin();
   const { toast } = useToast();
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const [isNewUserOpen, setIsNewUserOpen] = useState(false);

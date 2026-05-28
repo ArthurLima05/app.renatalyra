@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useClinic } from "@/contexts/ClinicContext";
+import { useProntuario } from "@/contexts/ProntuarioContext";
 import { usePermissionsCtx } from "@/contexts/PermissionsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +76,7 @@ function AnamneseProgress({ status }: { status: "sent" | "completed" }) {
 
 // ── Gerenciador de perguntas ─────────────────────────────────────────────────
 function QuestionsManager({ onClose }: { onClose: () => void }) {
-  const { anamneseQuestions, addAnamneseQuestion, updateAnamneseQuestion, deleteAnamneseQuestion } = useClinic();
+  const { anamneseQuestions, addAnamneseQuestion, updateAnamneseQuestion, deleteAnamneseQuestion } = useProntuario();
   const [newQ, setNewQ] = useState({ question: "", type: "sim_nao" as AnamneseQuestionType });
   const [saving, setSaving] = useState(false);
 
@@ -277,7 +277,7 @@ function AnamneseViewer({ response, onClose }: { response: AnamneseResponse; onC
 
 // ── Componente principal ─────────────────────────────────────────────────────
 export function PatientAnamnese({ patientId, patientName }: { patientId: string; patientName: string }) {
-  const { anamneseQuestions, requestAnamneseForPatient, sendAnamneseViaWhatsapp, getAnamneseByPatientId, deleteAnamneseResponse } = useClinic();
+  const { anamneseQuestions, requestAnamneseForPatient, sendAnamneseViaWhatsapp, getAnamneseByPatientId, deleteAnamneseResponse } = useProntuario();
   const { canDelete } = usePermissionsCtx();
   const responses = getAnamneseByPatientId(patientId);
 

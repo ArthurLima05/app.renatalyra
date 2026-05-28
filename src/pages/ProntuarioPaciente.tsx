@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useProntuario } from '@/contexts/ProntuarioContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -59,14 +60,17 @@ const ProntuarioPaciente = () => {
     updateInstallment,
     appointments,
     professionals,
+    sendFeedbackRequest,
+  } = useClinic();
+
+  const {
     updatePatientAvatar,
     addReturnAlert,
     returnAlerts,
-    sendFeedbackRequest,
     getOdontogramByPatientId,
     getAnamneseByPatientId,
     anamneseQuestions,
-  } = useClinic();
+  } = useProntuario();
 
   const { canEdit, canDelete, canCreate, canView } = usePermissionsCtx();
   const patient = id ? getPatientById(id) : undefined;

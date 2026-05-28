@@ -15,7 +15,7 @@ function buildOdontogramSvg(): string {
   const S = 23, DS = 16;     // step permanente / decíduo
 
   const pg = 12; // gap do centro ao centro do dente 11/21/41/31
-  const dg = 5;  // gap do centro ao centro do dente 51/61/81/71
+  const dg = 9;  // gap do centro ao centro do dente 51/61/81/71 (mín = DH+2 para não cruzar a linha central)
 
   // Posições X (permanentes)
   const xP = (n: number) => CX - pg - (n - 1) * S; // quadrante direito (11→18)
@@ -102,7 +102,6 @@ export function generateFichaOdontologicaHtml(params: {
 }): string {
   const { patient, anamnese, anamneseQuestions, logoSrc, simboloSrc } = params;
 
-  const now = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
   const birthStr = patient.birthDate
     ? format(new Date(patient.birthDate), "dd/MM/yyyy", { locale: ptBR })
     : "";
@@ -200,42 +199,57 @@ export function generateFichaOdontologicaHtml(params: {
   const css = `
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Arial',sans-serif;font-size:11px;color:#1a1a1a;background:#fff}
-    @page{size:A4;margin:9mm 11mm}
-    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.wm{position:fixed;bottom:5mm;right:5mm}}
-    .header{display:flex;justify-content:space-between;align-items:center;padding-bottom:7px;border-bottom:2.5px solid #c8a84b;margin-bottom:9px}
-    .logo{height:44px;object-fit:contain;max-width:150px}
-    .h-title{font-size:13px;font-weight:700;letter-spacing:.05em;text-align:right}
+    @page{size:A4;margin:0}
+    @media print{
+      body{padding:9mm 11mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .print-bar{display:none!important}
+    }
+    .header{display:flex;align-items:center;padding-bottom:7px;border-bottom:2.5px solid #c8a84b;margin-bottom:9px}
+    .logo{height:44px;object-fit:contain;max-width:150px;flex-shrink:0}
+    .h-title{flex:1;text-align:center;font-size:13px;font-weight:700;letter-spacing:.05em;line-height:1.4}
+    .h-title-sub{font-size:10.5px;font-weight:400;letter-spacing:.02em;margin-top:2px}
+    .logo-spacer{width:150px;flex-shrink:0}
     .data-row{display:flex;gap:0;margin-bottom:5px;align-items:flex-end}
     .sec{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#c8a84b;margin:9px 0 5px;padding-bottom:2px;border-bottom:1px solid #e8dfc8}
     .odonto-box{border:1px solid #ddd;border-radius:4px;padding:7px 8px 5px;margin-bottom:5px}
-    table.qt-tbl{width:100%;border-collapse:collapse;font-size:9.5px}
+    table.qt-tbl{width:100%;border-collapse:collapse;font-size:10.5px}
     table.qt-tbl tr{border-bottom:1px dotted #ddd}
-    table.qt-tbl td{padding:2.5px 4px;vertical-align:top;line-height:1.35}
+    table.qt-tbl td{padding:2px 4px;vertical-align:top;line-height:1.3}
     td.qn{width:18px;color:#888;font-weight:600;white-space:nowrap;vertical-align:top}
-    td.qt{line-height:1.35}
-    td.qa{white-space:nowrap;text-align:right;font-size:9px;vertical-align:top}
+    td.qt{line-height:1.3}
+    td.qa{white-space:nowrap;text-align:right;font-size:10px;vertical-align:top}
     .auth{font-size:8.5px;text-align:center;font-style:italic;margin:10px 0 12px;color:#333;line-height:1.5}
     .sig-row{display:flex;gap:16px;margin-top:8px}
     .sig-box{flex:1;text-align:center}
     .sig-line{border-top:1px solid #1a1a1a;padding-top:4px;font-size:8.5px;color:#555;margin-top:26px}
-    .wm{position:fixed;bottom:5mm;right:5mm;width:54px;height:54px;opacity:.07;pointer-events:none;z-index:0}
+    .wm{position:fixed;bottom:-40px;right:-40px;width:480px;height:480px;opacity:.10;pointer-events:none;z-index:0}
     .wm img{width:100%;height:100%;object-fit:contain}
+    .print-bar{display:flex;justify-content:flex-end;padding:8px 12px;background:#f8f8f8;border-bottom:1px solid #ddd;gap:8px}
+    .btn-print{padding:6px 18px;background:#1a1a1a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif}
+    .btn-print:hover{background:#333}
+    .btn-close{padding:6px 14px;background:#fff;color:#555;border:1px solid #ccc;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif}
   `;
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"/>
-  <title>Prontuário Odontológico – ${patient.fullName}</title>
+  <title>Prontuário – ${patient.fullName}</title>
   <style>${css}</style>
 </head>
 <body>
+  <div class="print-bar">
+    <button class="btn-close" onclick="window.close()">Fechar</button>
+    <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+  </div>
+  <div style="padding:0 0" class="page-content">
   <div class="wm"><img src="${simboloSrc}" alt=""/></div>
 
   <!-- CABEÇALHO -->
   <div class="header">
     <img class="logo" src="${logoSrc}" alt="Logo" onerror="this.style.display='none'"/>
     <div class="h-title">PRONTUÁRIO ODONTOLÓGICO</div>
+    <div class="logo-spacer"></div>
   </div>
 
   <!-- DADOS DO PACIENTE -->
@@ -317,11 +331,12 @@ export function generateFichaOdontologicaHtml(params: {
     <div class="sig-box"><div class="sig-line">Data: _____ / _____ / _________</div></div>
   </div>
 
-  <div style="text-align:center;margin-top:10px;font-size:8px;color:#aaa">
-    Documento gerado pelo sistema TechClin · ${now}
   </div>
 
-  <script>window.onload = () => { window.print(); }<\/script>
+  <script>
+    try { history.replaceState(null, '', '/prontuario'); } catch(e) {}
+    window.onafterprint = () => window.close();
+  <\/script>
 </body>
 </html>`;
 }

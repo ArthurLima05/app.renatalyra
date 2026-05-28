@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useClinic } from "@/contexts/ClinicContext";
+import { useProntuario } from "@/contexts/ProntuarioContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -41,7 +41,7 @@ function formatBytes(bytes?: number) {
 }
 
 export function PatientDocuments({ patientId }: { patientId: string }) {
-  const { getDocumentsByPatientId, addPatientDocument, deletePatientDocument } = useClinic();
+  const { getDocumentsByPatientId, addPatientDocument, deletePatientDocument } = useProntuario();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
