@@ -44,8 +44,25 @@ export default function AceitarConvite() {
         return;
       }
 
-      // 3. Tenta PKCE — troca o code por sessão
+      // 3. Tenta token_hash (fluxo PKCE de convite — Supabase recente)
       const queryParams = new URLSearchParams(window.location.search);
+      const tokenHash = queryParams.get('token_hash');
+      const otpType = queryParams.get('type');
+      if (tokenHash && otpType) {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: otpType as any,
+        });
+        if (error) {
+          setErrorMsg(error.message);
+          setStatus('error');
+        } else {
+          setStatus('set-password');
+        }
+        return;
+      }
+
+      // 4. Tenta PKCE — troca o code por sessão
       const code = queryParams.get('code');
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);

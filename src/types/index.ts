@@ -85,6 +85,7 @@ export interface Transaction {
   comprovanteUrl?: string;
   paymentMethod?: PaymentMethod;
   installmentCount?: number;
+  professionalId?: string;
 }
 
 export interface Notification {

@@ -524,6 +524,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         comprovanteUrl: (t as any).comprovante_url || undefined,
         paymentMethod: (t as any).payment_method || undefined,
         installmentCount: (t as any).installment_count || undefined,
+        professionalId: (t as any).professional_id || undefined,
       })),
     );
   };
@@ -685,6 +686,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       comprovante_url: transaction.comprovanteUrl ?? null,
       payment_method: transaction.paymentMethod ?? null,
       installment_count: transaction.installmentCount ?? null,
+      professional_id: transaction.professionalId ?? null,
     } as any);
 
     if (error) {

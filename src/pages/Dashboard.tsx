@@ -55,7 +55,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function Dashboard() {
-  const { appointments, patients, professionals } = useClinic();
+  const { appointments, patients, professionals, transactions } = useClinic();
   const [datePeriod, setDatePeriod] = useState<DatePeriod>('todos');
   const [customStartDate, setCustomStartDate] = useState<Date>();
   const [customEndDate, setCustomEndDate] = useState<Date>();
@@ -146,6 +146,30 @@ export default function Dashboard() {
     }))
     .filter(p => p.Realizados + p.Agendados > 0)
     .sort((a, b) => (b.Realizados + b.Agendados) - (a.Realizados + a.Agendados));
+
+  // ── Gráfico: Repasse por Dentista ─────────────────────────────────────────
+  const repasseData = (() => {
+    const filtered = dateRange
+      ? transactions.filter(t =>
+          t.professionalId &&
+          t.type === 'saida' &&
+          isWithinInterval(new Date(t.date), { start: dateRange.start, end: dateRange.end })
+        )
+      : transactions.filter(t => t.professionalId && t.type === 'saida');
+
+    const byPro: Record<string, number> = {};
+    for (const t of filtered) {
+      const proId = t.professionalId!;
+      byPro[proId] = (byPro[proId] ?? 0) + t.amount;
+    }
+
+    return Object.entries(byPro)
+      .map(([proId, total]) => {
+        const pro = professionals.find(p => p.id === proId);
+        return { name: pro?.name.split(' ')[0] ?? 'Dentista', fullName: pro?.name ?? proId, total };
+      })
+      .sort((a, b) => b.total - a.total);
+  })();
 
   // ── Gráfico: Evolução de Atendimentos (últimos 6 meses) ────────────────────
   const now = new Date();
@@ -310,6 +334,48 @@ export default function Dashboard() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Repasse por Dentista */}
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.58 }}>
+        <Card>
+          <CardHeader className="items-start sm:items-center text-left sm:text-center pb-2">
+            <CardTitle>Repasse por Dentista</CardTitle>
+            <p className="text-xs text-muted-foreground">Total de saídas atribuídas por profissional no período</p>
+          </CardHeader>
+          <CardContent>
+            {repasseData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={repasseData} margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false}
+                    tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div className="rounded-xl border border-primary/15 px-3 py-2.5 text-sm"
+                          style={{ background: 'var(--card-gradient)', boxShadow: 'var(--card-shadow)' }}>
+                          <p className="font-semibold text-foreground">{d.fullName}</p>
+                          <p className="text-muted-foreground text-xs mt-1">
+                            {Number(d.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </p>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="total" name="Repasse" fill="hsl(40,45%,65%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[220px] flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                <p className="text-sm">Nenhum repasse registrado no período</p>
+                <p className="text-xs">Ao adicionar uma saída com dentista atribuído, ela aparecerá aqui</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Gráficos — linha 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

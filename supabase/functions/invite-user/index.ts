@@ -66,7 +66,7 @@ function getDefaultPermissions(profile: string): PermsMap {
     },
     marketing: {
       agenda:        { canView: false, canCreate: false, canEdit: false, canDelete: false },
-      dashboard:     { canView: false, canCreate: false, canEdit: false, canDelete: false },
+      dashboard:     { canView: true,  canCreate: false, canEdit: false, canDelete: false },
       pacientes:     { canView: false, canCreate: false, canEdit: false, canDelete: false },
       financeiro:    { canView: true,  canCreate: false, canEdit: false, canDelete: false },
       profissionais: { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -100,34 +100,57 @@ Deno.serve(async (req) => {
 
     const appUrl = Deno.env.get('APP_URL') ?? 'https://app.renatalyra.com.br'
 
-    // Convida o usuário via Supabase Auth
-    const { data: { user }, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName },
-      redirectTo: `${appUrl}/aceitar-convite`,
+    // Tenta gerar link de convite; se o usuário já existe, gera link de recuperação
+    let linkData: any = null
+    let inviteError: any = null
+
+    const inviteResult = await supabase.auth.admin.generateLink({
+      type: 'invite',
+      email,
+      options: { data: { full_name: fullName }, redirectTo: `${appUrl}/aceitar-convite` },
     })
 
-    if (inviteError || !user) {
-      console.error('Invite error:', inviteError)
+    if (inviteResult.error) {
+      // Usuário já existe — gera recovery link
+      const recoveryResult = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo: `${appUrl}/aceitar-convite` },
+      })
+      if (recoveryResult.error) {
+        inviteError = recoveryResult.error
+      } else {
+        linkData = recoveryResult.data
+      }
+    } else {
+      linkData = inviteResult.data
+    }
+
+    if (inviteError || !linkData?.user) {
+      console.error('Link error:', inviteError)
       return new Response(
-        JSON.stringify({ error: inviteError?.message ?? 'Falha ao convidar usuário' }),
+        JSON.stringify({ error: inviteError?.message ?? 'Falha ao gerar link' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
       )
     }
 
-    // Cria o perfil em app_users
-    const { error: profileError } = await supabase.from('app_users').insert({
+    const user = linkData.user
+    const inviteLink = linkData.properties?.action_link ?? null
+
+    // Upsert perfil em app_users (cria ou ignora se já existe)
+    const { error: profileError } = await supabase.from('app_users').upsert({
       id: user.id,
       email: user.email,
       full_name: fullName,
       phone: phone ?? null,
       profile,
-    })
+    }, { onConflict: 'id', ignoreDuplicates: true })
 
     if (profileError) {
       console.error('Profile error:', profileError)
     }
 
-    // Cria permissões padrão
+    // Upsert permissões padrão
     const defaultPerms = getDefaultPermissions(profile)
     const permsRows = Object.entries(defaultPerms).map(([module, p]) => ({
       user_id: user.id,
@@ -138,11 +161,12 @@ Deno.serve(async (req) => {
       can_delete: p.canDelete,
     }))
 
-    const { error: permsError } = await supabase.from('user_permissions').insert(permsRows)
+    const { error: permsError } = await supabase.from('user_permissions')
+      .upsert(permsRows, { onConflict: 'user_id,module', ignoreDuplicates: true })
     if (permsError) console.error('Permissions error:', permsError)
 
     return new Response(
-      JSON.stringify({ success: true, userId: user.id }),
+      JSON.stringify({ success: true, userId: user.id, inviteLink }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     )
   } catch (error) {

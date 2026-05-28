@@ -43,6 +43,7 @@ export default function Financeiro() {
     comprovanteUrl: '',
     paymentMethod: '' as import('@/types').PaymentMethod | '',
     installmentCount: '',
+    professionalId: '',
   });
   const [relatorioMes, setRelatorioMes] = useState(startOfMonth(new Date()));
   const [showFullRelatorio, setShowFullRelatorio] = useState(false);
@@ -262,6 +263,7 @@ export default function Financeiro() {
       comprovanteUrl: transactionData.comprovanteUrl.trim() || undefined,
       paymentMethod: transactionData.paymentMethod || undefined,
       installmentCount: transactionData.installmentCount ? parseInt(transactionData.installmentCount) : undefined,
+      professionalId: transactionData.professionalId || undefined,
     });
 
     setIsOpen(false);
@@ -275,6 +277,7 @@ export default function Financeiro() {
       comprovanteUrl: '',
       paymentMethod: '',
       installmentCount: '',
+      professionalId: '',
     });
   };
 
@@ -637,15 +640,32 @@ export default function Financeiro() {
                 </div>
               )}
               {transactionData.type === 'saida' && (
-                <div>
-                  <Label htmlFor="comprovante">Link do Comprovante (opcional)</Label>
-                  <Input
-                    id="comprovante"
-                    placeholder="Cole o link do Google Drive, Dropbox, etc."
-                    value={transactionData.comprovanteUrl}
-                    onChange={(e) => setTransactionData({ ...transactionData, comprovanteUrl: e.target.value })}
-                  />
-                </div>
+                <>
+                  <div>
+                    <Label>Dentista (repasse — opcional)</Label>
+                    <Select
+                      value={transactionData.professionalId}
+                      onValueChange={(v) => setTransactionData({ ...transactionData, professionalId: v === '_none' ? '' : v })}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Nenhum (caixa geral)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">Nenhum (caixa geral)</SelectItem>
+                        {professionals.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="comprovante">Link do Comprovante (opcional)</Label>
+                    <Input
+                      id="comprovante"
+                      placeholder="Cole o link do Google Drive, Dropbox, etc."
+                      value={transactionData.comprovanteUrl}
+                      onChange={(e) => setTransactionData({ ...transactionData, comprovanteUrl: e.target.value })}
+                    />
+                  </div>
+                </>
               )}
               <Button type="submit" className="w-full">Adicionar</Button>
             </form>
