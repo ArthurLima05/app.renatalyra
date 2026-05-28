@@ -23,6 +23,7 @@ import Login from "./pages/Login";
 import AnamnesePaciente from "./pages/AnamnesePaciente";
 import AceitarConvite from "./pages/AceitarConvite";
 import NotFound from "./pages/NotFound";
+import ImportacaoAgendamentos from "./pages/ImportacaoAgendamentos";
 
 const queryClient = new QueryClient();
 
@@ -100,6 +101,7 @@ const App = () => (
             <Route path="/funil" element={
               <ModuleRoute module="funil"><Funil /></ModuleRoute>
             } />
+            <Route path="/importacao-agendamentos" element={<ImportacaoAgendamentos />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

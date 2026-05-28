@@ -79,6 +79,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const myProfessionalIdRef = useRef<string | null>(null);
   const { toast } = useToast();
   const isCheckingNotifications = useRef(false);
+  const apptReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadAllData();
@@ -158,7 +159,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const appointmentsChannel = supabase
       .channel("appointments-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
-        loadAppointments();
+        if (apptReloadTimerRef.current) clearTimeout(apptReloadTimerRef.current);
+        apptReloadTimerRef.current = setTimeout(() => loadAppointments(), 2000);
       })
       .subscribe();
 
@@ -313,6 +315,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .subscribe();
 
     return () => {
+      if (apptReloadTimerRef.current) clearTimeout(apptReloadTimerRef.current);
       supabase.removeChannel(professionalsChannel);
       supabase.removeChannel(patientsChannel);
       supabase.removeChannel(appointmentsChannel);

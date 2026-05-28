@@ -862,8 +862,330 @@ const PATIENT_FIELDS = [
   { key: 'legacy_patient_id', label: 'ID sistema antigo',  required: false },
 ];
 
-// ── Seção: Importar Pacientes ─────────────────────────────────────────────────
+// ── Constantes para importação de agendamentos ───────────────────────────────
+const DENTIST_MAP: Record<string, string> = {
+  '5358216251179008': '805d944f-e8f3-4861-8bcc-5f5eff73f5a8', // Renata Lyra
+  '4797052198846464': '48365890-a8d8-4c64-9374-1cb37035a909', // Juliano Borelli
+  '4937581838532608': 'a0a8bdf3-124c-44d9-89eb-724b641ef1d9', // Dione Melo
+};
+const DENTIST_NAMES: Record<string, string> = {
+  '5358216251179008': 'Renata Lyra',
+  '4797052198846464': 'Juliano Borelli',
+  '4937581838532608': 'Dione Melo',
+};
+type ApptStatus = 'agendado' | 'confirmado' | 'realizado' | 'cancelado' | 'falta' | 'sugerido';
+type ApptRowStatus = 'ok' | 'no_patient' | 'no_dentist' | 'no_date' | 'deleted';
+interface ApptRow {
+  legacyPatientId: string; patientName: string;
+  legacyDentistId: string; dentistName: string;
+  date: string | null; time: string;
+  status: ApptStatus; notes: string; createdAt: string | null;
+  patientUuid?: string; professionalUuid?: string;
+  rowStatus: ApptRowStatus;
+}
+function mapApptStatus(status: string, canceled: string): ApptStatus {
+  if (/^x$/i.test(canceled?.trim() ?? '')) return 'cancelado';
+  switch ((status ?? '').toUpperCase().trim()) {
+    case 'MISSED':    return 'falta';
+    case 'CHECKOUT':  return 'realizado';
+    case 'CONFIRMED': return 'confirmado';
+    default:          return 'agendado';
+  }
+}
+function parseApptDate(val: unknown): string | null {
+  if (!val) return null;
+  if (typeof val === 'number') {
+    const d = XLSX.SSF.parse_date_code(val);
+    if (!d) return null;
+    return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  const s = String(val).trim();
+  if (s.includes('T')) return s.split('T')[0];
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) { const [d,m,y] = s.split('/'); return `${y}-${m}-${d}`; }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return null;
+}
+const APPT_STATUS_COLORS: Record<ApptStatus, string> = {
+  agendado:   'bg-amber-50 text-amber-800 border-amber-200',
+  confirmado: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  realizado:  'bg-purple-50 text-purple-800 border-purple-200',
+  cancelado:  'bg-red-50 text-red-800 border-red-200',
+  falta:      'bg-orange-50 text-orange-800 border-orange-200',
+  sugerido:   'bg-gray-50 text-gray-700 border-gray-200',
+};
+const APPT_STATUS_LABELS: Record<ApptStatus, string> = {
+  agendado: 'Agendado', confirmado: 'Confirmado', realizado: 'Realizado',
+  cancelado: 'Cancelado', falta: 'Falta', sugerido: 'Sugerido',
+};
+
+// ── Sub-seção: Importar Agendamentos ─────────────────────────────────────────
+function ImportarAgendamentosSubsection() {
+  const { toast } = useToast();
+  const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'done'>('upload');
+  const [parsedRows, setParsedRows] = useState<ApptRow[]>([]);
+  const [fileName, setFileName] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState({ imported: 0, errors: 0, skipped: 0 });
+  const [showAll, setShowAll] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const processFile = async (file: File) => {
+    setFileName(file.name);
+    let raw: Record<string, unknown>[];
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    } catch {
+      toast({ title: 'Erro ao ler o arquivo', variant: 'destructive' }); return;
+    }
+    if (!raw.length) { toast({ title: 'Arquivo vazio', variant: 'destructive' }); return; }
+
+    // Busca todos os pacientes com paginação (Supabase limita 1000 por request)
+    const patientMap: Record<string, string> = {};
+    const PAGE = 1000;
+    let from = 0;
+    while (true) {
+      const { data: page, error } = await supabase
+        .from('patients')
+        .select('id, legacy_patient_id')
+        .range(from, from + PAGE - 1);
+      if (error) { toast({ title: 'Erro ao carregar pacientes', description: error.message, variant: 'destructive' }); return; }
+      (page ?? []).forEach(p => { const lid = (p as any).legacy_patient_id; if (lid) patientMap[String(lid).trim()] = p.id; });
+      if (!page?.length || page.length < PAGE) break;
+      from += PAGE;
+    }
+
+    const parsed: ApptRow[] = raw.map(row => {
+      const legacyPatientId = String(row['PatientId'] ?? '').trim();
+      const legacyDentistId = String(row['DentistId'] ?? '').trim();
+      const canceled = String(row['Canceled'] ?? '').trim();
+      const deleted  = String(row['Deleted']  ?? '').trim();
+      const isDeleted = /^x$/i.test(deleted);
+      const notesParts = [
+        row['CategoryDescription'] ? `Categoria: ${row['CategoryDescription']}` : '',
+        row['Prcedures']           ? `Procedimentos: ${row['Prcedures']}`       : '',
+        row['Procedures']          ? `Procedimentos: ${row['Procedures']}`      : '',
+        row['Notes']               ? `Obs: ${row['Notes']}`                     : '',
+      ].filter(Boolean);
+      const patientUuid     = patientMap[legacyPatientId] || undefined;
+      const professionalUuid = DENTIST_MAP[legacyDentistId] || undefined;
+      const date = parseApptDate(row['date'] ?? row['Date']);
+      const rawCreated = String(row['InsertDate'] ?? row['CreateDate'] ?? '').trim();
+      let rowStatus: ApptRowStatus = 'ok';
+      if (isDeleted)            rowStatus = 'deleted';
+      else if (!patientUuid)    rowStatus = 'no_patient';
+      else if (!professionalUuid) rowStatus = 'no_dentist';
+      else if (!date)           rowStatus = 'no_date';
+      return {
+        legacyPatientId, patientName: String(row['PatientName'] ?? '').trim(),
+        legacyDentistId, dentistName: DENTIST_NAMES[legacyDentistId] ?? String(row['DentistName'] ?? '').trim(),
+        date, time: String(row['fromTime'] ?? '00:00').trim(),
+        status: mapApptStatus(String(row['Status'] ?? ''), canceled),
+        notes: notesParts.join('\n'), createdAt: rawCreated || null,
+        patientUuid, professionalUuid, rowStatus,
+      };
+    });
+    setParsedRows(parsed);
+    setStep('preview');
+  };
+
+  const startImport = async () => {
+    const toImport = parsedRows.filter(r => r.rowStatus === 'ok');
+    const skipped  = parsedRows.filter(r => r.rowStatus !== 'ok').length;
+    setStep('importing'); setProgress(0);
+    let imported = 0, errors = 0;
+    const chunkSize = 200;
+    for (let i = 0; i < toImport.length; i += chunkSize) {
+      const chunk = toImport.slice(i, i + chunkSize);
+      const records = chunk.map(r => {
+        const parts = (r.time || '').trim().split(':');
+        const hh = String(parseInt(parts[0] || '0', 10)).padStart(2, '0');
+        const mm = String(parseInt(parts[1] || '0', 10)).padStart(2, '0');
+        const timeStr = `${hh}:${mm}`;
+        return {
+          patient_id: r.patientUuid!, professional_id: r.professionalUuid!,
+          date: `${r.date}T${timeStr}:00`,
+          time: timeStr, duration: 1, status: r.status, origin: 'Outro' as const,
+          notes: r.notes || null,
+          created_at: r.createdAt || `${r.date}T00:00:00.000Z`,
+        };
+      });
+      const { error } = await supabase.from('appointments').insert(records as any);
+      if (error) { errors += chunk.length; console.error(error.message); }
+      else imported += chunk.length;
+      setProgress(Math.round(((i + chunk.length) / toImport.length) * 100));
+      await new Promise(res => setTimeout(res, 300));
+    }
+    setResult({ imported, errors, skipped });
+    setStep('done');
+    if (errors === 0) toast({ title: 'Importação concluída!', description: `${imported} agendamentos importados.` });
+    else toast({ title: 'Importação com erros', description: `${imported} importados, ${errors} falharam.`, variant: 'destructive' });
+  };
+
+  const reset = () => { setParsedRows([]); setStep('upload'); setFileName(''); setShowAll(false); setProgress(0); };
+
+  const stats = {
+    total: parsedRows.length, ok: parsedRows.filter(r => r.rowStatus === 'ok').length,
+    deleted: parsedRows.filter(r => r.rowStatus === 'deleted').length,
+    noPatient: parsedRows.filter(r => r.rowStatus === 'no_patient').length,
+    noDentist: parsedRows.filter(r => r.rowStatus === 'no_dentist').length,
+    noDate: parsedRows.filter(r => r.rowStatus === 'no_date').length,
+  };
+  const displayRows = showAll ? parsedRows : parsedRows.slice(0, 80);
+
+  if (step === 'upload') return (
+    <div
+      onDragOver={e => e.preventDefault()}
+      onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) processFile(f); }}
+      onClick={() => inputRef.current?.click()}
+      className="border-2 border-dashed border-border rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
+    >
+      <input ref={inputRef} type="file" accept=".xlsx,.xls" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) { processFile(f); e.target.value = ''; } }} />
+      <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+      <p className="font-medium">Clique ou arraste o arquivo aqui</p>
+      <p className="text-sm text-muted-foreground mt-1">Suporta .xlsx e .xls</p>
+    </div>
+  );
+
+  if (step === 'importing') return (
+    <div className="flex flex-col items-center gap-6 py-12">
+      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <div className="w-full max-w-xs space-y-2">
+        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Importando…</span><span className="font-medium">{progress}%</span></div>
+        <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} /></div>
+      </div>
+    </div>
+  );
+
+  if (step === 'done') return (
+    <div className="flex flex-col items-center gap-5 py-10">
+      <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+      <div className="text-center space-y-1">
+        <p className="font-semibold text-base">Importação concluída!</p>
+        <p className="text-sm text-muted-foreground">
+          <strong>{result.imported}</strong> importados · <strong>{result.skipped}</strong> ignorados
+          {result.errors > 0 && <> · <strong className="text-destructive">{result.errors}</strong> erros</>}
+        </p>
+      </div>
+      <Button onClick={reset}><Upload className="h-4 w-4 mr-2" />Importar outro arquivo</Button>
+    </div>
+  );
+
+  // step === 'preview'
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-sm">
+        <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium truncate">{fileName}</span>
+        <Button variant="ghost" size="sm" onClick={reset} className="ml-auto shrink-0">Trocar arquivo</Button>
+      </div>
+
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        {[
+          { label: 'Total',          value: stats.total,     cls: 'bg-muted text-foreground border-border' },
+          { label: 'Prontos',        value: stats.ok,        cls: 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900' },
+          { label: 'Excluídos',      value: stats.deleted,   cls: 'bg-muted text-muted-foreground border-border' },
+          { label: 'S/ paciente',    value: stats.noPatient, cls: stats.noPatient > 0 ? 'bg-orange-50 text-orange-900 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900' : 'bg-muted text-muted-foreground border-border' },
+          { label: 'S/ dentista',    value: stats.noDentist, cls: stats.noDentist > 0 ? 'bg-yellow-50 text-yellow-900 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-900' : 'bg-muted text-muted-foreground border-border' },
+          { label: 'S/ data',        value: stats.noDate,    cls: stats.noDate > 0    ? 'bg-red-50 text-red-900 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900'       : 'bg-muted text-muted-foreground border-border' },
+        ].map(c => (
+          <div key={c.label} className={cn('rounded-lg border p-3', c.cls)}>
+            <p className="text-xl font-bold">{c.value}</p>
+            <p className="text-[11px] mt-0.5">{c.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {stats.noPatient > 0 && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-orange-50 text-orange-800 text-sm border border-orange-200">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span><strong>{stats.noPatient}</strong> agendamento(s) sem paciente mapeado pelo <code className="bg-orange-100 px-1 rounded text-xs">legacy_patient_id</code>.</span>
+        </div>
+      )}
+
+      <div className="border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-muted/50 border-b">
+              <tr>
+                {['Situação','Paciente','Dentista','Data','Hora','Status'].map(h => (
+                  <th key={h} className="text-left px-3 py-2 font-medium text-muted-foreground">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {displayRows.map((r, i) => (
+                <tr key={i} className={cn('hover:bg-muted/20', r.rowStatus !== 'ok' && 'opacity-50')}>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {r.rowStatus === 'ok'         && <span className="flex items-center gap-1 text-emerald-700"><CheckCircle2 className="h-3 w-3" /> OK</span>}
+                    {r.rowStatus === 'deleted'    && <span className="text-muted-foreground">Excluído</span>}
+                    {r.rowStatus === 'no_patient' && <span className="flex items-center gap-1 text-orange-700"><AlertCircle className="h-3 w-3" /> S/ paciente</span>}
+                    {r.rowStatus === 'no_dentist' && <span className="flex items-center gap-1 text-destructive"><XCircle className="h-3 w-3" /> S/ dentista</span>}
+                    {r.rowStatus === 'no_date'    && <span className="flex items-center gap-1 text-destructive"><XCircle className="h-3 w-3" /> S/ data</span>}
+                  </td>
+                  <td className="px-3 py-2 max-w-[140px] truncate">{r.patientName || r.legacyPatientId}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{r.dentistName || r.legacyDentistId}</td>
+                  <td className="px-3 py-2 font-mono whitespace-nowrap">{r.date ?? '—'}</td>
+                  <td className="px-3 py-2 font-mono">{r.time}</td>
+                  <td className="px-3 py-2">
+                    <span className={cn('text-xs px-1.5 py-0.5 rounded-full border font-medium', APPT_STATUS_COLORS[r.status])}>
+                      {APPT_STATUS_LABELS[r.status]}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {parsedRows.length > 80 && (
+          <div className="border-t p-2 text-center bg-muted/20">
+            <Button variant="ghost" size="sm" onClick={() => setShowAll(v => !v)}>
+              <ChevronDown className={cn('h-4 w-4 mr-1', showAll && 'rotate-180')} />
+              {showAll ? 'Mostrar menos' : `Ver todos (${parsedRows.length})`}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <Button onClick={startImport} disabled={stats.ok === 0}>
+          <Upload className="h-4 w-4 mr-2" />Importar {stats.ok} agendamento{stats.ok !== 1 ? 's' : ''}
+        </Button>
+        <Button variant="outline" onClick={reset}>Cancelar</Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Seção: Importar (Pacientes + Agendamentos) ────────────────────────────────
 function ImportarSection() {
+  const [tab, setTab] = useState<'pacientes' | 'agendamentos'>('pacientes');
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Importar</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">Importe dados de outro sistema via arquivo Excel.</p>
+      </div>
+      <div className="flex gap-1 p-1 rounded-lg bg-muted w-fit">
+        <button
+          onClick={() => setTab('pacientes')}
+          className={cn('px-4 py-1.5 rounded-md text-sm font-medium transition-colors', tab === 'pacientes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground')}
+        >Pacientes</button>
+        <button
+          onClick={() => setTab('agendamentos')}
+          className={cn('px-4 py-1.5 rounded-md text-sm font-medium transition-colors', tab === 'agendamentos' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground')}
+        >Agendamentos</button>
+      </div>
+      {tab === 'agendamentos' ? <ImportarAgendamentosSubsection /> : <ImportarPacientesSubsection />}
+    </div>
+  );
+}
+
+// ── Sub-seção: Importar Pacientes ─────────────────────────────────────────────
+function ImportarPacientesSubsection() {
   const { toast } = useToast();
   const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'done'>('upload');
   const [rows, setRows] = useState<Record<string, string>[]>([]);
@@ -1006,13 +1328,6 @@ function ImportarSection() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold">Importar Pacientes</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Importe pacientes de outro sistema via arquivo <strong>.xlsx</strong> ou <strong>.csv</strong>.
-        </p>
-      </div>
-
       {/* PASSO 1: Upload */}
       {step === 'upload' && (
         <div
@@ -1196,7 +1511,7 @@ const SECTIONS = [
   { id: 'aparencia'    as Section, icon: Palette,            label: 'Aparência',              description: 'Tema claro ou escuro' },
   { id: 'preferencias' as Section, icon: SlidersHorizontal, label: 'Preferências',           description: 'Visualização padrão da agenda' },
   { id: 'mensagens'    as Section, icon: MessageSquare,      label: 'Mensagens WhatsApp',     description: 'Templates de mensagens automáticas' },
-  { id: 'importar'     as Section, icon: Upload,             label: 'Importar Pacientes',     description: 'Importe de outro sistema via Excel ou CSV' },
+  { id: 'importar'     as Section, icon: Upload,             label: 'Importar',               description: 'Importe pacientes ou agendamentos via Excel' },
   { id: 'usuarios'     as Section, icon: Users,              label: 'Usuários e Permissões',  description: 'Quem acessa e o que pode fazer' },
 ];
 
