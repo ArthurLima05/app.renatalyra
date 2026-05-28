@@ -660,7 +660,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const deleteAppointment = async (id: string) => {
     const { error } = await supabase
       .from("appointments")
-      .update({ deleted_at: new Date().toISOString() } as any)
+      .delete()
       .eq("id", id);
 
     if (error) {
@@ -668,9 +668,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
 
-    setAppointments((prev) =>
-      prev.map((a) => a.id === id ? { ...a, deletedAt: new Date() } : a)
-    );
+    setAppointments((prev) => prev.filter((a) => a.id !== id));
     toast({ title: "Agendamento excluído com sucesso" });
   };
 

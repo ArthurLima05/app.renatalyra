@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Variáveis de ambiente — contém chaves secretas
+.env
+.env.*
+!.env.example
+
 # Workflows n8n — backup local, não versionado (contém credenciais)
 n8n_workflows/
 

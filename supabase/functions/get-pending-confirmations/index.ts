@@ -50,8 +50,17 @@ Deno.serve(async (req) => {
       .eq('key', 'msg_appointment_confirmation')
       .maybeSingle()
 
+    const { data: setting12h } = await supabase
+      .from('clinic_settings')
+      .select('value')
+      .eq('key', 'msg_confirmation_12h')
+      .maybeSingle()
+
     const confirmationMessage = setting?.value
       ?? 'Olá {{nome_paciente}}, tudo bem? Sua consulta está marcada para {{data}} às {{hora}}. Por favor, confirme sua presença.'
+
+    const confirmationMessage12h = setting12h?.value
+      ?? '🔔 Ainda aguardamos sua confirmação.\n\nOlá {{nome_paciente}}, sua consulta está marcada para {{data}} às {{hora}}.'
 
     const appointments_24h = []
     const appointments_12h = []
@@ -81,6 +90,7 @@ Deno.serve(async (req) => {
         appointments_12h,
         appointments_3h,
         confirmationMessage,
+        confirmationMessage12h,
         debug,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
