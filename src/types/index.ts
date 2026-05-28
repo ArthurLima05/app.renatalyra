@@ -15,7 +15,8 @@ export type UserProfile =
   | 'profissional'
   | 'financeiro'
   | 'gestor_relacionamento'
-  | 'recepcionista';
+  | 'recepcionista'
+  | 'marketing';
 
 export type AppModule =
   | 'agenda'

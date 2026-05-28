@@ -41,6 +41,7 @@ const PROFILE_LABELS: Record<UserProfile, string> = {
   financeiro: 'Financeiro',
   gestor_relacionamento: 'Gestor de Relacionamento',
   recepcionista: 'Recepcionista',
+  marketing: 'Marketing',
 };
 
 const PROFILE_COLORS: Record<UserProfile, string> = {
@@ -50,6 +51,7 @@ const PROFILE_COLORS: Record<UserProfile, string> = {
   financeiro: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
   gestor_relacionamento: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
   recepcionista: 'bg-gray-500 text-white dark:bg-gray-600 dark:text-white',
+  marketing: 'bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300',
 };
 
 const MODULES: { id: AppModule; label: string; description: string }[] = [

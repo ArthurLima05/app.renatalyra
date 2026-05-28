@@ -64,6 +64,16 @@ function getDefaultPermissions(profile: string): PermsMap {
       notificacoes:  { canView: true,  canCreate: false, canEdit: false, canDelete: false },
       configuracoes: { canView: false, canCreate: false, canEdit: false, canDelete: false },
     },
+    marketing: {
+      agenda:        { canView: false, canCreate: false, canEdit: false, canDelete: false },
+      dashboard:     { canView: false, canCreate: false, canEdit: false, canDelete: false },
+      pacientes:     { canView: false, canCreate: false, canEdit: false, canDelete: false },
+      financeiro:    { canView: true,  canCreate: false, canEdit: false, canDelete: false },
+      profissionais: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+      notificacoes:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
+      configuracoes: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+      funil:         { canView: true,  canCreate: true,  canEdit: true,  canDelete: true  },
+    },
   }
   return all[profile] ?? all['recepcionista']
 }
@@ -93,7 +103,7 @@ Deno.serve(async (req) => {
     // Convida o usuário via Supabase Auth
     const { data: { user }, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
       data: { full_name: fullName },
-      redirectTo: `${appUrl}/login`,
+      redirectTo: `${appUrl}/aceitar-convite`,
     })
 
     if (inviteError || !user) {
