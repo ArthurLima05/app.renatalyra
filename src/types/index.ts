@@ -117,6 +117,10 @@ export interface Patient {
   createdAt: Date;
   feedbackGiven?: boolean;
   feedbackSentAt?: Date;
+  responsible?: string;
+  responsibleCpf?: string;
+  address?: string;
+  profession?: string;
 }
 
 export type PhotoCategory = 'antes' | 'durante' | 'depois' | 'outro';

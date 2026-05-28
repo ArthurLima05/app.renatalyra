@@ -184,6 +184,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           education: raw.education ?? undefined,
           avatarUrl: raw.avatar_url ?? undefined,
           createdAt: new Date(raw.created_at),
+          responsible: raw.responsible ?? undefined,
+          responsibleCpf: raw.responsible_cpf ?? undefined,
+          address: raw.address ?? undefined,
+          profession: raw.profession ?? undefined,
         };
         setPatients((prev) => [...prev, newPatient]);
       })
@@ -202,6 +206,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           createdAt: new Date(raw.created_at),
           feedbackGiven: raw.feedback_given ?? false,
           feedbackSentAt: raw.feedback_sent_at ? new Date(raw.feedback_sent_at) : undefined,
+          responsible: raw.responsible ?? undefined,
+          responsibleCpf: raw.responsible_cpf ?? undefined,
+          address: raw.address ?? undefined,
+          profession: raw.profession ?? undefined,
         };
         setPatients((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       })
@@ -592,6 +600,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         education: p.education ?? undefined,
         avatarUrl: p.avatar_url ?? undefined,
         createdAt: new Date(p.created_at),
+        responsible: p.responsible ?? undefined,
+        responsibleCpf: p.responsible_cpf ?? undefined,
+        address: p.address ?? undefined,
+        profession: p.profession ?? undefined,
       })),
     );
   };
@@ -1077,6 +1089,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       education: patient.education,
       origin: patient.origin,
       notes: patient.notes,
+      responsible: patient.responsible,
+      responsible_cpf: patient.responsibleCpf,
+      address: patient.address,
+      profession: patient.profession,
     } as any);
 
     if (error) {
@@ -1105,6 +1121,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (patient.origin !== undefined) updateData.origin = patient.origin;
     if (patient.notes !== undefined) updateData.notes = patient.notes;
     if (patient.feedbackGiven !== undefined) updateData.feedback_given = patient.feedbackGiven;
+    if (patient.responsible !== undefined) updateData.responsible = patient.responsible;
+    if (patient.responsibleCpf !== undefined) updateData.responsible_cpf = patient.responsibleCpf;
+    if (patient.address !== undefined) updateData.address = patient.address;
+    if (patient.profession !== undefined) updateData.profession = patient.profession;
 
     const { error } = await supabase.from("patients").update(updateData).eq("id", id);
 

@@ -14,7 +14,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History, MessageCircle, FileText } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History, MessageCircle, FileText, Printer } from 'lucide-react';
+import { generateFichaOdontologicaHtml } from '@/utils/printProntuario';
+import logoUrl from '@/assets/LightLogo.svg';
+import simboloUrl from '@/assets/SimboloDourado.svg';
 import { Switch } from '@/components/ui/switch';
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input';
 import { Odontograma } from '@/components/Odontograma';
@@ -61,6 +64,8 @@ const ProntuarioPaciente = () => {
     returnAlerts,
     sendFeedbackRequest,
     getOdontogramByPatientId,
+    getAnamneseByPatientId,
+    anamneseQuestions,
   } = useClinic();
 
   const { canEdit, canDelete, canCreate, canView } = usePermissionsCtx();
@@ -68,7 +73,22 @@ const ProntuarioPaciente = () => {
   const sessions = id ? getSessionsByPatientId(id) : [];
   const transactions = id ? getTransactionsByPatientId(id) : [];
   const odontogramProcs = id ? getOdontogramByPatientId(id) : [];
+  const anamneseResponses = id ? getAnamneseByPatientId(id) : [];
   const procedureSuggestions = [...new Set(odontogramProcs.map(p => p.procedureDescription).filter(Boolean))];
+
+  const handlePrint = () => {
+    if (!patient) return;
+    const latestAnamnese = anamneseResponses.find((r) => r.status === 'completed');
+    const html = generateFichaOdontologicaHtml({
+      patient,
+      anamnese: latestAnamnese,
+      anamneseQuestions,
+      logoSrc: `${window.location.origin}${logoUrl}`,
+      simboloSrc: `${window.location.origin}${simboloUrl}`,
+    });
+    const win = window.open('', '_blank', 'width=960,height=720');
+    if (win) { win.document.write(html); win.document.close(); }
+  };
 
   // Gera horários de 30 em 30 minutos das 8h às 18h
   const generateTimeSlots = () => {
@@ -113,6 +133,10 @@ const ProntuarioPaciente = () => {
     education: patient?.education ?? '',
     origin: patient?.origin ?? 'Outro' as PatientOrigin,
     notes: patient?.notes ?? '',
+    responsible: patient?.responsible ?? '',
+    responsibleCpf: patient?.responsibleCpf ?? '',
+    address: patient?.address ?? '',
+    profession: patient?.profession ?? '',
   });
   const [cadastroDirty, setCadastroDirty] = useState(false);
   const [cadastroSaving, setCadastroSaving] = useState(false);
@@ -139,6 +163,10 @@ const ProntuarioPaciente = () => {
         education: cadastroData.education || undefined,
         origin: cadastroData.origin,
         notes: cadastroData.notes || undefined,
+        responsible: cadastroData.responsible || undefined,
+        responsibleCpf: cadastroData.responsibleCpf || undefined,
+        address: cadastroData.address || undefined,
+        profession: cadastroData.profession || undefined,
       });
       setCadastroDirty(false);
     } finally {
@@ -452,6 +480,11 @@ const ProntuarioPaciente = () => {
 
           {/* Botões de ação */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+              {/* Imprimir */}
+              <Button size="sm" variant="outline" className="gap-2 w-full" onClick={handlePrint}>
+                <Printer className="h-4 w-4" />
+                <span>Imprimir Prontuário</span>
+              </Button>
               {/* Toggle Feedback */}
               <div className="flex items-center justify-between border rounded-md px-3 h-9 w-full text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -760,6 +793,28 @@ const ProntuarioPaciente = () => {
                     value={patient?.createdAt ? format(patient.createdAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : ''}
                     disabled />
                 </Field>
+              </div>
+
+              {/* Responsável + Endereço + Profissão */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Nome do Responsável">
+                  <Input className="h-10 text-sm" value={cadastroData.responsible} placeholder="—"
+                    onChange={(e) => handleCadastroChange('responsible', e.target.value)} />
+                </Field>
+                <Field label="CPF do Responsável">
+                  <Input className="h-10 text-sm" value={cadastroData.responsibleCpf} placeholder="000.000.000-00"
+                    onChange={(e) => handleCadastroChange('responsibleCpf', e.target.value)} />
+                </Field>
+                <Field label="Profissão">
+                  <Input className="h-10 text-sm" value={cadastroData.profession} placeholder="—"
+                    onChange={(e) => handleCadastroChange('profession', e.target.value)} />
+                </Field>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Endereço</Label>
+                <Input className="h-10 text-sm" value={cadastroData.address} placeholder="Rua, número, bairro, cidade"
+                  onChange={(e) => handleCadastroChange('address', e.target.value)} />
               </div>
 
               {/* Observações */}

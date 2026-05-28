@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Loader2, ShieldCheck, AlertCircle, Smartphone } from "lucide-react";
 import logoClinica from "@/assets/LightLogo.svg";
@@ -29,6 +30,18 @@ interface TokenRecord {
   blocked_at: string | null;
 }
 
+interface PersonalData {
+  fullName: string;
+  email: string;
+  birthDate: string;
+  gender: string;
+  maritalStatus: string;
+  profession: string;
+  address: string;
+  responsible: string;
+  responsibleCpf: string;
+}
+
 const MAX_ATTEMPTS = 5;
 
 type FormAnswers = Record<string, { bool?: boolean | null; text?: string }>;
@@ -47,6 +60,7 @@ export default function AnamnesePaciente() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
+  const [patientId, setPatientId] = useState("");
   const [codeInput, setCodeInput] = useState(["", "", "", "", "", ""]);
   const [codeError, setCodeError] = useState("");
   const [answers, setAnswers] = useState<FormAnswers>({});
@@ -54,6 +68,18 @@ export default function AnamnesePaciente() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [confirmedAt] = useState(() => new Date());
+
+  const [personal, setPersonal] = useState<PersonalData>({
+    fullName: "",
+    email: "",
+    birthDate: "",
+    gender: "",
+    maritalStatus: "",
+    profession: "",
+    address: "",
+    responsible: "",
+    responsibleCpf: "",
+  });
 
   useEffect(() => {
     if (!token) { setStep("error"); setErrorMessage("Link inválido."); return; }
@@ -70,12 +96,28 @@ export default function AnamnesePaciente() {
       if (tk.blocked_at) { setStep("blocked"); return; }
 
       setTokenRecord(tk);
+      setPatientId(tk.patient_id);
 
       const { data: pt } = await (supabase as any)
-        .from("patients").select("full_name, phone").eq("id", tk.patient_id).single();
+        .from("patients")
+        .select("full_name, phone, email, birth_date, gender, marital_status, profession, address, responsible, responsible_cpf")
+        .eq("id", tk.patient_id)
+        .single();
+
       if (pt) {
-        setPatientName(pt.full_name);
+        setPatientName(pt.full_name ?? "");
         setPatientPhone(pt.phone ?? "");
+        setPersonal({
+          fullName: pt.full_name ?? "",
+          email: pt.email ?? "",
+          birthDate: pt.birth_date ? pt.birth_date.slice(0, 10) : "",
+          gender: pt.gender ?? "",
+          maritalStatus: pt.marital_status ?? "",
+          profession: pt.profession ?? "",
+          address: pt.address ?? "",
+          responsible: pt.responsible ?? "",
+          responsibleCpf: pt.responsible_cpf ?? "",
+        });
       }
 
       const { data: qs } = await (supabase as any)
@@ -96,7 +138,6 @@ export default function AnamnesePaciente() {
       return;
     }
 
-    // Código errado — incrementa tentativas no banco
     const newAttempts = (tokenRecord.attempts ?? 0) + 1;
     const isBlocked = newAttempts >= MAX_ATTEMPTS;
 
@@ -124,18 +165,32 @@ export default function AnamnesePaciente() {
     if (!declarations.every(Boolean)) return;
     setSubmitting(true);
     try {
-      // Captura IP público e user-agent
       let ipAddress = "";
       try {
         const res = await fetch("https://api.ipify.org?format=json");
         const json = await res.json();
         ipAddress = json.ip ?? "";
-      } catch {
-        // ignora falha no IP — dados restantes ainda são suficientes
-      }
+      } catch { /* ignora */ }
       const userAgent = navigator.userAgent;
       const now = new Date().toISOString();
 
+      // Salva dados pessoais no cadastro do paciente
+      if (patientId) {
+        const updatePayload: Record<string, string | null> = {
+          email: personal.email || null,
+          profession: personal.profession || null,
+          address: personal.address || null,
+          responsible: personal.responsible || null,
+          responsible_cpf: personal.responsibleCpf || null,
+        };
+        if (personal.birthDate) updatePayload.birth_date = personal.birthDate;
+        if (personal.gender) updatePayload.gender = personal.gender;
+        if (personal.maritalStatus) updatePayload.marital_status = personal.maritalStatus;
+
+        await (supabase as any).from("patients").update(updatePayload).eq("id", patientId);
+      }
+
+      // Salva respostas da anamnese
       const rows = questions.map((q) => ({
         response_id: tokenRecord!.response_id,
         question_id: q.id,
@@ -150,10 +205,8 @@ export default function AnamnesePaciente() {
       await (supabase as any).from("anamnese_responses").update({
         status: "completed",
         completed_at: now,
-        // Mantém campo legado com o nome (para compatibilidade)
-        patient_signed_name: patientName,
+        patient_signed_name: personal.fullName || patientName,
         signed_at: now,
-        // Novos metadados legais
         ip_address: ipAddress || null,
         user_agent: userAgent,
         verified_phone: patientPhone || null,
@@ -219,7 +272,7 @@ export default function AnamnesePaciente() {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold">Anamnese concluída!</h1>
             <p className="text-muted-foreground">
-              Obrigado, <strong>{patientName}</strong>. Suas respostas foram enviadas com sucesso.
+              Obrigado, <strong>{personal.fullName || patientName}</strong>. Suas respostas foram enviadas com sucesso.
             </p>
           </div>
           <div className="bg-muted rounded-lg p-4 text-xs text-muted-foreground text-left space-y-2">
@@ -276,7 +329,7 @@ export default function AnamnesePaciente() {
             <div className="text-center space-y-1">
               <h2 className="font-semibold">Digite o código de verificação</h2>
               <p className="text-sm text-muted-foreground">
-                O código de 4 dígitos foi fornecido pela clínica via WhatsApp.
+                O código de 6 dígitos foi fornecido pela clínica via WhatsApp.
               </p>
             </div>
             <div className="flex justify-center gap-3">
@@ -309,7 +362,6 @@ export default function AnamnesePaciente() {
                     for (let j = 0; j < pasted.length; j++) next[j] = pasted[j];
                     setCodeInput(next);
                     setCodeError("");
-                    // Foca no próximo campo vazio ou no último
                     const focusIdx = Math.min(pasted.length, 5);
                     document.getElementById(`code-${focusIdx}`)?.focus();
                   }}
@@ -333,7 +385,122 @@ export default function AnamnesePaciente() {
           <div className="space-y-6">
             <div className="text-center space-y-1">
               <h2 className="font-semibold">Preencha o formulário</h2>
-              <p className="text-sm text-muted-foreground">Responda com honestidade. Suas informações são confidenciais.</p>
+              <p className="text-sm text-muted-foreground">Suas informações são confidenciais e utilizadas apenas para o seu atendimento.</p>
+            </div>
+
+            {/* ── Seção: Dados Pessoais ── */}
+            <div className="space-y-3 rounded-xl border p-4 bg-muted/30">
+              <p className="text-sm font-semibold text-foreground">Dados Pessoais</p>
+              <p className="text-xs text-muted-foreground -mt-1">Confirme ou preencha seus dados cadastrais.</p>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Nome completo</Label>
+                <Input
+                  value={personal.fullName}
+                  onChange={(e) => setPersonal((p) => ({ ...p, fullName: e.target.value }))}
+                  placeholder="Seu nome completo"
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Data de nascimento</Label>
+                  <Input
+                    type="date"
+                    value={personal.birthDate}
+                    onChange={(e) => setPersonal((p) => ({ ...p, birthDate: e.target.value }))}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Sexo</Label>
+                  <select
+                    value={personal.gender}
+                    onChange={(e) => setPersonal((p) => ({ ...p, gender: e.target.value }))}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Selecione</option>
+                    <option value="feminino">Feminino</option>
+                    <option value="masculino">Masculino</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Estado civil</Label>
+                  <select
+                    value={personal.maritalStatus}
+                    onChange={(e) => setPersonal((p) => ({ ...p, maritalStatus: e.target.value }))}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Selecione</option>
+                    <option value="solteiro">Solteiro(a)</option>
+                    <option value="casado">Casado(a)</option>
+                    <option value="divorciado">Divorciado(a)</option>
+                    <option value="viuvo">Viúvo(a)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Profissão</Label>
+                  <Input
+                    value={personal.profession}
+                    onChange={(e) => setPersonal((p) => ({ ...p, profession: e.target.value }))}
+                    placeholder="Sua profissão"
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">E-mail</Label>
+                <Input
+                  type="email"
+                  value={personal.email}
+                  onChange={(e) => setPersonal((p) => ({ ...p, email: e.target.value }))}
+                  placeholder="seu@email.com"
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Endereço completo</Label>
+                <Input
+                  value={personal.address}
+                  onChange={(e) => setPersonal((p) => ({ ...p, address: e.target.value }))}
+                  placeholder="Rua, número, bairro, cidade – UF"
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nome do responsável</Label>
+                  <Input
+                    value={personal.responsible}
+                    onChange={(e) => setPersonal((p) => ({ ...p, responsible: e.target.value }))}
+                    placeholder="Se menor de idade"
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">CPF do responsável</Label>
+                  <Input
+                    value={personal.responsibleCpf}
+                    onChange={(e) => setPersonal((p) => ({ ...p, responsibleCpf: e.target.value }))}
+                    placeholder="000.000.000-00"
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Seção: Questionário de Saúde ── */}
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">Questionário de Saúde</p>
+              <p className="text-xs text-muted-foreground">Responda com honestidade. Suas informações são confidenciais.</p>
             </div>
 
             <div className="space-y-5">
@@ -416,7 +583,7 @@ export default function AnamnesePaciente() {
                 </p>
               </div>
               <div className="text-xs text-green-800 dark:text-green-300 space-y-0.5">
-                <p><strong>{patientName}</strong></p>
+                <p><strong>{personal.fullName || patientName}</strong></p>
                 {patientPhone && <p>Telefone: {patientPhone}</p>}
                 <p>
                   {confirmedAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}{" "}
