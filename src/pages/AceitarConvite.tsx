@@ -24,35 +24,46 @@ export default function AceitarConvite() {
 
   useEffect(() => {
     const init = async () => {
-      // 1. Verifica se há erro no hash da URL (ex: OTP expirado)
+      const fullUrl = window.location.href;
       const hash = window.location.hash.substring(1);
+      const queryParams = new URLSearchParams(window.location.search);
+
+      console.log('[AceitarConvite] URL completa:', fullUrl);
+      console.log('[AceitarConvite] hash:', hash);
+      console.log('[AceitarConvite] search:', window.location.search);
+      console.log('[AceitarConvite] params:', Object.fromEntries(queryParams.entries()));
+
+      // 1. Verifica se há erro no hash da URL (ex: OTP expirado)
       const hashParams = new URLSearchParams(hash);
       const urlError = hashParams.get('error_code') || hashParams.get('error');
       if (urlError) {
         const desc = hashParams.get('error_description') ?? 'Link inválido ou expirado.';
-        setErrorMsg(decodeURIComponent(desc.replace(/\+/g, ' ')));
+        const msg = decodeURIComponent(desc.replace(/\+/g, ' '));
+        console.log('[AceitarConvite] Erro no hash:', urlError, msg);
+        setErrorMsg(msg);
         setStatus('error');
         return;
       }
 
       // 2. Supabase detecta automaticamente a sessão do hash (implicit flow)
-      //    Aguarda um tick para o cliente processar o hash
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 400));
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('[AceitarConvite] Sessão existente:', !!session);
       if (session) {
         setStatus('set-password');
         return;
       }
 
       // 3. Tenta token_hash (fluxo PKCE de convite — Supabase recente)
-      const queryParams = new URLSearchParams(window.location.search);
       const tokenHash = queryParams.get('token_hash');
       const otpType = queryParams.get('type');
+      console.log('[AceitarConvite] token_hash:', tokenHash, 'type:', otpType);
       if (tokenHash && otpType) {
-        const { error } = await supabase.auth.verifyOtp({
+        const { error, data } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
           type: otpType as any,
         });
+        console.log('[AceitarConvite] verifyOtp result:', { error, session: !!data?.session });
         if (error) {
           setErrorMsg(error.message);
           setStatus('error');
@@ -64,8 +75,10 @@ export default function AceitarConvite() {
 
       // 4. Tenta PKCE — troca o code por sessão
       const code = queryParams.get('code');
+      console.log('[AceitarConvite] code:', code);
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
+        console.log('[AceitarConvite] exchangeCodeForSession error:', error);
         if (error) {
           setErrorMsg(error.message);
           setStatus('error');
@@ -75,6 +88,7 @@ export default function AceitarConvite() {
         return;
       }
 
+      console.log('[AceitarConvite] Nenhum parâmetro reconhecido — link inválido');
       setErrorMsg('Link de convite não reconhecido. Solicite um novo convite.');
       setStatus('error');
     };
@@ -131,6 +145,9 @@ export default function AceitarConvite() {
                 <p className="font-semibold text-base">Link inválido</p>
                 <p className="text-sm text-muted-foreground mt-1">{errorMsg}</p>
               </div>
+              {errorMsg && (
+                <p className="text-xs font-mono bg-muted rounded px-2 py-1 break-all">{errorMsg}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 Links de convite expiram em 24 horas. Peça para o administrador enviar um novo convite.
               </p>
