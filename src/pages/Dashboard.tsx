@@ -182,8 +182,8 @@ export default function Dashboard() {
       realizados: appointments.filter(a =>
         a.status === 'realizado' && isWithinInterval(new Date(a.date), { start, end })
       ).length,
-      agendados: appointments.filter(a =>
-        ['agendado', 'confirmado'].includes(a.status) && isWithinInterval(new Date(a.date), { start, end })
+      cancelados: appointments.filter(a =>
+        ['cancelado', 'falta'].includes(a.status) && isWithinInterval(new Date(a.date), { start, end })
       ).length,
     };
   });
@@ -416,8 +416,8 @@ export default function Dashboard() {
                   <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(180,2%,45%)' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Line type="monotone" dataKey="realizados" name="Realizados" stroke="hsl(40,45%,60%)" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(40,45%,60%)', strokeWidth: 0 }} activeDot={{ r: 6 }} />
-                  <Line type="monotone" dataKey="agendados"  name="Agendados"  stroke="hsl(180,2%,62%)" strokeWidth={2} dot={{ r: 3, fill: 'hsl(180,2%,62%)', strokeWidth: 0 }} strokeDasharray="5 3" />
+                  <Line type="monotone" dataKey="realizados" name="Realizados"     stroke="hsl(40,45%,60%)" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(40,45%,60%)', strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="cancelados" name="Cancelado/Falta" stroke="hsl(0,0%,62%)"    strokeWidth={2}   dot={{ r: 3, fill: 'hsl(0,0%,62%)',    strokeWidth: 0 }} strokeDasharray="5 3" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>

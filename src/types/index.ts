@@ -270,3 +270,11 @@ export interface Installment {
   paidDate?: Date;
   createdAt: Date;
 }
+
+export interface Holiday {
+  id: string;
+  date: string; // YYYY-MM-DD
+  name: string;
+  recurring: boolean;
+  createdAt: Date;
+}

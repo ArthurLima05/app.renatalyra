@@ -10,6 +10,7 @@ import {
   AppointmentStatus,
   Installment,
   PaymentMethod,
+  Holiday,
 } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +58,10 @@ interface ClinicContextType {
   updateClinicSetting: (key: string, value: string) => Promise<void>;
   sendCancellationNotification: (appointmentId: string) => Promise<void>;
   sendFaltaNotification: (appointmentId: string) => Promise<void>;
+  holidays: Holiday[];
+  addHoliday: (date: string, name: string, recurring: boolean) => Promise<void>;
+  deleteHoliday: (id: string) => Promise<void>;
+  isHoliday: (date: Date) => Holiday | undefined;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -76,6 +81,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [sessions, setSessions] = useState<Session[]>([]);
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [clinicSettings, setClinicSettings] = useState<Record<string, string>>({});
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   // Começa false se há cache salvo — elimina o spinner em revisitas
   const [loading, setLoading] = useState(() => {
     try { return !localStorage.getItem(CACHE_KEY); } catch { return true; }
@@ -119,6 +125,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         createdAt: new Date(i.createdAt),
       })));
       if (c.clinicSettings) setClinicSettings(c.clinicSettings);
+      if (c.holidays?.length) setHolidays(c.holidays.map((h: any) => ({ ...h, createdAt: new Date(h.createdAt) })));
       if (c.myProfessionalId) {
         myProfessionalIdRef.current = c.myProfessionalId;
         setMyProfessionalId(c.myProfessionalId);
@@ -410,7 +417,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setMyProfessionalId(profId);
     }
 
-    const [profs, sess, trans, installs, settings, patients, appointments, notifications] = await Promise.all([
+    const [profs, sess, trans, installs, settings, patients, appointments, notifications, holidaysData] = await Promise.all([
       loadProfessionals(),
       loadSessions(),
       loadTransactions(),
@@ -419,6 +426,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loadPatients(),
       loadAppointments(),
       loadNotifications(),
+      loadHolidays(),
     ]);
 
     setLoading(false);
@@ -433,6 +441,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         patients,
         appointments,
         notifications,
+        holidays: holidaysData,
         myProfessionalId: myProfessionalIdRef.current,
       }));
     } catch { /* ignora QuotaExceededError */ }
@@ -639,6 +648,49 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }));
     setInstallments(result);
     return result;
+  };
+
+  const loadHolidays = async (): Promise<Holiday[]> => {
+    const { data, error } = await (supabase as any).from("holidays").select("*").order("date", { ascending: true });
+    if (error) { console.error("Error loading holidays:", error); return []; }
+    const result: Holiday[] = (data || []).map((h: any) => ({
+      id: h.id,
+      date: h.date,
+      name: h.name,
+      recurring: h.recurring,
+      createdAt: new Date(h.created_at),
+    }));
+    setHolidays(result);
+    return result;
+  };
+
+  const addHoliday = async (date: string, name: string, recurring: boolean) => {
+    const { error } = await (supabase as any).from("holidays").insert({ date, name, recurring });
+    if (error) {
+      toast({ title: "Erro ao adicionar feriado", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    await loadHolidays();
+    toast({ title: "Feriado adicionado" });
+  };
+
+  const deleteHoliday = async (id: string) => {
+    const { error } = await (supabase as any).from("holidays").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir feriado", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    setHolidays(prev => prev.filter(h => h.id !== id));
+    toast({ title: "Feriado removido" });
+  };
+
+  const isHoliday = (date: Date): Holiday | undefined => {
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const y = date.getFullYear();
+    const fullDate = `${y}-${m}-${d}`;
+    const monthDay = `${m}-${d}`;
+    return holidays.find(h => h.date === fullDate || (h.recurring && h.date.substring(5) === monthDay));
   };
 
   const addAppointment = async (appointment: Omit<Appointment, "id" | "createdAt">) => {
@@ -1354,6 +1406,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     updateClinicSetting,
     sendCancellationNotification,
     sendFaltaNotification,
+    holidays,
+    addHoliday,
+    deleteHoliday,
+    isHoliday,
   };
 
   if (loading) {

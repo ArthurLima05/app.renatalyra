@@ -20,7 +20,7 @@ import {
   Save, RotateCcw, MessageSquare, Palette, ChevronRight, ChevronLeft, ArrowLeft, Info,
   Sun, Moon, Users, Plus, ChevronDown, ChevronUp, Mail, Phone, Shield,
   SlidersHorizontal, CalendarDays, List, Upload, FileSpreadsheet,
-  CheckCircle2, XCircle, AlertCircle, Loader2,
+  CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, RefreshCw,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +29,7 @@ import type { AppUser, UserProfile, AppModule, UserPermission } from '@/types';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { cn } from '@/lib/utils';
 
-type Section = null | 'aparencia' | 'mensagens' | 'usuarios' | 'preferencias' | 'importar';
+type Section = null | 'aparencia' | 'mensagens' | 'usuarios' | 'preferencias' | 'importar' | 'feriados';
 type UserView = null | AppUser;
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -1634,11 +1634,192 @@ function ImportarPacientesSubsection() {
   );
 }
 
+// ── Seção: Feriados ───────────────────────────────────────────────────────────
+const FERIADOS_NACIONAIS = [
+  { date: '01-01', name: 'Confraternização Universal', recurring: true },
+  { date: '04-21', name: 'Tiradentes', recurring: true },
+  { date: '05-01', name: 'Dia do Trabalho', recurring: true },
+  { date: '09-07', name: 'Independência do Brasil', recurring: true },
+  { date: '10-12', name: 'Nossa Senhora Aparecida', recurring: true },
+  { date: '11-02', name: 'Finados', recurring: true },
+  { date: '11-15', name: 'Proclamação da República', recurring: true },
+  { date: '11-20', name: 'Consciência Negra', recurring: true },
+  { date: '12-25', name: 'Natal', recurring: true },
+];
+
+function FeriadosSection() {
+  const { holidays, addHoliday, deleteHoliday } = useClinic();
+  const { isAdmin } = usePermissionsCtx();
+  const { toast } = useToast();
+  const [form, setForm] = useState({ date: '', name: '', recurring: false });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.date || !form.name.trim()) return;
+    setSaving(true);
+    try {
+      await addHoliday(form.date, form.name.trim(), form.recurring);
+      setForm({ date: '', name: '', recurring: false });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try { await deleteHoliday(id); }
+    finally { setDeletingId(null); }
+  };
+
+  const handleAddNational = async () => {
+    const currentYear = new Date().getFullYear();
+    const toAdd = FERIADOS_NACIONAIS.filter(fn =>
+      !holidays.some(h => h.recurring && h.date.substring(5) === fn.date)
+    );
+    if (toAdd.length === 0) {
+      toast({ title: 'Feriados nacionais já cadastrados' });
+      return;
+    }
+    setSaving(true);
+    try {
+      for (const fn of toAdd) {
+        await addHoliday(`${currentYear}-${fn.date}`, fn.name, fn.recurring);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sorted = [...holidays].sort((a, b) => {
+    const ma = a.recurring ? a.date.substring(5) : a.date.substring(5);
+    const mb = b.recurring ? b.date.substring(5) : b.date.substring(5);
+    return ma.localeCompare(mb);
+  });
+
+  const formatHolidayDate = (date: string, recurring: boolean) => {
+    const parts = date.split('-');
+    if (recurring) return `${parts[2]}/${parts[1]} (todo ano)`;
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Feriados</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Dias cadastrados como feriado fecham a agenda e são sinalizados nas planilhas financeiras.
+        </p>
+      </div>
+
+      {/* Formulário de adição */}
+      {isAdmin && (
+        <Card>
+          <CardContent className="pt-5 space-y-4">
+            <Label className="text-sm font-semibold">Adicionar Feriado</Label>
+            <form onSubmit={handleAdd} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Data</Label>
+                  <Input
+                    type="date"
+                    value={form.date}
+                    onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Nome</Label>
+                  <Input
+                    placeholder="Ex: Carnaval"
+                    value={form.name}
+                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-input accent-primary"
+                  checked={form.recurring}
+                  onChange={e => setForm(p => ({ ...p, recurring: e.target.checked }))}
+                />
+                <span className="text-sm">Repete todo ano (mesmo dia e mês)</span>
+              </label>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={saving}
+                  onClick={handleAddNational}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Pré-carregar feriados nacionais
+                </Button>
+                <Button type="submit" size="sm" className="gap-1.5" disabled={saving || !form.date || !form.name.trim()}>
+                  <Plus className="h-3.5 w-3.5" />
+                  {saving ? 'Salvando...' : 'Adicionar'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Lista de feriados */}
+      {sorted.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground text-sm">
+            Nenhum feriado cadastrado. Adicione acima ou use o botão de feriados nacionais.
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="pt-4 pb-2 divide-y">
+            {sorted.map(h => (
+              <div key={h.id} className="flex items-center gap-3 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{h.name}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                    <CalendarDays className="h-3 w-3" />
+                    {formatHolidayDate(h.date, h.recurring)}
+                    {h.recurring && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium">Anual</span>
+                    )}
+                  </p>
+                </div>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    disabled={deletingId === h.id}
+                    onClick={() => handleDelete(h.id)}
+                  >
+                    {deletingId === h.id
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <Trash2 className="h-4 w-4" />}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 const SECTIONS = [
   { id: 'aparencia'    as Section, icon: Palette,            label: 'Aparência',              description: 'Tema claro ou escuro' },
   { id: 'preferencias' as Section, icon: SlidersHorizontal, label: 'Preferências',           description: 'Visualização padrão da agenda' },
   { id: 'mensagens'    as Section, icon: MessageSquare,      label: 'Mensagens WhatsApp',     description: 'Templates de mensagens automáticas' },
+  { id: 'feriados'     as Section, icon: CalendarDays,       label: 'Feriados',               description: 'Dias de folga que fecham a agenda e marcam o financeiro' },
   { id: 'importar'     as Section, icon: Upload,             label: 'Importar',               description: 'Importe pacientes ou agendamentos via Excel' },
   { id: 'usuarios'     as Section, icon: Users,              label: 'Usuários e Permissões',  description: 'Quem acessa e o que pode fazer' },
 ];
@@ -1679,6 +1860,7 @@ export default function Configuracoes() {
             {section === 'aparencia'    && <AparenciaSection />}
             {section === 'preferencias' && <PreferenciasSection />}
             {section === 'mensagens'    && <MensagensSection />}
+            {section === 'feriados'     && <FeriadosSection />}
             {section === 'importar'     && <ImportarSection />}
             {section === 'usuarios'   && (
               <>

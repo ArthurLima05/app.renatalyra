@@ -547,6 +547,7 @@ export default function Agendamentos() {
     getPatientById,
     clinicSettings,
     sendFaltaNotification,
+    isHoliday,
   } = useClinic();
 
   const { returnAlerts, deleteReturnAlert, sendReturnAlertWhatsApp } = useProntuario();
@@ -734,6 +735,7 @@ export default function Agendamentos() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatient || !formData.patientId || !formData.professionalId || isSubmitting) return;
+    if (formData.date && isHoliday(new Date(formData.date + 'T12:00:00'))) return;
     setIsSubmitting(true);
     try {
       await addAppointment({
@@ -809,23 +811,42 @@ export default function Agendamentos() {
       >
         {/* Cabeçalho */}
         <div className="bg-muted border-b border-r" style={{ gridRow: 1, gridColumn: 1 }} />
-        {days.map((day, di) => (
-          <div
-            key={di}
-            className={cn(
-              "bg-muted border-b border-r px-1 py-1.5 text-center",
-              isToday(day) && "bg-primary text-primary-foreground",
-            )}
-            style={{ gridRow: 1, gridColumn: di + 2 }}
-          >
-            <div className={cn("text-[10px] font-medium uppercase tracking-wide", isToday(day) ? "text-primary-foreground/80" : "text-muted-foreground")}>
-              {format(day, "EEE", { locale: ptBR })}
+        {days.map((day, di) => {
+          const dayHoliday = isHoliday(day);
+          const todayDay = isToday(day);
+          return (
+            <div
+              key={di}
+              className={cn(
+                "bg-muted border-b border-r px-1 py-1.5 text-center",
+                todayDay ? "bg-primary text-primary-foreground"
+                : dayHoliday ? "bg-amber-100 dark:bg-amber-950/40"
+                : "",
+              )}
+              style={{ gridRow: 1, gridColumn: di + 2 }}
+            >
+              <div className={cn("text-[10px] font-medium uppercase tracking-wide",
+                todayDay ? "text-primary-foreground/80"
+                : dayHoliday ? "text-amber-700 dark:text-amber-400"
+                : "text-muted-foreground"
+              )}>
+                {format(day, "EEE", { locale: ptBR })}
+              </div>
+              <div className={cn("text-base font-bold leading-none mt-0.5",
+                todayDay ? "text-primary-foreground"
+                : dayHoliday ? "text-amber-800 dark:text-amber-300"
+                : "text-foreground"
+              )}>
+                {format(day, "d")}
+              </div>
+              {dayHoliday && (
+                <div className="text-[9px] font-medium text-amber-600 dark:text-amber-400 truncate leading-tight mt-0.5 px-0.5">
+                  {dayHoliday.name}
+                </div>
+              )}
             </div>
-            <div className={cn("text-base font-bold leading-none mt-0.5", isToday(day) ? "text-primary-foreground" : "text-foreground")}>
-              {format(day, "d")}
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Coluna de horários */}
         <div
@@ -846,10 +867,11 @@ export default function Agendamentos() {
         {/* Colunas de dias — posicionamento absoluto com side-by-side */}
         {days.map((day, di) => {
           const layout = layoutAppointments(getAppointmentsForDay(day));
+          const colHoliday = isHoliday(day);
           return (
             <div
               key={di}
-              className="relative border-r"
+              className={cn("relative border-r", colHoliday && "bg-amber-50/40 dark:bg-amber-950/10")}
               style={{ gridRow: 2, gridColumn: di + 2, height: totalH }}
             >
               {/* Linhas de fundo */}
@@ -995,13 +1017,21 @@ export default function Agendamentos() {
                     <Calendar mode="single"
                       selected={formData.date ? new Date(formData.date + 'T12:00:00') : undefined}
                       onSelect={(date) => date && setFormData({ ...formData, date: format(date, "yyyy-MM-dd"), time: "" })}
-                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0)) || !!isHoliday(date)}
                       initialFocus locale={ptBR} className="p-3 pointer-events-auto"
-                      modifiers={{ today: new Date() }}
-                      modifiersClassNames={{ today: "bg-gray-500 text-white font-semibold rounded-md" }}
+                      modifiers={{ today: new Date(), holiday: (date) => !!isHoliday(date) }}
+                      modifiersClassNames={{ today: "bg-gray-500 text-white font-semibold rounded-md", holiday: "text-amber-500 line-through opacity-60" }}
                     />
                   </PopoverContent>
                 </Popover>
+                {formData.date && (() => {
+                  const h = isHoliday(new Date(formData.date + 'T12:00:00'));
+                  return h ? (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mt-1">
+                      <span>⚠️</span> Feriado: <strong>{h.name}</strong> — a agenda está fechada neste dia.
+                    </p>
+                  ) : null;
+                })()}
               </div>
 
               {/* Duração */}
@@ -1056,7 +1086,7 @@ export default function Agendamentos() {
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                <Button type="submit" disabled={isSubmitting || !formData.time || !formData.professionalId}>
+                <Button type="submit" disabled={isSubmitting || !formData.time || !formData.professionalId || !!(formData.date && isHoliday(new Date(formData.date + 'T12:00:00')))}>
                   {isSubmitting ? "Agendando..." : "Agendar"}
                 </Button>
               </div>
@@ -1122,6 +1152,13 @@ export default function Agendamentos() {
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
+              {(() => { const h = isHoliday(calendarDate); return h ? (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-sm">
+                
+                  <span className="font-medium text-amber-700 dark:text-amber-400">{h.name}</span>
+                  <span className="ml-auto text-xs text-amber-500">Agenda fechada</span>
+                </div>
+              ) : null; })()}
               <TimeGrid days={[calendarDate]} />
             </div>
           )}
@@ -1165,27 +1202,39 @@ export default function Agendamentos() {
                   if (!day) return <div key={`e-${idx}`} className="min-h-[44px] sm:min-h-[80px]" />;
                   const dayApps = getAppointmentsForDay(day);
                   const today = isToday(day);
+                  const monthHoliday = isHoliday(day);
                   return (
                     <button key={idx}
                       onClick={() => { setCalendarDate(day); setCalendarSubView("dia"); }}
                       className={cn(
                         "min-h-[44px] sm:min-h-[80px] p-0.5 sm:p-1 rounded-lg border text-left transition-colors hover:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/50",
-                        today ? "border-primary bg-primary/5" : "border-border",
+                        today ? "border-primary bg-primary/5"
+                        : monthHoliday ? "border-amber-300 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/20"
+                        : "border-border",
                       )}
                     >
-                      <div className={cn("text-sm font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full", today && "bg-primary text-primary-foreground")}>
+                      <div className={cn(
+                        "text-sm font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full",
+                        today ? "bg-primary text-primary-foreground"
+                        : monthHoliday ? "bg-amber-200 text-amber-800 dark:bg-amber-800/60 dark:text-amber-200"
+                        : ""
+                      )}>
                         {day.getDate()}
                       </div>
-                      {/* Mobile: só mostra ponto indicador se tiver consultas */}
-                      {dayApps.length > 0 && (
-                        <div className="flex gap-0.5 flex-wrap sm:hidden mt-0.5">
-                          {dayApps.slice(0, 3).map((app) => (
-                            <span key={app.id} className={cn("inline-block w-1.5 h-1.5 rounded-full", SEMAPHORE_DOT[app.status])} />
-                          ))}
-                        </div>
-                      )}
+                      {/* Mobile: emoji de feriado + pontos de status */}
+                      <div className="flex gap-0.5 flex-wrap sm:hidden mt-0.5 items-center">
+                    
+                        {dayApps.slice(0, 3).map((app) => (
+                          <span key={app.id} className={cn("inline-block w-1.5 h-1.5 rounded-full", SEMAPHORE_DOT[app.status])} />
+                        ))}
+                      </div>
                       <div className="space-y-0.5 hidden sm:block">
-                        {dayApps.slice(0, 3).map((app) => {
+                        {monthHoliday && (
+                          <div className="text-[9px] text-amber-600 dark:text-amber-400 truncate leading-tight px-0.5 italic flex items-center gap-0.5">
+                           {monthHoliday.name}
+                          </div>
+                        )}
+                        {dayApps.slice(0, monthHoliday ? 2 : 3).map((app) => {
                           const pro = professionals.find((p) => p.id === app.professionalId);
                           return (
                             <div key={app.id} className="text-xs rounded px-1 py-0.5 truncate flex items-center gap-1"
@@ -1195,8 +1244,8 @@ export default function Agendamentos() {
                             </div>
                           );
                         })}
-                        {dayApps.length > 3 && (
-                          <div className="text-xs text-muted-foreground px-1">+{dayApps.length - 3} mais</div>
+                        {dayApps.length > (monthHoliday ? 2 : 3) && (
+                          <div className="text-xs text-muted-foreground px-1">+{dayApps.length - (monthHoliday ? 2 : 3)} mais</div>
                         )}
                       </div>
                     </button>

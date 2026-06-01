@@ -26,7 +26,7 @@ import * as XLSX from 'xlsx';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
-  const { transactions, addTransaction, deleteTransaction, deleteSession, installments, updateInstallment, sessions, getPatientById, professionals } = useClinic();
+  const { transactions, addTransaction, deleteTransaction, deleteSession, installments, updateInstallment, sessions, getPatientById, professionals, isHoliday } = useClinic();
   const { canView, canCreate } = usePermissionsCtx();
   const { role, isSecretaria, loading: roleLoading } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
@@ -73,20 +73,23 @@ export default function Financeiro() {
       const dow = getDay(day);
       const isWeekend = dow === 0 || dow === 6;
       const weekendLabel = dow === 6 ? 'sábado' : 'domingo';
+      const holiday = isHoliday(day);
+      const isHolidayDay = !!holiday;
+      const skipDay = isWeekend || isHolidayDay;
       const isFutureDay = isAfter(startOfDay(day), today);
       const isToday = isSameDay(day, today);
-      const realizado = isWeekend ? null : transactions
+      const realizado = skipDay ? null : transactions
         .filter(t => isSameDay(new Date(t.date), day))
         .reduce((acc, t) => acc + (t.type === 'entrada' ? t.amount : -t.amount), 0);
-      const meta = isWeekend ? null : metaDiaria;
+      const meta = skipDay ? null : metaDiaria;
       const diferenca = realizado !== null && meta !== null ? realizado - meta : null;
       const percentual = realizado !== null && meta !== null && meta > 0 ? (realizado / meta) * 100 : (realizado !== null ? 0 : null);
-      return { day, isWeekend, weekendLabel, realizado, meta, diferenca, percentual, isFutureDay, isToday };
+      return { day, isWeekend, weekendLabel, holiday, isHolidayDay, realizado, meta, diferenca, percentual, isFutureDay, isToday };
     });
   })();
 
-  const relatorioTotalMeta = relatorioData.filter(d => !d.isWeekend).reduce((a, d) => a + (d.meta ?? 0), 0);
-  const relatorioTotalRealizado = relatorioData.filter(d => !d.isWeekend).reduce((a, d) => a + (d.realizado ?? 0), 0);
+  const relatorioTotalMeta = relatorioData.filter(d => !d.isWeekend && !d.isHolidayDay).reduce((a, d) => a + (d.meta ?? 0), 0);
+  const relatorioTotalRealizado = relatorioData.filter(d => !d.isWeekend && !d.isHolidayDay).reduce((a, d) => a + (d.realizado ?? 0), 0);
   const relatorioTotalDiferenca = relatorioTotalRealizado - relatorioTotalMeta;
 
   const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -142,7 +145,21 @@ export default function Financeiro() {
       [`CAIXA - ${mesLabel}`], [],
       ['DATA', 'CLIENTE', 'SERVIÇO', 'VALOR', 'FORMA PGT.', 'PARCELAS', 'VALOR LÍQUIDO'],
     ];
-    for (const [dayKey, items] of Object.entries(caixaData)) {
+
+    const allDays = eachDayOfInterval({ start: startOfMonth(relatorioMes), end: endOfMonth(relatorioMes) });
+
+    for (const day of allDays) {
+      const dayKey = format(day, 'dd/MM');
+      const items = caixaData[dayKey] ?? [];
+      const holiday = isHoliday(day);
+
+      if (items.length === 0 && !holiday) continue;
+
+      if (holiday) {
+        wsData.push([dayKey, `FERIADO: ${holiday.name}`, '', '', '', '', '']);
+        if (items.length === 0) { wsData.push([]); continue; }
+      }
+
       for (const item of items) {
         wsData.push([dayKey, item.clientName, item.service,
           item.type === 'saida' ? -item.amount : item.amount,
@@ -153,6 +170,7 @@ export default function Financeiro() {
       wsData.push(['TOTAL DO DIA', '', '', liquido, '', '', '']);
       wsData.push([]);
     }
+
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws['!cols'] = [{ wch: 8 }, { wch: 26 }, { wch: 32 }, { wch: 14 }, { wch: 18 }, { wch: 10 }, { wch: 14 }];
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
@@ -1143,25 +1161,31 @@ export default function Financeiro() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {relatorioData.map(({ day, isWeekend, weekendLabel, realizado, meta, diferenca, percentual, isFutureDay, isToday }) => (
+                      {relatorioData.map(({ day, isWeekend, weekendLabel, holiday, isHolidayDay, realizado, meta, diferenca, percentual, isFutureDay, isToday }) => (
                         <TableRow
                           key={format(day, 'yyyy-MM-dd')}
                           className={cn(
                             isWeekend && 'bg-orange-50/60 dark:bg-orange-950/20',
-                            isToday && !isWeekend && 'bg-blue-50/60 dark:bg-blue-950/20',
+                            isHolidayDay && !isWeekend && 'bg-amber-50/60 dark:bg-amber-950/20',
+                            isToday && !isWeekend && !isHolidayDay && 'bg-blue-50/60 dark:bg-blue-950/20',
                           )}
                         >
                           <TableCell className={cn(
                             'text-sm font-medium py-2',
                             isWeekend && 'text-orange-500',
-                            isToday && !isWeekend && 'text-blue-600 dark:text-blue-400',
-                            isFutureDay && !isWeekend && 'text-muted-foreground',
+                            isHolidayDay && !isWeekend && 'text-amber-600 dark:text-amber-400',
+                            isToday && !isWeekend && !isHolidayDay && 'text-blue-600 dark:text-blue-400',
+                            isFutureDay && !isWeekend && !isHolidayDay && 'text-muted-foreground',
                           )}>
                             {format(day, 'dd/MM')}
                           </TableCell>
                           {isWeekend ? (
                             <TableCell colSpan={4} className="text-orange-500 text-sm text-center py-2 italic">
                               {weekendLabel}
+                            </TableCell>
+                          ) : isHolidayDay ? (
+                            <TableCell colSpan={4} className="text-amber-600 dark:text-amber-400 text-sm text-center py-2 italic">
+                              feriado — {holiday!.name}
                             </TableCell>
                           ) : (
                             <>
