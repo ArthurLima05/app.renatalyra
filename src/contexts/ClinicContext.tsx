@@ -1082,6 +1082,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteSession = async (id: string) => {
+    await supabase.from("transactions").delete().eq("session_id", id);
+
     const { error } = await supabase.from("sessions").delete().eq("id", id);
 
     if (error) {
