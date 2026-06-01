@@ -17,6 +17,14 @@ import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input';
 import { PatientOrigin } from '@/types';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 
+const formatCpf = (value: string) => {
+  const d = value.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+};
+
 const Pacientes = () => {
   const navigate = useNavigate();
   const { patients, sessions, addPatient, loading } = useClinic();
@@ -151,7 +159,7 @@ const Pacientes = () => {
                   <Input
                     id="cpf"
                     value={formData.cpf}
-                    onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, cpf: formatCpf(e.target.value) })}
                     placeholder="000.000.000-00"
                   />
                 </div>

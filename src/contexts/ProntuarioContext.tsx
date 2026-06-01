@@ -185,6 +185,13 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const requestAnamneseForPatient = async (patientId: string) => {
+    // Impede criação de múltiplas anamneses para o mesmo paciente
+    const existing = anamneseResponses.find((r) => r.patientId === patientId);
+    if (existing) {
+      toast({ title: "Anamnese já existe", description: "Exclua a anamnese atual antes de solicitar uma nova.", variant: "destructive" });
+      throw new Error("patient_already_has_anamnese");
+    }
+
     const { data: resp, error: respErr } = await (supabase as any)
       .from("anamnese_responses")
       .insert({ patient_id: patientId, status: "sent" })
@@ -218,14 +225,25 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     toast({ title: "Mensagem em processamento. Verifique nas notificações em caso de erro" });
   };
 
-  const getAnamneseByPatientId = (patientId: string) =>
-    anamneseResponses.filter((r) => r.patientId === patientId);
+  // Retorna apenas a anamnese mais recente do paciente (1 por paciente)
+  const getAnamneseByPatientId = (patientId: string) => {
+    const all = anamneseResponses.filter((r) => r.patientId === patientId);
+    return all.length > 0 ? [all[0]] : []; // já ordenado por created_at desc no loadAnamneseData
+  };
 
   const deleteAnamneseResponse = async (id: string) => {
-    await Promise.all([
+    const [answersRes, tokensRes] = await Promise.all([
       (supabase as any).from("anamnese_answers").delete().eq("response_id", id),
       (supabase as any).from("anamnese_tokens").delete().eq("response_id", id),
     ]);
+    if (answersRes.error) {
+      toast({ title: "Erro ao excluir respostas", description: answersRes.error.message, variant: "destructive" });
+      throw answersRes.error;
+    }
+    if (tokensRes.error) {
+      toast({ title: "Erro ao excluir token", description: tokensRes.error.message, variant: "destructive" });
+      throw tokensRes.error;
+    }
     const { error } = await (supabase as any).from("anamnese_responses").delete().eq("id", id);
     if (error) { toast({ title: "Erro ao excluir anamnese", description: error.message, variant: "destructive" }); throw error; }
     setAnamneseResponses(prev => prev.filter(r => r.id !== id));

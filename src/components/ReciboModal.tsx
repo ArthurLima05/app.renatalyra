@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { Patient, Session } from '@/types';
@@ -128,11 +129,15 @@ const buildPrintHtml = (
   amount: string,
   amountText: string,
   service: string,
+  year?: number,
 ) => {
   const logoUrl = LOGO_URL;
   const symbolUrl = SYMBOL_URL;
   const cpfClause = patientCpf.trim()
     ? ` do CPF n&ordm; <strong>${patientCpf}</strong>`
+    : '';
+  const yearClause = year
+    ? `, equivalente ao exerc&iacute;cio de <strong>${year}</strong>,`
     : '';
 
   return `<!DOCTYPE html>
@@ -155,28 +160,28 @@ const buildPrintHtml = (
     .watermark {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -48%);
-      width: 185mm; height: 185mm;
-      opacity: 0.08; pointer-events: none; z-index: 0;
+      width: 220mm; height: 220mm;
+      opacity: 0.16; pointer-events: none; z-index: 0;
     }
     .watermark img { width: 100%; height: 100%; display: block; border: 0; }
-    .content { position: relative; z-index: 1; margin-top: 25mm; }
+    .content { position: relative; z-index: 1; margin-top: 18mm; }
     .title {
-      text-align: center; font-size: 18pt; font-weight: bold;
-      letter-spacing: 5px; margin-bottom: 14mm;
+      text-align: center; font-size: 22pt; font-weight: bold;
+      letter-spacing: 2px; margin-bottom: 12mm;
       font-family: Arial, sans-serif;
     }
-    .body-text { font-size: 11.5pt; line-height: 1.9; text-align: justify; color: #111; }
-    .signature-area { margin-top: 40mm; text-align: center; }
+    .body-text { font-size: 14pt; line-height: 1.9; text-align: justify; color: #111; }
+    .signature-area { margin-top: 36mm; text-align: center; }
     .signature-line {
-      display: inline-block; width: 230px;
+      display: inline-block; width: 260px;
       border-top: 1px solid #333; padding-top: 6px;
-      font-size: 9.5pt; color: #333; font-family: Arial, sans-serif;
+      font-size: 12pt; color: #333; font-family: Arial, sans-serif;
     }
-    .date-city { text-align: right; margin-top: 13mm; font-size: 10pt; font-weight: bold; color: #111; }
+    .date-city { text-align: right; margin-top: 10mm; font-size: 12pt; font-weight: bold; color: #111; }
     .footer {
       position: absolute; bottom: 13mm; left: 28mm; right: 28mm;
       border-top: 0.5px solid #ccc; padding-top: 3mm;
-      text-align: center; font-size: 7.5pt; color: #777;
+      text-align: center; font-size: 9pt; color: #777;
       font-family: Arial, sans-serif; line-height: 1.5;
     }
   </style>
@@ -189,9 +194,9 @@ const buildPrintHtml = (
     <div class="title">R E C I B O</div>
     <div class="body-text">
       Eu, <strong>${CLINIC.doctorName}</strong>, portador(a) do CPF n&ordm;&nbsp;<strong>${CLINIC.doctorCpf}</strong>,
-      venho por meio desta declarar que recebi nesta data <strong>${dateFormatted}</strong>
+      venho por meio desta declarar que recebi nesta data <strong>${dateFormatted}</strong>${yearClause}
       a quantia de <strong>R$&nbsp;${amount}&nbsp;&ndash;&nbsp;${amountText}</strong>
-      portadores(a) <strong>${patientName}</strong>${cpfClause}.
+      de <strong>${patientName}</strong>${cpfClause}.
       Declaro ainda que o valor recebido se refere aos servi&ccedil;os de
       <strong>${service}</strong>.
     </div>
@@ -217,50 +222,77 @@ interface Props {
   open: boolean;
   onClose: () => void;
   patient: Patient;
-  session: Session;
+  session?: Session | null;
+  allSessions?: Session[];
+  defaultMode?: 'sessao' | 'anual';
 }
 
-export const ReciboModal = ({ open, onClose, patient, session }: Props) => {
-  const amountFormatted = session.amount.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+export const ReciboModal = ({ open, onClose, patient, session, allSessions, defaultMode }: Props) => {
+  const hasAnual = !!allSessions && allSessions.length > 0;
+  const [mode, setMode] = useState<'sessao' | 'anual'>(defaultMode ?? (session ? 'sessao' : 'anual'));
 
-  const [data, setData] = useState({
-    date: format(session.date, 'yyyy-MM-dd'),
-    amount: amountFormatted,
-    amountText: capitalize(numberToExtensoBRL(session.amount)),
-    patientName: patient.fullName,
-    patientCpf: patient.cpf ?? '',
-    service: session.procedure?.trim() || 'Tratamento Odontológico',
-  });
+  const currentYear = new Date().getFullYear();
+  const availableYears = useMemo(() => {
+    if (!allSessions) return [currentYear];
+    const years = [...new Set(allSessions.map((s) => new Date(s.date).getFullYear()))].sort((a, b) => b - a);
+    return years.length > 0 ? years : [currentYear];
+  }, [allSessions, currentYear]);
 
-  // Sempre que o valor muda, recalcula o extenso automaticamente
+  const [selectedYear, setSelectedYear] = useState(availableYears[0]);
+
+  const annualTotal = useMemo(() => {
+    if (!allSessions) return 0;
+    return allSessions
+      .filter((s) => new Date(s.date).getFullYear() === selectedYear && s.paymentStatus === 'pago')
+      .reduce((sum, s) => sum + s.amount, 0);
+  }, [allSessions, selectedYear]);
+
+  const annualAmountFormatted = annualTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // ── Dados do formulário ──────────────────────────────────────────────────
+  const initData = () => {
+    if (mode === 'anual') {
+      return {
+        date: format(new Date(), 'yyyy-MM-dd'),
+        amount: annualAmountFormatted,
+        amountText: capitalize(numberToExtensoBRL(annualTotal)),
+        patientName: patient.fullName,
+        patientCpf: patient.cpf ?? '',
+        service: `Tratamento Odontológico – Exercício ${selectedYear}`,
+      };
+    }
+    const s = session!;
+    const amt = s.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return {
+      date: format(s.date, 'yyyy-MM-dd'),
+      amount: amt,
+      amountText: capitalize(numberToExtensoBRL(s.amount)),
+      patientName: patient.fullName,
+      patientCpf: patient.cpf ?? '',
+      service: s.procedure?.trim() || 'Tratamento Odontológico',
+    };
+  };
+
+  const [data, setData] = useState(initData);
+
+  // Reinicia dados ao trocar modo ou ano
+  useEffect(() => { setData(initData()); }, [mode, selectedYear]);
+
+  // Recalcula extenso quando valor muda
   useEffect(() => {
     const parsed = parseAmountStr(data.amount);
-    if (parsed > 0) {
-      setData((prev) => ({ ...prev, amountText: capitalize(numberToExtensoBRL(parsed)) }));
-    }
+    if (parsed > 0) setData((prev) => ({ ...prev, amountText: capitalize(numberToExtensoBRL(parsed)) }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.amount]);
 
-  const set = (field: string, value: string) =>
-    setData((prev) => ({ ...prev, [field]: value }));
+  const set = (field: string, value: string) => setData((prev) => ({ ...prev, [field]: value }));
 
   const handlePrint = () => {
     const dateFormatted = data.date
       ? format(new Date(data.date + 'T12:00:00'), 'dd/MM/yyyy')
       : format(new Date(), 'dd/MM/yyyy');
 
-    const html = buildPrintHtml(
-      data.patientName,
-      data.patientCpf,
-      dateFormatted,
-      data.amount,
-      data.amountText,
-      data.service,
-    );
-
+    const html = buildPrintHtml(data.patientName, data.patientCpf, dateFormatted, data.amount, data.amountText, data.service, mode === 'anual' ? selectedYear : undefined);
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
@@ -281,23 +313,45 @@ export const ReciboModal = ({ open, onClose, patient, session }: Props) => {
         </DialogHeader>
 
         <div className="space-y-4 pt-1">
+          {/* Toggle de modo — só aparece quando há sessões disponíveis */}
+          {hasAnual && session && (
+            <div className="grid grid-cols-2 border rounded-lg p-1 gap-1">
+              <Button size="sm" variant={mode === 'sessao' ? 'secondary' : 'ghost'} className="w-full" onClick={() => setMode('sessao')}>
+                Por Sessão
+              </Button>
+              <Button size="sm" variant={mode === 'anual' ? 'secondary' : 'ghost'} className="w-full" onClick={() => setMode('anual')}>
+                Anual
+              </Button>
+            </div>
+          )}
+
+          {/* Seletor de ano (modo anual) */}
+          {mode === 'anual' && (
+            <div className="space-y-1.5">
+              <Label>Ano de referência</Label>
+              <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {availableYears.map((y) => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Total de sessões pagas em {selectedYear}: <strong>R$ {annualAmountFormatted}</strong>
+              </p>
+            </div>
+          )}
+
+          {/* Campos editáveis */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="recibo-date">Data</Label>
-              <Input
-                id="recibo-date"
-                type="date"
-                value={data.date}
-                onChange={(e) => set('date', e.target.value)}
-              />
+              <Label htmlFor="recibo-date">{mode === 'anual' ? 'Data do recibo' : 'Data'}</Label>
+              <Input id="recibo-date" type="date" value={data.date} onChange={(e) => set('date', e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="recibo-amount">Valor (R$)</Label>
-              <Input
-                id="recibo-amount"
-                value={data.amount}
-                onChange={(e) => set('amount', e.target.value)}
-              />
+              <Input id="recibo-amount" value={data.amount} onChange={(e) => set('amount', e.target.value)} />
             </div>
           </div>
 
@@ -306,39 +360,22 @@ export const ReciboModal = ({ open, onClose, patient, session }: Props) => {
               <Label htmlFor="recibo-extenso">Valor por extenso</Label>
               <span className="text-xs text-muted-foreground">automático — editável</span>
             </div>
-            <Input
-              id="recibo-extenso"
-              value={data.amountText}
-              onChange={(e) => set('amountText', e.target.value)}
-            />
+            <Input id="recibo-extenso" value={data.amountText} onChange={(e) => set('amountText', e.target.value)} />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="recibo-patient">Nome do paciente</Label>
-            <Input
-              id="recibo-patient"
-              value={data.patientName}
-              onChange={(e) => set('patientName', e.target.value)}
-            />
+            <Input id="recibo-patient" value={data.patientName} onChange={(e) => set('patientName', e.target.value)} />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="recibo-cpf">CPF do paciente</Label>
-            <Input
-              id="recibo-cpf"
-              placeholder="Opcional"
-              value={data.patientCpf}
-              onChange={(e) => set('patientCpf', e.target.value)}
-            />
+            <Input id="recibo-cpf" placeholder="Opcional" value={data.patientCpf} onChange={(e) => set('patientCpf', e.target.value)} />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="recibo-service">Procedimento</Label>
-            <Input
-              id="recibo-service"
-              value={data.service}
-              onChange={(e) => set('service', e.target.value)}
-            />
+            <Input id="recibo-service" value={data.service} onChange={(e) => set('service', e.target.value)} />
           </div>
 
           <Button onClick={handlePrint} disabled={!canPrint} className="w-full mt-2">

@@ -497,13 +497,11 @@ export function PatientAnamnese({ patientId, patientName }: { patientId: string;
         </Card>
       ))}
 
-      {/* Botão de nova solicitação quando já existe pelo menos uma */}
-      {responses.length > 0 && !pendingRequest && (
-        <Button variant="outline" size="sm" className="gap-2 w-full"
-          onClick={handleRequest} disabled={requesting}>
-          <Plus className="h-4 w-4" />
-          {requesting ? "Gerando link..." : "Nova Solicitação"}
-        </Button>
+      {/* Cada paciente tem apenas uma anamnese — exclua para criar nova */}
+      {responses.length > 0 && responses[0].status === "completed" && canDelete('pacientes') && (
+        <p className="text-xs text-muted-foreground text-center pt-1">
+          Para solicitar nova anamnese, exclua a atual usando o ícone de lixeira acima.
+        </p>
       )}
 
       {showManager && <QuestionsManager onClose={() => setShowManager(false)} />}

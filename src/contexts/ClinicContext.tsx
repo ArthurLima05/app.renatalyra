@@ -448,25 +448,37 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const loadAppointments = async () => {
-    let q = (supabase as any)
-      .from("appointments")
-      .select("*, patients(full_name)")
-      .is("deleted_at", null)
-      .order("date", { ascending: false });
+    const PAGE_SIZE = 1000;
+    let page = 0;
+    const all: any[] = [];
 
-    if (myProfessionalIdRef.current) {
-      q = q.eq("professional_id", myProfessionalIdRef.current);
-    }
+    while (true) {
+      let q = (supabase as any)
+        .from("appointments")
+        .select("*, patients(full_name)")
+        .is("deleted_at", null)
+        .order("date", { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-    const { data, error } = await q;
+      if (myProfessionalIdRef.current) {
+        q = q.eq("professional_id", myProfessionalIdRef.current);
+      }
 
-    if (error) {
-      console.error("Error loading appointments:", error);
-      return;
+      const { data, error } = await q;
+
+      if (error) {
+        console.error("Error loading appointments:", error);
+        return;
+      }
+
+      all.push(...(data || []));
+
+      if (!data || data.length < PAGE_SIZE) break;
+      page++;
     }
 
     setAppointments(
-      (data || []).map((a) => ({
+      all.map((a) => ({
         id: a.id,
         patientId: a.patient_id,
         patientName: a.patients?.full_name || "",

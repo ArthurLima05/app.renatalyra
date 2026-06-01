@@ -70,7 +70,7 @@ const MONTH_NAMES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-const SLOT_HEIGHT = 48; // px por slot de 30 min
+const SLOT_HEIGHT = 52; // px por slot de 30 min
 
 const TIME_SLOTS: string[] = [];
 for (let h = 8; h <= 18; h++) {
@@ -131,12 +131,17 @@ function layoutAppointments(apps: Appointment[]): Array<{ app: Appointment; left
     if (assigned === -1) { assigned = colEnds.length; colEnds.push(end); }
     colAssigned.push(assigned);
   }
-  const totalCols = colEnds.length;
-  return sorted.map((app, i) => ({
-    app,
-    left: colAssigned[i] / totalCols,
-    width: 1 / totalCols,
-  }));
+  return sorted.map((app, i) => {
+    const aStart = TIME_SLOTS.indexOf(app.time);
+    const aDur = app.duration ?? 1;
+    const localCols = sorted.reduce((max, other, j) => {
+      const bStart = TIME_SLOTS.indexOf(other.time);
+      const bDur = other.duration ?? 1;
+      if (slotsOverlap(aStart, aDur, bStart, bDur)) return Math.max(max, colAssigned[j] + 1);
+      return max;
+    }, 1);
+    return { app, left: colAssigned[i] / localCols, width: 1 / localCols };
+  });
 }
 
 // Verifica sobreposição considerando duração
@@ -585,7 +590,7 @@ export default function Agendamentos() {
     const targetStart = TIME_SLOTS.indexOf(time);
     if (targetStart === -1) return false;
     if (targetStart + duration > TIME_SLOTS.length) return false;
-    const dateStr = new Date(date).toDateString();
+    const dateStr = new Date(date + 'T12:00:00').toDateString();
     return !appointments.some((app) => {
       if (excludeId && app.id === excludeId) return false;
       if (app.status === "cancelado") return false;
@@ -769,14 +774,14 @@ export default function Agendamentos() {
           "rounded-lg cursor-pointer h-full w-full overflow-hidden",
           "transition-all duration-200 ease-out",
           "hover:brightness-95 hover:shadow-md hover:-translate-y-px",
-          compact ? "p-1 text-xs" : "p-2 text-sm",
+          compact ? "p-1 text-sm" : "p-2 text-sm",
         )}
         style={dentistStyle(pro?.name)}
         onClick={() => setDetailAppointment(app)}
       >
-        <div className="font-semibold truncate mb-0.5 flex items-center gap-1 font-cocon tracking-[0.02em]">
-          <span className={cn("inline-block w-1.5 h-1.5 rounded-full flex-shrink-0", SEMAPHORE_DOT[app.status])} />
-          {app.patientName}
+        <div className="flex items-start gap-1 min-w-0">
+          <span className={cn("inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 mt-[3px]", SEMAPHORE_DOT[app.status])} />
+          <span className="line-clamp-2 min-w-0 leading-tight">{app.patientName}</span>
         </div>
         {!compact && (
           <div className="opacity-70 text-xs flex items-center gap-0.5 tabular-nums">
@@ -1034,7 +1039,11 @@ export default function Agendamentos() {
                           variant={selected ? "default" : "outline"} size="sm"
                           disabled={!available}
                           onClick={() => setFormData({ ...formData, time: slot })}
-                          className={cn("transition-all", !available && "opacity-40 cursor-not-allowed", selected && "ring-2 ring-primary ring-offset-2")}
+                          className={cn(
+                            "transition-all",
+                            !available && "bg-muted text-muted-foreground border-muted cursor-not-allowed line-through decoration-muted-foreground/60",
+                            selected && "ring-2 ring-primary ring-offset-2",
+                          )}
                         >
                           {slot}
                         </Button>
@@ -1126,8 +1135,8 @@ export default function Agendamentos() {
                 <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => navigateWeek(1)}><ChevronRight className="h-4 w-4" /></Button>
               </div>
               <div className="overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-                <div style={{ minWidth: 720 }}>
-                  <TimeGrid days={weekDays} />
+                <div style={{ minWidth: 560 }}>
+                  <TimeGrid days={weekDays} className="w-full" />
                 </div>
               </div>
               <div className="flex flex-wrap gap-3 items-center">

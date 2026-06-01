@@ -30,6 +30,14 @@ import { PaymentStatus, PaymentMethod, PatientGender, MaritalStatus, PatientOrig
 import { useRef } from 'react';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { useToast } from '@/hooks/use-toast';
+
+const formatCpf = (value: string) => {
+  const d = value.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+};
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -217,6 +225,7 @@ const ProntuarioPaciente = () => {
 
   // Dialog: Recibo
   const [reciboSession, setReciboSession] = useState<Session | null>(null);
+  const [reciboAnual, setReciboAnual] = useState(false);
 
   // Dialog: Adicionar Lançamento
   const [isLancamentoOpen, setIsLancamentoOpen] = useState(false);
@@ -739,7 +748,7 @@ const ProntuarioPaciente = () => {
                   </Select>
                 </Field>
                 <Field label="CPF">
-                  <Input className="h-10 text-sm" value={cadastroData.cpf} placeholder="000.000.000-00" onChange={(e) => handleCadastroChange('cpf', e.target.value)} />
+                  <Input className="h-10 text-sm" value={cadastroData.cpf} placeholder="000.000.000-00" onChange={(e) => handleCadastroChange('cpf', formatCpf(e.target.value))} />
                 </Field>
                 <Field label="RG">
                   <Input className="h-10 text-sm" value={cadastroData.rg} placeholder="00.000.000-0" onChange={(e) => handleCadastroChange('rg', e.target.value)} />
@@ -807,7 +816,7 @@ const ProntuarioPaciente = () => {
                 </Field>
                 <Field label="CPF do Responsável">
                   <Input className="h-10 text-sm" value={cadastroData.responsibleCpf} placeholder="000.000.000-00"
-                    onChange={(e) => handleCadastroChange('responsibleCpf', e.target.value)} />
+                    onChange={(e) => handleCadastroChange('responsibleCpf', formatCpf(e.target.value))} />
                 </Field>
                 <Field label="Profissão">
                   <Input className="h-10 text-sm" value={cadastroData.profession} placeholder="—"
@@ -898,6 +907,13 @@ const ProntuarioPaciente = () => {
 
           {/* Botões de ação */}
           <div className="flex flex-col sm:flex-row gap-2">
+            {/* Recibo Anual */}
+            {canView('financeiro') && (
+              <Button size="sm" variant="outline" className="gap-2 w-full sm:w-auto" onClick={() => setReciboAnual(true)}>
+                <Printer className="h-4 w-4" />
+                Recibo Anual
+              </Button>
+            )}
             {/* Dialog: Lançamento avulso */}
             <Dialog open={isLancamentoOpen} onOpenChange={setIsLancamentoOpen}>
               <DialogTrigger asChild>
@@ -1410,12 +1426,14 @@ const ProntuarioPaciente = () => {
         </TabsContent>
       </Tabs>
 
-      {reciboSession && patient && (
+      {(reciboSession || reciboAnual) && patient && (
         <ReciboModal
-          open={!!reciboSession}
-          onClose={() => setReciboSession(null)}
+          open={!!(reciboSession || reciboAnual)}
+          onClose={() => { setReciboSession(null); setReciboAnual(false); }}
           patient={patient}
           session={reciboSession}
+          allSessions={sessions}
+          defaultMode={reciboAnual && !reciboSession ? 'anual' : 'sessao'}
         />
       )}
     </motion.div>

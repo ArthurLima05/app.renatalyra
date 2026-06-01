@@ -3,7 +3,8 @@ import { useState, Fragment } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, CheckCircle2, ChevronLeft, ChevronRight, Target } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, CheckCircle2, ChevronLeft, ChevronRight, Target, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -25,7 +26,7 @@ import * as XLSX from 'xlsx';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
-  const { transactions, addTransaction, installments, updateInstallment, sessions, getPatientById, professionals } = useClinic();
+  const { transactions, addTransaction, deleteTransaction, deleteSession, installments, updateInstallment, sessions, getPatientById, professionals } = useClinic();
   const { canView, canCreate } = usePermissionsCtx();
   const { role, isSecretaria, loading: roleLoading } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
@@ -48,6 +49,7 @@ export default function Financeiro() {
   const [relatorioMes, setRelatorioMes] = useState(startOfMonth(new Date()));
   const [showFullRelatorio, setShowFullRelatorio] = useState(false);
   const [showCaixaDiaria, setShowCaixaDiaria] = useState(false);
+  const [deletingTransaction, setDeletingTransaction] = useState<{ id: string; sessionId?: string; description: string } | null>(null);
   const [metaDiaria, setMetaDiaria] = useState<number>(() => {
     try { const s = localStorage.getItem('techclin_meta_diaria'); return s ? parseFloat(s) : 8500; } catch { return 8500; }
   });
@@ -119,6 +121,8 @@ export default function Financeiro() {
           amount: t.amount,
           paymentMethod: t.paymentMethod ?? (session as any)?.paymentMethod,
           installmentCount: t.installmentCount ?? (session as any)?.installmentCount,
+          sessionId: t.sessionId,
+          patientId: t.patientId ?? session?.patientId,
         };
       })
       .sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -473,6 +477,7 @@ export default function Financeiro() {
   }
 
   return (
+    <>
     <div className="space-y-6">
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -997,6 +1002,7 @@ export default function Financeiro() {
                               <TableHead className="text-right text-xs">Valor</TableHead>
                               <TableHead className="text-xs">Forma Pgto</TableHead>
                               <TableHead className="text-center text-xs">Parcelas</TableHead>
+                              <TableHead className="w-10 text-xs"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1023,10 +1029,20 @@ export default function Financeiro() {
                                       </TableCell>
                                       <TableCell className="text-sm py-2.5 text-muted-foreground">{pmLabel(item.paymentMethod, item.installmentCount)}</TableCell>
                                       <TableCell className="text-center text-sm py-2.5 text-muted-foreground">{item.installmentCount && item.installmentCount > 1 ? `${item.installmentCount}x` : ''}</TableCell>
+                                      <TableCell className="text-center py-2.5">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                                          onClick={() => setDeletingTransaction({ id: item.id, sessionId: item.sessionId, description: item.service ?? item.clientName })}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TableCell>
                                     </TableRow>
                                   ))}
                                   <TableRow>
-                                    <TableCell colSpan={6} className="p-0 pb-3">
+                                    <TableCell colSpan={7} className="p-0 pb-3">
                                       <div className={cn(
                                         'mx-1 mt-1 rounded-lg px-4 py-2.5 flex items-center justify-between gap-4',
                                         liquido >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-rose-50 dark:bg-rose-950/30'
@@ -1215,5 +1231,37 @@ export default function Financeiro() {
       )}
 
     </div>
+
+    <AlertDialog open={!!deletingTransaction} onOpenChange={(open) => { if (!open) setDeletingTransaction(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Você está prestes a excluir <strong>{deletingTransaction?.description}</strong>.
+            {deletingTransaction?.sessionId && (
+              <span className="block mt-1">Este lançamento está vinculado a um paciente — a sessão correspondente também será removida do prontuário.</span>
+            )}
+            <span className="block mt-1 text-rose-500 font-medium">Esta ação não pode ser desfeita.</span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-rose-500 hover:bg-rose-600 text-white"
+            onClick={async () => {
+              if (!deletingTransaction) return;
+              await deleteTransaction(deletingTransaction.id);
+              if (deletingTransaction.sessionId) {
+                await deleteSession(deletingTransaction.sessionId);
+              }
+              setDeletingTransaction(null);
+            }}
+          >
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
