@@ -14,6 +14,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+const CACHE_KEY = "techclin_cache_v1";
+
 interface ClinicContextType {
   professionals: Professional[];
   appointments: Appointment[];
@@ -74,12 +76,58 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [sessions, setSessions] = useState<Session[]>([]);
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [clinicSettings, setClinicSettings] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  // Começa false se há cache salvo — elimina o spinner em revisitas
+  const [loading, setLoading] = useState(() => {
+    try { return !localStorage.getItem(CACHE_KEY); } catch { return true; }
+  });
   const [myProfessionalId, setMyProfessionalId] = useState<string | null>(null);
   const myProfessionalIdRef = useRef<string | null>(null);
   const { toast } = useToast();
   const isCheckingNotifications = useRef(false);
   const apptReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hydrateFromCache = (): boolean => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return false;
+      const c = JSON.parse(raw);
+
+      if (c.professionals?.length) setProfessionals(c.professionals.map((p: any) => ({ ...p, createdAt: new Date(p.createdAt) })));
+      if (c.patients?.length) setPatients(c.patients.map((p: any) => ({
+        ...p,
+        createdAt: new Date(p.createdAt),
+        birthDate: p.birthDate ? new Date(p.birthDate) : undefined,
+        feedbackSentAt: p.feedbackSentAt ? new Date(p.feedbackSentAt) : undefined,
+      })));
+      if (c.appointments?.length) setAppointments(c.appointments.map((a: any) => ({
+        ...a,
+        date: new Date(a.date),
+        createdAt: new Date(a.createdAt),
+        deletedAt: a.deletedAt ? new Date(a.deletedAt) : undefined,
+      })));
+      if (c.sessions?.length) setSessions(c.sessions.map((s: any) => ({
+        ...s,
+        date: new Date(s.date),
+        nextAppointment: s.nextAppointment ? new Date(s.nextAppointment) : undefined,
+      })));
+      if (c.transactions?.length) setTransactions(c.transactions.map((t: any) => ({ ...t, date: new Date(t.date) })));
+      if (c.notifications?.length) setNotifications(c.notifications.map((n: any) => ({ ...n, date: new Date(n.date) })));
+      if (c.installments?.length) setInstallments(c.installments.map((i: any) => ({
+        ...i,
+        predictedDate: new Date(i.predictedDate),
+        paidDate: i.paidDate ? new Date(i.paidDate) : undefined,
+        createdAt: new Date(i.createdAt),
+      })));
+      if (c.clinicSettings) setClinicSettings(c.clinicSettings);
+      if (c.myProfessionalId) {
+        myProfessionalIdRef.current = c.myProfessionalId;
+        setMyProfessionalId(c.myProfessionalId);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   useEffect(() => {
     loadAllData();
@@ -326,12 +374,13 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
-  const loadClinicSettings = async () => {
+  const loadClinicSettings = async (): Promise<Record<string, string>> => {
     const { data, error } = await (supabase as any).from("clinic_settings").select("key, value");
-    if (error) { console.error("Error loading settings:", error); return; }
+    if (error) { console.error("Error loading settings:", error); return {}; }
     const map: Record<string, string> = {};
     for (const row of data || []) map[row.key] = row.value;
     setClinicSettings(map);
+    return map;
   };
 
   const updateClinicSetting = async (key: string, value: string) => {
@@ -346,7 +395,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const loadAllData = async () => {
-    setLoading(true);
+    const cacheHit = hydrateFromCache();
+    if (!cacheHit) setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -360,35 +410,47 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setMyProfessionalId(profId);
     }
 
-    await Promise.all([
+    const [profs, sess, trans, installs, settings, patients, appointments, notifications] = await Promise.all([
       loadProfessionals(),
-      loadPatients(),
-      loadAppointments(),
       loadSessions(),
       loadTransactions(),
-      loadNotifications(),
       loadInstallments(),
       loadClinicSettings(),
+      loadPatients(),
+      loadAppointments(),
+      loadNotifications(),
     ]);
+
     setLoading(false);
+
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        professionals: profs,
+        sessions: sess,
+        transactions: trans,
+        installments: installs,
+        clinicSettings: settings,
+        patients,
+        appointments,
+        notifications,
+        myProfessionalId: myProfessionalIdRef.current,
+      }));
+    } catch { /* ignora QuotaExceededError */ }
   };
 
-  const loadProfessionals = async () => {
+  const loadProfessionals = async (): Promise<Professional[]> => {
     const { data, error } = await supabase.from("professionals").select("*");
-    if (error) {
-      console.error("Error loading professionals:", error);
-      return;
-    }
-    setProfessionals(
-      (data || []).map((p) => ({
-        ...p,
-        createdAt: new Date(p.created_at),
-        userId: (p as any).user_id ?? null,
-      })),
-    );
+    if (error) { console.error("Error loading professionals:", error); return []; }
+    const result = (data || []).map((p) => ({
+      ...p,
+      createdAt: new Date(p.created_at),
+      userId: (p as any).user_id ?? null,
+    })) as Professional[];
+    setProfessionals(result);
+    return result;
   };
 
-  const loadPatients = async () => {
+  const loadPatients = async (): Promise<Patient[]> => {
     let patientIdFilter: string[] | null = null;
     if (myProfessionalIdRef.current) {
       const { data: apptData } = await (supabase as any)
@@ -398,7 +460,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       patientIdFilter = [...new Set<string>((apptData ?? []).map((a: any) => a.patient_id))];
       if (patientIdFilter.length === 0) {
         setPatients([]);
-        return;
+        return [];
       }
     }
 
@@ -425,29 +487,29 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       from += PAGE;
     }
 
-    setPatients(
-      allData.map((p: any) => ({
-        ...p,
-        fullName: p.full_name,
-        birthDate: p.birth_date ? new Date(p.birth_date + 'T12:00:00') : undefined,
-        feedbackGiven: (p as any).feedback_given ?? false,
-        feedbackSentAt: (p as any).feedback_sent_at ? new Date((p as any).feedback_sent_at) : undefined,
-        nickname: p.nickname ?? undefined,
-        gender: p.gender ?? undefined,
-        rg: p.rg ?? undefined,
-        maritalStatus: p.marital_status ?? undefined,
-        education: p.education ?? undefined,
-        avatarUrl: p.avatar_url ?? undefined,
-        createdAt: new Date(p.created_at),
-        responsible: p.responsible ?? undefined,
-        responsibleCpf: p.responsible_cpf ?? undefined,
-        address: p.address ?? undefined,
-        profession: p.profession ?? undefined,
-      })),
-    );
+    const result: Patient[] = allData.map((p: any) => ({
+      ...p,
+      fullName: p.full_name,
+      birthDate: p.birth_date ? new Date(p.birth_date + 'T12:00:00') : undefined,
+      feedbackGiven: p.feedback_given ?? false,
+      feedbackSentAt: p.feedback_sent_at ? new Date(p.feedback_sent_at) : undefined,
+      nickname: p.nickname ?? undefined,
+      gender: p.gender ?? undefined,
+      rg: p.rg ?? undefined,
+      maritalStatus: p.marital_status ?? undefined,
+      education: p.education ?? undefined,
+      avatarUrl: p.avatar_url ?? undefined,
+      createdAt: new Date(p.created_at),
+      responsible: p.responsible ?? undefined,
+      responsibleCpf: p.responsible_cpf ?? undefined,
+      address: p.address ?? undefined,
+      profession: p.profession ?? undefined,
+    }));
+    setPatients(result);
+    return result;
   };
 
-  const loadAppointments = async () => {
+  const loadAppointments = async (): Promise<Appointment[]> => {
     const PAGE_SIZE = 1000;
     let page = 0;
     const all: any[] = [];
@@ -466,129 +528,117 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const { data, error } = await q;
 
-      if (error) {
-        console.error("Error loading appointments:", error);
-        return;
-      }
+      if (error) { console.error("Error loading appointments:", error); return []; }
 
       all.push(...(data || []));
-
       if (!data || data.length < PAGE_SIZE) break;
       page++;
     }
 
-    setAppointments(
-      all.map((a) => ({
-        id: a.id,
-        patientId: a.patient_id,
-        patientName: a.patients?.full_name || "",
-        professionalId: a.professional_id,
-        date: new Date(a.date.substring(0, 10) + 'T12:00:00'),
-        time: a.time,
-        duration: a.duration ?? 1,
-        status: a.status as AppointmentStatus,
-        notes: a.notes || undefined,
-        createdAt: new Date(a.created_at),
-        sessionId: a.session_id || undefined,
-        deletedAt: (a as any).deleted_at ? new Date((a as any).deleted_at) : undefined,
-      })),
-    );
+    const result: Appointment[] = all.map((a) => ({
+      id: a.id,
+      patientId: a.patient_id,
+      patientName: a.patients?.full_name || "",
+      professionalId: a.professional_id,
+      date: new Date(a.date.substring(0, 10) + 'T12:00:00'),
+      time: a.time,
+      duration: a.duration ?? 1,
+      status: a.status as AppointmentStatus,
+      notes: a.notes || undefined,
+      createdAt: new Date(a.created_at),
+      sessionId: a.session_id || undefined,
+      deletedAt: a.deleted_at ? new Date(a.deleted_at) : undefined,
+    }));
+    setAppointments(result);
+    return result;
   };
 
-  const loadSessions = async () => {
+  const loadSessions = async (): Promise<Session[]> => {
     const { data, error } = await supabase.from("sessions").select("*").order("date", { ascending: false });
-    if (error) {
-      console.error("Error loading sessions:", error);
-      return;
-    }
-    setSessions(
-      (data || []).map((s) => ({
-        id: s.id,
-        patientId: s.patient_id,
-        date: new Date(s.date),
-        procedure: s.type,
-        sessionType: s.session_type as any,
-        status: s.status as SessionStatus,
-        notes: s.notes || undefined,
-        amount: Number(s.amount),
-        paymentStatus: s.payment_status as any,
-        paymentMethod: (s as any).payment_method || undefined,
-        installmentCount: (s as any).installment_count || undefined,
-        nextAppointment: s.next_appointment ? new Date(s.next_appointment) : undefined,
-        professionalId: s.professional_id || undefined,
-      })),
-    );
+    if (error) { console.error("Error loading sessions:", error); return []; }
+    const result: Session[] = (data || []).map((s) => ({
+      id: s.id,
+      patientId: s.patient_id,
+      date: new Date(s.date),
+      procedure: s.type,
+      sessionType: s.session_type as any,
+      status: s.status as SessionStatus,
+      notes: s.notes || undefined,
+      amount: Number(s.amount),
+      paymentStatus: s.payment_status as any,
+      paymentMethod: (s as any).payment_method || undefined,
+      installmentCount: (s as any).installment_count || undefined,
+      nextAppointment: s.next_appointment ? new Date(s.next_appointment) : undefined,
+      professionalId: s.professional_id || undefined,
+    }));
+    setSessions(result);
+    return result;
   };
 
-  const loadTransactions = async () => {
+  const loadTransactions = async (): Promise<Transaction[]> => {
     const { data, error } = await supabase.from("transactions").select("*").order("date", { ascending: false });
-    if (error) {
-      console.error("Error loading transactions:", error);
-      return;
-    }
-    setTransactions(
-      (data || []).map((t) => ({
-        ...t,
-        date: new Date(t.date),
-        amount: Number(t.amount),
-        patientId: t.patient_id || undefined,
-        sessionId: t.session_id || undefined,
-        comprovanteUrl: (t as any).comprovante_url || undefined,
-        paymentMethod: (t as any).payment_method || undefined,
-        installmentCount: (t as any).installment_count || undefined,
-        professionalId: (t as any).professional_id || undefined,
-      })),
-    );
+    if (error) { console.error("Error loading transactions:", error); return []; }
+    const result: Transaction[] = (data || []).map((t) => ({
+      ...t,
+      date: new Date(t.date),
+      amount: Number(t.amount),
+      patientId: t.patient_id || undefined,
+      sessionId: t.session_id || undefined,
+      comprovanteUrl: (t as any).comprovante_url || undefined,
+      paymentMethod: (t as any).payment_method || undefined,
+      installmentCount: (t as any).installment_count || undefined,
+      professionalId: (t as any).professional_id || undefined,
+    }));
+    setTransactions(result);
+    return result;
   };
 
-  const loadNotifications = async () => {
-    let q = (supabase as any).from("notifications").select("*").order("date", { ascending: false });
+  const loadNotifications = async (): Promise<Notification[]> => {
+    let q = (supabase as any)
+      .from("notifications")
+      .select("*")
+      .order("date", { ascending: false })
+      .limit(200);
 
     if (myProfessionalIdRef.current) {
       q = q.or(`professional_id.eq.${myProfessionalIdRef.current},professional_id.is.null`);
     }
 
     const { data, error } = await q;
-    if (error) {
-      console.error("Error loading notifications:", error);
-      return;
-    }
-    setNotifications(
-      (data || []).map((n) => ({
-        ...n,
-        type: n.type as any,
-        date: new Date(n.date),
-        patientId: n.patient_id || undefined,
-        appointmentId: n.appointment_id || undefined,
-        sessionId: n.session_id || undefined,
-        installmentId: n.installment_id || undefined,
-      })),
-    );
+    if (error) { console.error("Error loading notifications:", error); return []; }
+    const result: Notification[] = (data || []).map((n: any) => ({
+      ...n,
+      type: n.type as any,
+      date: new Date(n.date),
+      patientId: n.patient_id || undefined,
+      appointmentId: n.appointment_id || undefined,
+      sessionId: n.session_id || undefined,
+      installmentId: n.installment_id || undefined,
+    }));
+    setNotifications(result);
+    return result;
   };
 
-  const loadInstallments = async () => {
+  const loadInstallments = async (): Promise<Installment[]> => {
     const { data, error } = await supabase
       .from("installments")
       .select("*")
       .order("predicted_date", { ascending: true });
-    if (error) {
-      console.error("Error loading installments:", error);
-      return;
-    }
-    setInstallments(
-      (data || []).map((i) => ({
-        id: i.id,
-        transactionId: i.transaction_id || undefined,
-        sessionId: i.session_id || undefined,
-        installmentNumber: i.installment_number,
-        totalInstallments: i.total_installments,
-        amount: Number(i.amount),
-        predictedDate: new Date(i.predicted_date),
-        paid: i.paid,
-        paidDate: i.paid_date ? new Date(i.paid_date) : undefined,
-        createdAt: new Date(i.created_at),
-      })),
-    );
+    if (error) { console.error("Error loading installments:", error); return []; }
+    const result: Installment[] = (data || []).map((i) => ({
+      id: i.id,
+      transactionId: i.transaction_id || undefined,
+      sessionId: i.session_id || undefined,
+      installmentNumber: i.installment_number,
+      totalInstallments: i.total_installments,
+      amount: Number(i.amount),
+      predictedDate: new Date(i.predicted_date),
+      paid: i.paid,
+      paidDate: i.paid_date ? new Date(i.paid_date) : undefined,
+      createdAt: new Date(i.created_at),
+    }));
+    setInstallments(result);
+    return result;
   };
 
   const addAppointment = async (appointment: Omit<Appointment, "id" | "createdAt">) => {

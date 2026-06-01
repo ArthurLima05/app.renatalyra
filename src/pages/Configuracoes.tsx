@@ -86,14 +86,28 @@ const REPLY_OPTIONS = [
   { label: 'REMARCAR', color: 'bg-blue-100  text-blue-800  dark:bg-blue-900/40  dark:text-blue-300'  },
 ];
 
-const MESSAGE_TEMPLATES = [
+const RETURN_ALERT_TEMPLATES = [
   {
-    key: 'msg_return_alert',
-    label: 'Alerta de Retorno',
-    description: 'Enviada automaticamente quando o prazo de retorno do paciente vence.',
-    variables: ['{{nome_paciente}}'],
-    defaultValue: 'Olá, {{nome_paciente}}! 😊 Aqui é a clínica Dra. Renata Lyra. Percebemos que faz um tempo desde sua última consulta. Que tal agendar um retorno? Estamos à disposição! 📅',
+    key: 'msg_return_alert_1',
+    tabLabel: '1ª mensagem',
+    variables: ['{{nome_paciente}}', '{{data_retorno}}', '{{observacoes}}'],
+    defaultValue: 'Olá, {{nome_paciente}}! 😊\n\nA equipe da *Dra. Renata Lyra* entrando em contato.\n\nChegou a hora do seu *retorno odontológico*! 🦷\n\nPara agendar sua consulta de retorno, responda essa mensagem com:\n👇 *AGENDAR* — e nossa equipe entrará em contato para marcar o melhor horário para você.\n\nCuide do seu sorriso! 😊',
   },
+  {
+    key: 'msg_return_alert_2',
+    tabLabel: '2ª mensagem',
+    variables: ['{{nome_paciente}}'],
+    defaultValue: 'Oi, {{nome_paciente}}! 😊\n\nPassando novamente para lembrar do seu *retorno* na Clínica Dra. Renata Lyra. 🦷\n\nAinda não conseguimos marcar sua consulta — e queremos muito cuidar do seu sorriso!\n\nResponda *AGENDAR* que nossa equipe entra em contato rapidinho! 💙',
+  },
+  {
+    key: 'msg_return_alert_3',
+    tabLabel: '3ª mensagem',
+    variables: ['{{nome_paciente}}'],
+    defaultValue: '{{nome_paciente}}, última lembrança do seu retorno! 🦷\n\nSabemos que a rotina é corrida, mas cuidar da saúde bucal faz toda a diferença. 😊\n\nNossa equipe está à disposição — responda *AGENDAR* ou ligue diretamente para a clínica.\n\nTe esperamos! 😊 — Clínica Dra. Renata Lyra',
+  },
+];
+
+const MESSAGE_TEMPLATES = [
   {
     key: 'msg_appointment_cancellation',
     label: 'Cancelamento de Consulta',
@@ -360,6 +374,112 @@ function ConfirmacaoCard({
   );
 }
 
+// ── Card: Alerta de Retorno (3 mensagens) ─────────────────────────────────────
+function RetornoAlertaCard({
+  clinicSettings, updateClinicSetting, canEdit: canEditFn, toast,
+}: {
+  clinicSettings: Record<string, string>;
+  updateClinicSetting: (key: string, value: string) => Promise<void>;
+  canEdit: (module: string) => boolean;
+  toast: (opts: { title: string }) => void;
+}) {
+  const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const init: Record<string, string> = {};
+    for (const t of RETURN_ALERT_TEMPLATES) init[t.key] = clinicSettings[t.key] ?? t.defaultValue;
+    setDrafts(init);
+  }, [clinicSettings]);
+
+  const tpl = RETURN_ALERT_TEMPLATES[activeTab];
+  const saved = clinicSettings[tpl.key] ?? tpl.defaultValue;
+  const dirty = drafts[tpl.key] !== undefined && drafts[tpl.key] !== saved;
+
+  const handleSave = async () => {
+    setSaving(p => ({ ...p, [tpl.key]: true }));
+    try { await updateClinicSetting(tpl.key, drafts[tpl.key]); toast({ title: 'Mensagem salva' }); }
+    finally { setSaving(p => ({ ...p, [tpl.key]: false })); }
+  };
+
+  return (
+    <Card>
+      <CardContent className="pt-5 space-y-3">
+        <div>
+          <Label className="text-sm font-semibold">Alerta de Retorno</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Sequência de 3 mensagens enviadas automaticamente quando o prazo de retorno vence. A 2ª e 3ª são enviadas com 3 dias de intervalo se o paciente não agendar.
+          </p>
+        </div>
+
+        {/* Tabs 1ª / 2ª / 3ª */}
+        <div className="flex rounded-lg bg-muted p-1 gap-1">
+          {RETURN_ALERT_TEMPLATES.map((t, i) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(i as 0 | 1 | 2)}
+              className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
+                activeTab === i
+                  ? 'bg-background shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {t.tabLabel}
+            </button>
+          ))}
+        </div>
+
+        {/* Variable chips */}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Info className="h-3 w-3" /> Arraste para inserir:
+          </span>
+          {tpl.variables.map(v => (
+            <span
+              key={v}
+              draggable
+              onDragStart={e => { e.dataTransfer.setData('text/plain', v); e.dataTransfer.effectAllowed = 'copy'; }}
+              className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono bg-gray-500 text-white hover:bg-gray-600 cursor-grab active:cursor-grabbing select-none transition-colors"
+            >
+              {v}
+            </span>
+          ))}
+        </div>
+
+        <VarEditor
+          key={tpl.key}
+          value={drafts[tpl.key] ?? tpl.defaultValue}
+          onChange={v => setDrafts(p => ({ ...p, [tpl.key]: v }))}
+        />
+
+        {activeTab === 0 && (
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Variáveis disponíveis na 1ª mensagem:</p>
+            <div className="text-xs text-muted-foreground space-y-0.5">
+              <p><code className="bg-muted px-1 rounded">{'{{data_retorno}}'}</code> — data prevista de retorno (se cadastrada)</p>
+              <p><code className="bg-muted px-1 rounded">{'{{observacoes}}'}</code> — observação do alerta (se preenchida)</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-end">
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground"
+            disabled={!canEditFn('configuracoes')}
+            onClick={() => setDrafts(p => ({ ...p, [tpl.key]: tpl.defaultValue }))}>
+            <RotateCcw className="h-3.5 w-3.5" /> Restaurar
+          </Button>
+          <Button size="sm" className="gap-1.5"
+            disabled={!dirty || saving[tpl.key] || !canEditFn('configuracoes')}
+            onClick={handleSave}>
+            <Save className="h-3.5 w-3.5" />{saving[tpl.key] ? 'Salvando...' : 'Salvar'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Seção: Mensagens ──────────────────────────────────────────────────────────
 function MensagensSection() {
   const { clinicSettings, updateClinicSetting } = useClinic();
@@ -370,7 +490,7 @@ function MensagensSection() {
 
   useEffect(() => {
     const init: Record<string, string> = {};
-    for (const t of [...MESSAGE_TEMPLATES, ...CONFIRMATION_TEMPLATES]) {
+    for (const t of [...MESSAGE_TEMPLATES, ...CONFIRMATION_TEMPLATES, ...RETURN_ALERT_TEMPLATES]) {
       init[t.key] = clinicSettings[t.key] ?? t.defaultValue;
     }
     setDrafts(init);
@@ -433,6 +553,12 @@ function MensagensSection() {
 
       <div className="space-y-4">
         <ConfirmacaoCard
+          clinicSettings={clinicSettings}
+          updateClinicSetting={updateClinicSetting}
+          canEdit={canEdit}
+          toast={toast}
+        />
+        <RetornoAlertaCard
           clinicSettings={clinicSettings}
           updateClinicSetting={updateClinicSetting}
           canEdit={canEdit}

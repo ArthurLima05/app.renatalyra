@@ -5,6 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const DEFAULT_MSG_1 = 'Olá, {{nome_paciente}}! 😊\n\nA equipe da *Dra. Renata Lyra* entrando em contato.\n\nChegou a hora do seu *retorno odontológico*! 🦷\n\nPara agendar sua consulta de retorno, responda essa mensagem com:\n👇 *AGENDAR* — e nossa equipe entrará em contato para marcar o melhor horário para você.\n\nCuide do seu sorriso! 😊'
+const DEFAULT_MSG_2 = 'Oi, {{nome_paciente}}! 😊\n\nPassando novamente para lembrar do seu *retorno* na Clínica Dra. Renata Lyra. 🦷\n\nAinda não conseguimos marcar sua consulta — e queremos muito cuidar do seu sorriso!\n\nResponda *AGENDAR* que nossa equipe entra em contato rapidinho! 💙'
+const DEFAULT_MSG_3 = '{{nome_paciente}}, última lembrança do seu retorno! 🦷\n\nSabemos que a rotina é corrida, mas cuidar da saúde bucal faz toda a diferença. 😊\n\nNossa equipe está à disposição — responda *AGENDAR* ou ligue diretamente para a clínica.\n\nTe esperamos! 😊 — Clínica Dra. Renata Lyra'
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -12,11 +16,11 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { patientName, patientPhone, returnDate, notes, message } = body
+    const { patientName, patientPhone, returnDate, notes } = body
 
-    if (!patientPhone || !message) {
+    if (!patientPhone) {
       return new Response(
-        JSON.stringify({ error: 'patientPhone e message são obrigatórios' }),
+        JSON.stringify({ error: 'patientPhone é obrigatório' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
       )
     }
@@ -29,10 +33,33 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Busca os templates editáveis do banco
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
+
+    const { data: settingsRows } = await supabase
+      .from('clinic_settings')
+      .select('key, value')
+      .in('key', ['msg_return_alert_1', 'msg_return_alert_2', 'msg_return_alert_3'])
+
+    const settings: Record<string, string> = Object.fromEntries(
+      (settingsRows ?? []).map((s: { key: string; value: string }) => [s.key, s.value]),
+    )
+
     const n8nRes = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ patientName, patientPhone, returnDate, notes, message }),
+      body: JSON.stringify({
+        patientName,
+        patientPhone,
+        returnDate,
+        notes,
+        msg1: settings['msg_return_alert_1'] || DEFAULT_MSG_1,
+        msg2: settings['msg_return_alert_2'] || DEFAULT_MSG_2,
+        msg3: settings['msg_return_alert_3'] || DEFAULT_MSG_3,
+      }),
     })
 
     if (!n8nRes.ok) {
