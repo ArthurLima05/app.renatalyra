@@ -1713,42 +1713,42 @@ function FeriadosSection() {
         </p>
       </div>
 
-      {/* Formulário de adição */}
-      {isAdmin && (
-        <Card>
-          <CardContent className="pt-5 space-y-4">
-            <Label className="text-sm font-semibold">Adicionar Feriado</Label>
-            <form onSubmit={handleAdd} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Data</Label>
-                  <Input
-                    type="date"
-                    value={form.date}
-                    onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Nome</Label>
-                  <Input
-                    placeholder="Ex: Carnaval"
-                    value={form.name}
-                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                    required
-                  />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-input accent-primary"
-                  checked={form.recurring}
-                  onChange={e => setForm(p => ({ ...p, recurring: e.target.checked }))}
+      {/* Formulário de adição — disponível para todos os usuários autenticados */}
+      <Card>
+        <CardContent className="pt-5 space-y-4">
+          <Label className="text-sm font-semibold">Adicionar Feriado</Label>
+          <form onSubmit={handleAdd} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Data</Label>
+                <Input
+                  type="date"
+                  value={form.date}
+                  onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
+                  required
                 />
-                <span className="text-sm">Repete todo ano (mesmo dia e mês)</span>
-              </label>
-              <div className="flex gap-2 justify-end">
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Nome</Label>
+                <Input
+                  placeholder="Ex: Carnaval"
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-input accent-primary"
+                checked={form.recurring}
+                onChange={e => setForm(p => ({ ...p, recurring: e.target.checked }))}
+              />
+              <span className="text-sm">Repete todo ano (mesmo dia e mês)</span>
+            </label>
+            <div className="flex gap-2 justify-end">
+              {isAdmin && (
                 <Button
                   type="button"
                   variant="outline"
@@ -1760,15 +1760,15 @@ function FeriadosSection() {
                   <RefreshCw className="h-3.5 w-3.5" />
                   Pré-carregar feriados nacionais
                 </Button>
-                <Button type="submit" size="sm" className="gap-1.5" disabled={saving || !form.date || !form.name.trim()}>
-                  <Plus className="h-3.5 w-3.5" />
-                  {saving ? 'Salvando...' : 'Adicionar'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+              )}
+              <Button type="submit" size="sm" className="gap-1.5" disabled={saving || !form.date || !form.name.trim()}>
+                <Plus className="h-3.5 w-3.5" />
+                {saving ? 'Salvando...' : 'Adicionar'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Lista de feriados */}
       {sorted.length === 0 ? (
@@ -1792,19 +1792,17 @@ function FeriadosSection() {
                     )}
                   </p>
                 </div>
-                {isAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                    disabled={deletingId === h.id}
-                    onClick={() => handleDelete(h.id)}
-                  >
-                    {deletingId === h.id
-                      ? <Loader2 className="h-4 w-4 animate-spin" />
-                      : <Trash2 className="h-4 w-4" />}
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  disabled={deletingId === h.id}
+                  onClick={() => handleDelete(h.id)}
+                >
+                  {deletingId === h.id
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <Trash2 className="h-4 w-4" />}
+                </Button>
               </div>
             ))}
           </CardContent>
