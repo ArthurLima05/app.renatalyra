@@ -1,4 +1,4 @@
-project_id = "exirdgezftyytwbgfyij"
+project_id = "hmjrgrrosyinblpzntkw"
 
 [functions.get-pending-confirmations]
 verify_jwt = false

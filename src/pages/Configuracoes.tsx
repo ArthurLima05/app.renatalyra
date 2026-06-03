@@ -20,7 +20,7 @@ import {
   Save, RotateCcw, MessageSquare, Palette, ChevronRight, ChevronLeft, ArrowLeft, Info,
   Sun, Moon, Users, Plus, ChevronDown, ChevronUp, Mail, Phone, Shield,
   SlidersHorizontal, CalendarDays, List, Upload, FileSpreadsheet,
-  CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, RefreshCw,
+  CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, KeyRound, Eye, EyeOff,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +29,7 @@ import type { AppUser, UserProfile, AppModule, UserPermission } from '@/types';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { cn } from '@/lib/utils';
 
-type Section = null | 'aparencia' | 'mensagens' | 'usuarios' | 'preferencias' | 'importar' | 'feriados';
+type Section = null | 'aparencia' | 'mensagens' | 'usuarios' | 'preferencias' | 'importar' | 'feriados' | 'senha';
 type UserView = null | AppUser;
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -843,6 +843,92 @@ function PreferenciasSection() {
               ))}
             </div>
           </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ── Seção: Alterar Senha ──────────────────────────────────────────────────────
+function AlterarSenhaSection() {
+  const { toast } = useToast();
+  const [form, setForm] = useState({ current: '', next: '', confirm: '' });
+  const [show, setShow] = useState({ current: false, next: false, confirm: false });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const toggle = (field: keyof typeof show) => setShow(p => ({ ...p, [field]: !p[field] }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    if (form.next.length < 6) { setFormError('A nova senha deve ter pelo menos 6 caracteres.'); return; }
+    if (form.next !== form.confirm) { setFormError('As senhas não coincidem.'); return; }
+
+    setSaving(true);
+    try {
+      // Verifica senha atual tentando reautenticar
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error('Usuário não autenticado.');
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: form.current,
+      });
+      if (signInError) { setFormError('Senha atual incorreta.'); return; }
+
+      const { error } = await supabase.auth.updateUser({ password: form.next });
+      if (error) { setFormError(error.message); return; }
+
+      toast({ title: 'Senha alterada com sucesso!' });
+      setForm({ current: '', next: '', confirm: '' });
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Erro inesperado.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Alterar Senha</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">Atualize a sua senha de acesso ao sistema.</p>
+      </div>
+      <Card>
+        <CardContent className="pt-5">
+          <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
+            {[
+              { id: 'current', label: 'Senha atual',        field: 'current' as const },
+              { id: 'next',    label: 'Nova senha',         field: 'next'    as const },
+              { id: 'confirm', label: 'Confirmar nova senha', field: 'confirm' as const },
+            ].map(({ id, label, field }) => (
+              <div key={id} className="space-y-1">
+                <Label htmlFor={id}>{label}</Label>
+                <div className="relative">
+                  <Input
+                    id={id}
+                    type={show[field] ? 'text' : 'password'}
+                    value={form[field]}
+                    onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
+                    placeholder={field === 'next' ? 'Mínimo 6 caracteres' : ''}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggle(field)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {show[field] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {formError && <p className="text-sm text-destructive">{formError}</p>}
+            <Button type="submit" disabled={saving} className="w-full">
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : 'Alterar senha'}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
@@ -1816,6 +1902,7 @@ function FeriadosSection() {
 const SECTIONS = [
   { id: 'aparencia'    as Section, icon: Palette,            label: 'Aparência',              description: 'Tema claro ou escuro' },
   { id: 'preferencias' as Section, icon: SlidersHorizontal, label: 'Preferências',           description: 'Visualização padrão da agenda' },
+  { id: 'senha'        as Section, icon: KeyRound,           label: 'Alterar Senha',          description: 'Atualize sua senha de acesso' },
   { id: 'mensagens'    as Section, icon: MessageSquare,      label: 'Mensagens WhatsApp',     description: 'Templates de mensagens automáticas' },
   { id: 'feriados'     as Section, icon: CalendarDays,       label: 'Feriados',               description: 'Dias de folga que fecham a agenda e marcam o financeiro' },
   { id: 'importar'     as Section, icon: Upload,             label: 'Importar',               description: 'Importe pacientes ou agendamentos via Excel' },
@@ -1857,6 +1944,7 @@ export default function Configuracoes() {
             )}
             {section === 'aparencia'    && <AparenciaSection />}
             {section === 'preferencias' && <PreferenciasSection />}
+            {section === 'senha'        && <AlterarSenhaSection />}
             {section === 'mensagens'    && <MensagensSection />}
             {section === 'feriados'     && <FeriadosSection />}
             {section === 'importar'     && <ImportarSection />}
