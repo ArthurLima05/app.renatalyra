@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ClinicProvider } from "./contexts/ClinicContext";
 import { ProntuarioProvider } from "./contexts/ProntuarioContext";
 import { AdminProvider } from "./contexts/AdminContext";
@@ -49,6 +49,26 @@ function ModuleRoute({ module, children }: { module: string; children: React.Rea
   return <>{children}</>;
 }
 
+const ORDERED_MODULES = [
+  { module: 'agenda',         path: '/agendamentos' },
+  { module: 'dashboard',      path: '/dashboard' },
+  { module: 'pacientes',      path: '/pacientes' },
+  { module: 'financeiro',     path: '/financeiro' },
+  { module: 'profissionais',  path: '/profissionais' },
+  { module: 'notificacoes',   path: '/notificacoes' },
+  { module: 'funil',          path: '/funil' },
+  { module: 'configuracoes',  path: '/configuracoes' },
+];
+
+function InitialRoute() {
+  const { hasAnyPermission, loading } = usePermissionsCtx();
+  if (loading) return null;
+  for (const { module, path } of ORDERED_MODULES) {
+    if (hasAnyPermission(module)) return <Navigate to={path} replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -72,8 +92,10 @@ const App = () => (
               </ClinicProvider>
             </ProtectedRoute>
           }>
-            <Route path="/" element={<Agendamentos />} />
-            <Route path="/agendamentos" element={<Agendamentos />} />
+            <Route path="/" element={<InitialRoute />} />
+            <Route path="/agendamentos" element={
+              <ModuleRoute module="agenda"><Agendamentos /></ModuleRoute>
+            } />
             <Route path="/dashboard" element={
               <ModuleRoute module="dashboard"><Dashboard /></ModuleRoute>
             } />

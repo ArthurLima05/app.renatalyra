@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useState, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import * as XLSX from 'xlsx';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 export default function Financeiro() {
-  const { transactions, addTransaction, deleteTransaction, deleteSession, installments, updateInstallment, sessions, getPatientById, professionals, isHoliday } = useClinic();
+  const { transactions, addTransaction, deleteTransaction, deleteSession, installments, updateInstallment, sessions, getPatientById, professionals, isHoliday, clinicSettings, updateClinicSetting } = useClinic();
   const { canView, canCreate } = usePermissionsCtx();
   const { role, isSecretaria, loading: roleLoading } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
@@ -50,19 +50,30 @@ export default function Financeiro() {
   const [showFullRelatorio, setShowFullRelatorio] = useState(false);
   const [showCaixaDiaria, setShowCaixaDiaria] = useState(false);
   const [deletingTransaction, setDeletingTransaction] = useState<{ id: string; sessionId?: string; description: string } | null>(null);
-  const [metaDiaria, setMetaDiaria] = useState<number>(() => {
-    try { const s = localStorage.getItem('techclin_meta_diaria'); return s ? parseFloat(s) : 8500; } catch { return 8500; }
-  });
-  const [metaDiariaInput, setMetaDiariaInput] = useState<string>(() => {
-    try { const s = localStorage.getItem('techclin_meta_diaria'); return s ?? '8500'; } catch { return '8500'; }
-  });
+  const [metaDiaria, setMetaDiaria] = useState<number>(8500);
+  const [metaDiariaInput, setMetaDiariaInput] = useState<string>('8500');
+
+  // Sincroniza metaDiaria com o valor do banco quando clinicSettings carregar
+  useEffect(() => {
+    const saved = clinicSettings['meta_diaria'];
+    if (saved) {
+      const num = parseFloat(saved);
+      if (!isNaN(num)) {
+        setMetaDiaria(num);
+        setMetaDiariaInput(saved);
+      }
+    }
+  }, [clinicSettings]);
 
   const handleMetaDiariaChange = (value: string) => {
     setMetaDiariaInput(value);
-    const num = parseFloat(value.replace(',', '.'));
+  };
+
+  const handleSaveMetaDiaria = () => {
+    const num = parseFloat(metaDiariaInput.replace(',', '.'));
     if (!isNaN(num) && num >= 0) {
       setMetaDiaria(num);
-      try { localStorage.setItem('techclin_meta_diaria', String(num)); } catch {}
+      updateClinicSetting('meta_diaria', String(num));
     }
   };
 
@@ -1135,8 +1146,17 @@ export default function Financeiro() {
                       step="100"
                       value={metaDiariaInput}
                       onChange={(e) => handleMetaDiariaChange(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveMetaDiaria(); }}
                       className="w-28 text-right h-8 text-sm"
                     />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleSaveMetaDiaria}
+                      className="h-8 px-3 text-xs"
+                    >
+                      Salvar
+                    </Button>
                   </div>
                 </div>
               </div>

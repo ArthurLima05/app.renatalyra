@@ -125,7 +125,7 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
         {/* Navegação */}
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
-            const hasAccess = item.module === 'agenda' || hasAnyPermission(item.module);
+            const hasAccess = hasAnyPermission(item.module);
             return (
               <NavLink
                 key={item.to}
