@@ -1202,14 +1202,16 @@ const ProntuarioPaciente = () => {
                             <p className="text-base sm:text-lg font-bold">R$ {session.amount.toFixed(2)}</p>
                             <div className="flex items-center gap-2">
                               {getPaymentBadge(effectiveStatus)}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                onClick={() => setDeletingSessionId(session.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                              {canDelete('financeiro') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setDeletingSessionId(session.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
