@@ -22,6 +22,7 @@ import Funil from "./pages/Funil";
 import Login from "./pages/Login";
 import AnamnesePaciente from "./pages/AnamnesePaciente";
 import AceitarConvite from "./pages/AceitarConvite";
+import RedefinirSenha from "./pages/RedefinirSenha";
 import NotFound from "./pages/NotFound";
 import ImportacaoAgendamentos from "./pages/ImportacaoAgendamentos";
 
@@ -78,6 +79,7 @@ const App = () => (
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/aceitar-convite" element={<AceitarConvite />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route path="/anamnese/:token" element={<AnamnesePaciente />} />
           <Route element={
             <ProtectedRoute>

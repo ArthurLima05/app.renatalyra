@@ -99,7 +99,7 @@ export default function AceitarConvite() {
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
-    if (password.length < 6) { setFormError('A senha deve ter pelo menos 6 caracteres.'); return; }
+    if (password.length < 8) { setFormError('A senha deve ter pelo menos 8 caracteres.'); return; }
     if (password !== confirm) { setFormError('As senhas não coincidem.'); return; }
 
     setSaving(true);
@@ -171,7 +171,7 @@ export default function AceitarConvite() {
                       type={showPw ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 8 caracteres"
                       required
                     />
                     <button

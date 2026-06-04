@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useAdmin } from '@/contexts/AdminContext';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -862,7 +863,7 @@ function AlterarSenhaSection() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
-    if (form.next.length < 6) { setFormError('A nova senha deve ter pelo menos 6 caracteres.'); return; }
+    if (form.next.length < 8) { setFormError('A nova senha deve ter pelo menos 8 caracteres.'); return; }
     if (form.next !== form.confirm) { setFormError('As senhas não coincidem.'); return; }
 
     setSaving(true);
@@ -911,7 +912,7 @@ function AlterarSenhaSection() {
                     type={show[field] ? 'text' : 'password'}
                     value={form[field]}
                     onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                    placeholder={field === 'next' ? 'Mínimo 6 caracteres' : ''}
+                    placeholder={field === 'next' ? 'Mínimo 8 caracteres' : ''}
                     required
                   />
                   <button
@@ -938,8 +939,11 @@ function AlterarSenhaSection() {
 // ── Seção: Usuários ───────────────────────────────────────────────────────────
 function UsuariosSection() {
   const { appUsers, inviteAppUser } = useAdmin();
+  const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
+
+  const isAdmin = appUsers.find(u => u.id === currentUser?.id)?.profile === 'administrador';
   const [isNewUserOpen, setIsNewUserOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', profile: '' as UserProfile | '' });
@@ -970,7 +974,13 @@ function UsuariosSection() {
           <h2 className="text-lg font-semibold">Usuários e Permissões</h2>
           <p className="text-sm text-muted-foreground mt-0.5 font-cocon">Gerencie quem acessa o sistema e o que pode fazer.</p>
         </div>
-        <Button size="sm" className="gap-2" onClick={() => setIsNewUserOpen(true)}>
+        <Button
+          size="sm"
+          className="gap-2"
+          onClick={() => setIsNewUserOpen(true)}
+          disabled={!isAdmin}
+          title={!isAdmin ? 'Apenas administradores podem convidar usuários' : undefined}
+        >
           <Plus className="h-4 w-4" /> Novo Usuário
         </Button>
       </div>

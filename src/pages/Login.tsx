@@ -11,11 +11,15 @@ import { motion } from 'framer-motion';
 
 const EASE = [0.25, 0.46, 0.45, 0.94] as const;
 
+type View = 'login' | 'forgot' | 'forgot-sent';
+
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [view, setView] = useState<View>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
+  const [forgotEmail, setForgotEmail] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +31,22 @@ export default function Login() {
       });
       if (error) throw error;
       navigate('/');
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      });
+      if (error) throw error;
+      setView('forgot-sent');
     } catch (error: any) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } finally {
@@ -122,17 +142,20 @@ export default function Login() {
               className="text-5xl leading-tight mb-2"
               style={{ color: 'hsl(40 5% 16%)', letterSpacing: '0.02em' }}
             >
-              Bem-vinda
+              {view === 'login' ? 'Bem-vinda' : 'Recuperar acesso'}
             </h1>
             <p
               className="font-cocon tracking-[0.04em] text-sm"
               style={{ color: 'hsl(40 8% 50%)' }}
             >
-              Acesse o sistema para continuar
+              {view === 'login' && 'Acesse o sistema para continuar'}
+              {view === 'forgot' && 'Informe seu e-mail para receber o link de redefinição'}
+              {view === 'forgot-sent' && 'Verifique sua caixa de entrada'}
             </p>
           </div>
 
-            {/* Formulário — estilo editorial com linha inferior */}
+          {/* ── View: login ── */}
+          {view === 'login' && (
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-1">
                 <Label
@@ -174,14 +197,86 @@ export default function Login() {
                 />
               </div>
 
-              <Button
-                type="submit"
-                className="w-full h-12 text-sm tracking-[0.06em] uppercase mt-4"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Entrando…' : 'Entrar'}
-              </Button>
+              <div className="space-y-3 mt-4">
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-sm tracking-[0.06em] uppercase"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Entrando…' : 'Entrar'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => { setForgotEmail(formData.email); setView('forgot'); }}
+                  className="w-full text-center text-xs font-cocon tracking-[0.08em]"
+                  style={{ color: 'hsl(40 8% 55%)' }}
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
             </form>
+          )}
+
+          {/* ── View: esqueci minha senha ── */}
+          {view === 'forgot' && (
+            <form onSubmit={handleForgotPassword} className="space-y-6">
+              <div className="space-y-1">
+                <Label
+                  htmlFor="forgot-email"
+                  className="text-[11px] tracking-[0.1em] uppercase"
+                  style={{ color: 'hsl(40 8% 50%)' }}
+                >
+                  E-mail
+                </Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="border-0 border-b rounded-none bg-transparent h-11 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/35"
+                  style={{ borderBottomColor: 'hsl(40 20% 76%)', borderBottomWidth: '1px', color: 'hsl(40 5% 16%)' }}
+                  required
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-sm tracking-[0.06em] uppercase"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Enviando…' : 'Enviar link'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setView('login')}
+                  className="w-full text-center text-xs font-cocon tracking-[0.08em]"
+                  style={{ color: 'hsl(40 8% 55%)' }}
+                >
+                  Voltar ao login
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ── View: e-mail enviado ── */}
+          {view === 'forgot-sent' && (
+            <div className="space-y-6">
+              <p className="text-sm" style={{ color: 'hsl(40 8% 40%)' }}>
+                Se <strong>{forgotEmail}</strong> estiver cadastrado no sistema, você receberá um link
+                de redefinição em breve. Verifique também a caixa de spam.
+              </p>
+              <button
+                type="button"
+                onClick={() => setView('login')}
+                className="w-full text-center text-xs font-cocon tracking-[0.08em]"
+                style={{ color: 'hsl(40 8% 55%)' }}
+              >
+                Voltar ao login
+              </button>
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
