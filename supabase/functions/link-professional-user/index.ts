@@ -11,6 +11,45 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Verifica autenticação do chamador
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+
+    // Valida o JWT com a chave anon (respeita a sessão real do usuário)
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user: caller }, error: authError } = await supabaseAuth.auth.getUser()
+    if (authError || !caller) {
+      return new Response(
+        JSON.stringify({ error: 'Sessão inválida' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
+    // 2. Verifica se o chamador é administrador
+    const { data: callerProfile } = await supabaseAuth
+      .from('app_users')
+      .select('profile')
+      .eq('id', caller.id)
+      .single()
+    if (callerProfile?.profile !== 'administrador') {
+      return new Response(
+        JSON.stringify({ error: 'Acesso negado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 },
+      )
+    }
+
+    // 3. Valida o payload
     const { professionalId, userId } = await req.json()
 
     if (!userId) {
@@ -20,11 +59,8 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Service role bypassa RLS completamente
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
+    // Service role bypassa RLS — seguro pois o chamador já foi validado acima
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // Remove vínculo anterior deste usuário (se houver)
     await supabase

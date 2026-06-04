@@ -11,6 +11,26 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Valida a API key do n8n
+    const apiKey = req.headers.get('x-api-key')
+    const expectedKey = Deno.env.get('N8N_WEBHOOK_SECRET')
+
+    if (!expectedKey) {
+      console.error('N8N_WEBHOOK_SECRET não configurado')
+      return new Response(
+        JSON.stringify({ error: 'Serviço não configurado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 },
+      )
+    }
+
+    if (!apiKey || apiKey !== expectedKey) {
+      return new Response(
+        JSON.stringify({ error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
+    // 2. Valida o payload
     const { phone } = await req.json()
 
     if (!phone) {
@@ -33,7 +53,7 @@ Deno.serve(async (req) => {
 
     if (!patient) {
       return new Response(
-        JSON.stringify({ hasAppointment: false, patientName: '', patientPhone: phone }),
+        JSON.stringify({ hasAppointment: false, patientName: '' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
       )
     }
@@ -55,7 +75,6 @@ Deno.serve(async (req) => {
       JSON.stringify({
         hasAppointment: (appointments?.length ?? 0) > 0,
         patientName: patient.full_name,
-        patientPhone: phone,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     )

@@ -22,6 +22,7 @@ import {
   Sun, Moon, Users, Plus, ChevronDown, ChevronUp, Mail, Phone, Shield,
   SlidersHorizontal, CalendarDays, List, Upload, FileSpreadsheet,
   CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, KeyRound, Eye, EyeOff,
+  Lock, RefreshCw,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,14 +57,16 @@ const PROFILE_COLORS: Record<UserProfile, string> = {
 };
 
 const MODULES: { id: AppModule; label: string; description: string }[] = [
-  { id: 'agenda',        label: 'Agenda',         description: 'Agendamentos e calendário' },
-  { id: 'dashboard',     label: 'Dashboard',      description: 'Métricas e relatórios' },
-  { id: 'pacientes',     label: 'Pacientes',      description: 'Cadastro e prontuários' },
-  { id: 'financeiro',    label: 'Financeiro',     description: 'Transações e parcelas' },
-  { id: 'profissionais', label: 'Profissionais',  description: 'Gestão de profissionais' },
-  { id: 'notificacoes',  label: 'Notificações',   description: 'Central de notificações' },
-  { id: 'configuracoes', label: 'Configurações',  description: 'Configurações do sistema' },
-  { id: 'funil' as AppModule,         label: 'Funil de Vendas', description: 'Leads e pipeline de conversão' },
+  { id: 'agenda',                                 label: 'Agenda',               description: 'Agendamentos e calendário' },
+  { id: 'dashboard',                              label: 'Dashboard',             description: 'Métricas e relatórios' },
+  { id: 'pacientes',                              label: 'Pacientes',             description: 'Cadastro e prontuários' },
+  { id: 'financeiro',                             label: 'Financeiro',            description: 'Transações e parcelas' },
+  { id: 'profissionais',                          label: 'Profissionais',         description: 'Gestão de profissionais' },
+  { id: 'notificacoes',                           label: 'Notificações',          description: 'Central de notificações' },
+  { id: 'configuracoes',                          label: 'Configurações',         description: 'Configurações do sistema' },
+  { id: 'funil' as AppModule,                     label: 'Funil de Vendas',       description: 'Leads e pipeline de conversão' },
+  { id: 'mensagens_whatsapp' as AppModule,        label: 'Mensagens WhatsApp',    description: 'Editar templates de mensagens automáticas' },
+  { id: 'feriados' as AppModule,                  label: 'Feriados',              description: 'Adicionar e remover feriados' },
 ];
 
 const CONFIRMATION_TEMPLATES = [
@@ -360,12 +363,12 @@ function ConfirmacaoCard({
 
         <div className="flex gap-2 justify-end">
           <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground"
-            disabled={!canEditFn('configuracoes')}
+            disabled={!canEditFn('mensagens_whatsapp')}
             onClick={() => setDrafts(p => ({ ...p, [tpl.key]: tpl.defaultValue }))}>
             <RotateCcw className="h-3.5 w-3.5" /> Restaurar
           </Button>
           <Button size="sm" className="gap-1.5"
-            disabled={!dirty || saving[tpl.key] || !canEditFn('configuracoes')}
+            disabled={!dirty || saving[tpl.key] || !canEditFn('mensagens_whatsapp')}
             onClick={handleSave}>
             <Save className="h-3.5 w-3.5" />{saving[tpl.key] ? 'Salvando...' : 'Salvar'}
           </Button>
@@ -466,12 +469,12 @@ function RetornoAlertaCard({
 
         <div className="flex gap-2 justify-end">
           <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground"
-            disabled={!canEditFn('configuracoes')}
+            disabled={!canEditFn('mensagens_whatsapp')}
             onClick={() => setDrafts(p => ({ ...p, [tpl.key]: tpl.defaultValue }))}>
             <RotateCcw className="h-3.5 w-3.5" /> Restaurar
           </Button>
           <Button size="sm" className="gap-1.5"
-            disabled={!dirty || saving[tpl.key] || !canEditFn('configuracoes')}
+            disabled={!dirty || saving[tpl.key] || !canEditFn('mensagens_whatsapp')}
             onClick={handleSave}>
             <Save className="h-3.5 w-3.5" />{saving[tpl.key] ? 'Salvando...' : 'Salvar'}
           </Button>
@@ -539,11 +542,11 @@ function MensagensSection() {
               value={feedbackLink}
               onChange={e => setFeedbackLink(e.target.value)}
               placeholder="https://g.page/r/..."
-              disabled={!canEdit('configuracoes')}
+              disabled={!canEdit('mensagens_whatsapp')}
             />
             <Button
               size="sm"
-              disabled={savingLink || feedbackLink === (clinicSettings['feedback_link'] ?? '') || !canEdit('configuracoes')}
+              disabled={savingLink || feedbackLink === (clinicSettings['feedback_link'] ?? '') || !canEdit('mensagens_whatsapp')}
               onClick={handleSaveFeedbackLink}
             >
               {savingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -603,11 +606,11 @@ function MensagensSection() {
 
                 <div className="flex gap-2 justify-end">
                   <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground"
-                    disabled={!canEdit('configuracoes')}
+                    disabled={!canEdit('mensagens_whatsapp')}
                     onClick={() => setDrafts(p => ({ ...p, [tpl.key]: tpl.defaultValue }))}>
                     <RotateCcw className="h-3.5 w-3.5" /> Restaurar
                   </Button>
-                  <Button size="sm" className="gap-1.5" disabled={!dirty || saving[tpl.key] || !canEdit('configuracoes')} onClick={() => handleSave(tpl.key)}>
+                  <Button size="sm" className="gap-1.5" disabled={!dirty || saving[tpl.key] || !canEdit('mensagens_whatsapp')} onClick={() => handleSave(tpl.key)}>
                     <Save className="h-3.5 w-3.5" />{saving[tpl.key] ? 'Salvando...' : 'Salvar'}
                   </Button>
                 </div>
@@ -622,49 +625,34 @@ function MensagensSection() {
 
 // ── Permissões por módulo (dentro do detalhe do usuário) ──────────────────────
 function ModulePermissionRow({
-  mod, perm, onChange, isAdmin,
+  mod, perm, onToggle, isAdmin,
 }: {
   mod: typeof MODULES[0];
   perm: UserPermission | undefined;
-  onChange: (field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => void;
+  onToggle: (enabled: boolean) => void;
   isAdmin: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const checks: { field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete'; label: string }[] = [
-    { field: 'canView',   label: 'Visualizar' },
-    { field: 'canCreate', label: 'Criar' },
-    { field: 'canEdit',   label: 'Editar' },
-    { field: 'canDelete', label: 'Excluir' },
-  ];
-  const active = perm ? Object.values({ a: perm.canView, b: perm.canCreate, c: perm.canEdit, d: perm.canDelete }).filter(Boolean).length : 0;
+  const enabled = !!(perm?.canView || perm?.canEdit);
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
-      >
-        <div className="flex-1">
-          <p className="text-sm font-medium">{mod.label}</p>
-          <p className="text-xs text-muted-foreground">{mod.description}</p>
-        </div>
-        <span className="text-xs text-muted-foreground mr-2">{active}/4 permissões</span>
-        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-      </button>
-      {open && (
-        <div className="px-4 pb-4 pt-2 border-t bg-secondary/20 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {checks.map(c => (
-            <label key={c.field} className={cn("flex items-center gap-2 select-none", isAdmin ? "cursor-pointer" : "cursor-default opacity-60")}>
-              <Checkbox
-                checked={perm?.[c.field] ?? false}
-                disabled={!isAdmin}
-                onCheckedChange={v => isAdmin && onChange(c.field, !!v)}
-              />
-              <span className="text-sm">{c.label}</span>
-            </label>
-          ))}
-        </div>
-      )}
+    <div className={cn(
+      'flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors',
+      enabled ? 'border-border bg-card' : 'border-border bg-muted/30',
+    )}>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{mod.label}</p>
+        <p className="text-xs text-muted-foreground truncate">{mod.description}</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className={cn('text-xs font-medium', enabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground')}>
+          {enabled ? 'Ativo' : 'Inativo'}
+        </span>
+        <Switch
+          checked={enabled}
+          disabled={!isAdmin}
+          onCheckedChange={v => isAdmin && onToggle(v)}
+        />
+      </div>
     </div>
   );
 }
@@ -672,9 +660,11 @@ function ModulePermissionRow({
 // ── Detalhe do usuário ────────────────────────────────────────────────────────
 function UserDetail({ user, onBack }: { user: AppUser; onBack: () => void }) {
   const { professionals, linkProfessionalToUser } = useClinic();
-  const { userPermissions, updateUserPermission, toggleAppUserActive } = useAdmin();
+  const { userPermissions, setModuleEnabled, toggleAppUserActive, reloadUserPermissions } = useAdmin();
   const { isAdmin } = usePermissionsCtx();
   const perms = userPermissions.filter(p => p.userId === user.id);
+
+  useEffect(() => { reloadUserPermissions(); }, [user.id]);
   const linkedProfessional = professionals.find(p => p.userId === user.id);
   const [linkingProf, setLinkingProf] = useState(false);
 
@@ -744,7 +734,7 @@ function UserDetail({ user, onBack }: { user: AppUser; onBack: () => void }) {
               mod={mod}
               isAdmin={isAdmin}
               perm={perms.find(p => p.module === mod.id)}
-              onChange={(field, value) => updateUserPermission(user.id, mod.id, field, value)}
+              onToggle={(enabled) => setModuleEnabled(user.id, mod.id, enabled)}
             />
           ))}
         </div>
@@ -1745,7 +1735,8 @@ const FERIADOS_NACIONAIS = [
 
 function FeriadosSection() {
   const { holidays, addHoliday, deleteHoliday } = useClinic();
-  const { isAdmin } = usePermissionsCtx();
+  const { isAdmin, canEdit } = usePermissionsCtx();
+  const canManage = canEdit('feriados');
   const { toast } = useToast();
   const [form, setForm] = useState({ date: '', name: '', recurring: false });
   const [saving, setSaving] = useState(false);
@@ -1809,62 +1800,67 @@ function FeriadosSection() {
         </p>
       </div>
 
-      {/* Formulário de adição — disponível para todos os usuários autenticados */}
-      <Card>
-        <CardContent className="pt-5 space-y-4">
-          <Label className="text-sm font-semibold">Adicionar Feriado</Label>
-          <form onSubmit={handleAdd} className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Data</Label>
-                <Input
-                  type="date"
-                  value={form.date}
-                  onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Nome</Label>
-                <Input
-                  placeholder="Ex: Carnaval"
-                  value={form.name}
-                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  required
-                />
-              </div>
+      {/* Formulário de adição */}
+      <div className={cn(!canManage && 'opacity-50 pointer-events-none')}>
+        <Card>
+          <CardContent className="pt-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-semibold">Adicionar Feriado</Label>
+              {!canManage && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
             </div>
-            <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-input accent-primary"
-                checked={form.recurring}
-                onChange={e => setForm(p => ({ ...p, recurring: e.target.checked }))}
-              />
-              <span className="text-sm">Repete todo ano (mesmo dia e mês)</span>
-            </label>
-            <div className="flex gap-2 justify-end">
-              {isAdmin && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={saving}
-                  onClick={handleAddNational}
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Pré-carregar feriados nacionais
+            <form onSubmit={handleAdd} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Data</Label>
+                  <Input
+                    type="date"
+                    value={form.date}
+                    onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Nome</Label>
+                  <Input
+                    placeholder="Ex: Carnaval"
+                    value={form.name}
+                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-input accent-primary"
+                  checked={form.recurring}
+                  onChange={e => setForm(p => ({ ...p, recurring: e.target.checked }))}
+                />
+                <span className="text-sm">Repete todo ano (mesmo dia e mês)</span>
+              </label>
+              <div className="flex gap-2 justify-end">
+                {canManage && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={saving}
+                    onClick={handleAddNational}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Pré-carregar feriados nacionais
+                  </Button>
+                )}
+                <Button type="submit" size="sm" className="gap-1.5" disabled={saving || !form.date || !form.name.trim()}>
+                  <Plus className="h-3.5 w-3.5" />
+                  {saving ? 'Salvando...' : 'Adicionar'}
                 </Button>
-              )}
-              <Button type="submit" size="sm" className="gap-1.5" disabled={saving || !form.date || !form.name.trim()}>
-                <Plus className="h-3.5 w-3.5" />
-                {saving ? 'Salvando...' : 'Adicionar'}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Lista de feriados */}
       {sorted.length === 0 ? (
@@ -1892,7 +1888,7 @@ function FeriadosSection() {
                   variant="ghost"
                   size="sm"
                   className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  disabled={deletingId === h.id}
+                  disabled={deletingId === h.id || !canManage}
                   onClick={() => handleDelete(h.id)}
                 >
                   {deletingId === h.id
@@ -1910,17 +1906,18 @@ function FeriadosSection() {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 const SECTIONS = [
-  { id: 'aparencia'    as Section, icon: Palette,            label: 'Aparência',              description: 'Tema claro ou escuro' },
-  { id: 'preferencias' as Section, icon: SlidersHorizontal, label: 'Preferências',           description: 'Visualização padrão da agenda' },
-  { id: 'senha'        as Section, icon: KeyRound,           label: 'Alterar Senha',          description: 'Atualize sua senha de acesso' },
-  { id: 'mensagens'    as Section, icon: MessageSquare,      label: 'Mensagens WhatsApp',     description: 'Templates de mensagens automáticas' },
-  { id: 'feriados'     as Section, icon: CalendarDays,       label: 'Feriados',               description: 'Dias de folga que fecham a agenda e marcam o financeiro' },
-  { id: 'importar'     as Section, icon: Upload,             label: 'Importar',               description: 'Importe pacientes ou agendamentos via Excel' },
-  { id: 'usuarios'     as Section, icon: Users,              label: 'Usuários e Permissões',  description: 'Quem acessa e o que pode fazer' },
+  { id: 'aparencia'    as Section, icon: Palette,            label: 'Aparência',              description: 'Tema claro ou escuro',                                          module: null as AppModule | null },
+  { id: 'preferencias' as Section, icon: SlidersHorizontal, label: 'Preferências',           description: 'Visualização padrão da agenda',                                 module: null as AppModule | null },
+  { id: 'senha'        as Section, icon: KeyRound,           label: 'Alterar Senha',          description: 'Atualize sua senha de acesso',                                  module: null as AppModule | null },
+  { id: 'mensagens'    as Section, icon: MessageSquare,      label: 'Mensagens WhatsApp',     description: 'Templates de mensagens automáticas',                            module: 'mensagens_whatsapp' as AppModule },
+  { id: 'feriados'     as Section, icon: CalendarDays,       label: 'Feriados',               description: 'Dias de folga que fecham a agenda e marcam o financeiro',       module: 'feriados' as AppModule },
+  { id: 'importar'     as Section, icon: Upload,             label: 'Importar',               description: 'Importe pacientes ou agendamentos via Excel',                   module: null as AppModule | null, adminOnly: true },
+  { id: 'usuarios'     as Section, icon: Users,              label: 'Usuários e Permissões',  description: 'Quem acessa e o que pode fazer',                                module: null as AppModule | null, adminOnly: true },
 ];
 
 export default function Configuracoes() {
   const [section, setSection] = useState<Section>(null);
+  const { isAdmin, canEdit, hasAnyPermission } = usePermissionsCtx();
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto space-y-6">
@@ -1932,17 +1929,28 @@ export default function Configuracoes() {
               <p className="text-muted-foreground mt-1">Personalize o sistema.</p>
             </div>
             <div className="space-y-2">
-              {SECTIONS.map(s => (
-                <button key={String(s.id)} onClick={() => setSection(s.id)}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:bg-secondary/60 transition-colors text-left">
-                  <div className="bg-primary/10 p-2.5 rounded-lg shrink-0"><s.icon className="h-5 w-5 text-primary" /></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold">{s.label}</p>
-                    <p className="text-xs text-muted-foreground">{s.description}</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                </button>
-              ))}
+              {SECTIONS.map(s => {
+                const locked = (s as any).adminOnly ? !isAdmin : (s.module ? !hasAnyPermission(s.module) : false);
+                return (
+                  <button key={String(s.id)} onClick={() => !locked && setSection(s.id)}
+                    className={cn(
+                      'w-full flex items-center gap-4 p-4 rounded-xl border border-border bg-card transition-colors text-left',
+                      locked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-secondary/60 cursor-pointer',
+                    )}>
+                    <div className={cn('bg-primary/10 p-2.5 rounded-lg shrink-0', locked && 'bg-muted/50')}>
+                      <s.icon className={cn('h-5 w-5 text-primary', locked && 'text-muted-foreground')} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold">{s.label}</p>
+                      <p className="text-xs text-muted-foreground">{s.description}</p>
+                    </div>
+                    {locked
+                      ? <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                      : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    }
+                  </button>
+                );
+              })}
             </div>
           </motion.div>
         ) : (

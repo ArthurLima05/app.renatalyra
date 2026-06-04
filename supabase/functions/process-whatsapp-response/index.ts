@@ -11,6 +11,26 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Valida a API key do n8n
+    const apiKey = req.headers.get('x-api-key')
+    const expectedKey = Deno.env.get('N8N_WEBHOOK_SECRET')
+
+    if (!expectedKey) {
+      console.error('N8N_WEBHOOK_SECRET não configurado')
+      return new Response(
+        JSON.stringify({ success: false, error: 'Serviço não configurado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 },
+      )
+    }
+
+    if (!apiKey || apiKey !== expectedKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
+    // 2. Valida o payload
     const { buttonId, phone } = await req.json()
 
     if (!buttonId || !phone) {
@@ -23,7 +43,7 @@ Deno.serve(async (req) => {
 
     console.log('Processando resposta WhatsApp:', { buttonId, phone })
 
-    // 1. Busca o paciente pelo telefone (tenta diferentes formatos)
+    // 3. Busca o paciente pelo telefone (tenta diferentes formatos)
     let patient = null
 
     let { data } = await supabase
@@ -54,7 +74,7 @@ Deno.serve(async (req) => {
 
     console.log('Paciente encontrado:', patient)
 
-    // 2. Busca o agendamento pendente de hoje ou futuro (evita confirmar consultas passadas esquecidas)
+    // 4. Busca o agendamento pendente de hoje ou futuro (evita confirmar consultas passadas esquecidas)
     const today = new Date().toISOString().split('T')[0]
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
@@ -73,10 +93,10 @@ Deno.serve(async (req) => {
 
     console.log('Agendamento encontrado:', appointment)
 
-    // 3. Define novo status
+    // 5. Define novo status
     const newStatus = buttonId === 'confirmar' ? 'confirmado' : 'cancelado'
 
-    // 4. Atualiza o status do agendamento
+    // 6. Atualiza o status do agendamento
     const { data: updatedAppointment, error: updateError } = await supabase
       .from('appointments')
       .update({ status: newStatus })

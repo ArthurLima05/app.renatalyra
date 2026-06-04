@@ -11,6 +11,26 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Valida a API key do n8n
+    const apiKey = req.headers.get('x-api-key')
+    const expectedKey = Deno.env.get('N8N_WEBHOOK_SECRET')
+
+    if (!expectedKey) {
+      console.error('N8N_WEBHOOK_SECRET não configurado')
+      return new Response(
+        JSON.stringify({ error: 'Serviço não configurado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 },
+      )
+    }
+
+    if (!apiKey || apiKey !== expectedKey) {
+      return new Response(
+        JSON.stringify({ error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
+    // 2. Valida o payload
     const { phone, markAsSent } = await req.json()
 
     if (!phone) {
@@ -25,7 +45,6 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    // Busca paciente pelo telefone (tenta formatos diferentes)
     let patient = null
     const { data: p1 } = await supabase
       .from('patients')
@@ -46,7 +65,6 @@ Deno.serve(async (req) => {
     }
 
     if (!patient) {
-      // Paciente não encontrado — permite envio (não bloqueia)
       console.log(`Paciente não encontrado para ${phone} — permite envio`)
       return new Response(
         JSON.stringify({ shouldSend: true, reason: 'patient_not_found' }),
@@ -54,7 +72,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Bloqueia se paciente já avaliou a clínica
     if (patient.feedback_given) {
       console.log(`${patient.full_name} já avaliou a clínica — feedback não enviado`)
       return new Response(
@@ -63,7 +80,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Se markAsSent = true, registra o envio
     if (markAsSent) {
       await supabase
         .from('patients')

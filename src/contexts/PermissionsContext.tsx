@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -36,46 +36,67 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
   const [isAdmin, setIsAdmin] = useState(false);
   const [perms, setPerms] = useState<PermMap>({});
   const [loading, setLoading] = useState(true);
+  const isAdminRef = useRef(false);
+
+  const load = useCallback(async (userId: string) => {
+    const { data: roleRows } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (roleRows?.[0]?.role === 'admin') {
+      setIsAdmin(true);
+      isAdminRef.current = true;
+      setLoading(false);
+      return;
+    }
+
+    const { data } = await (supabase as any)
+      .from('user_permissions')
+      .select('module, can_view, can_create, can_edit, can_delete')
+      .eq('user_id', userId);
+
+    const map: PermMap = {};
+    for (const row of data || []) {
+      map[row.module] = {
+        canView: row.can_view,
+        canCreate: row.can_create,
+        canEdit: row.can_edit,
+        canDelete: row.can_delete,
+      };
+    }
+    setPerms(map);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { setLoading(false); return; }
 
-    const load = async () => {
-      // Verifica se é admin pela tabela user_roles
-      const { data: roleRows } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .limit(1);
+    load(user.id);
 
-      if (roleRows?.[0]?.role === 'admin') {
-        setIsAdmin(true);
-        setLoading(false);
-        return;
-      }
+    // Realtime: propaga mudanças feitas pelo admin em tempo real
+    const channel = supabase
+      .channel(`permissions:${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_permissions', filter: `user_id=eq.${user.id}` },
+        () => { if (!isAdminRef.current) load(user.id); }
+      )
+      .subscribe();
 
-      // Carrega permissões do usuário pela tabela user_permissions
-      const { data } = await (supabase as any)
-        .from('user_permissions')
-        .select('module, can_view, can_create, can_edit, can_delete')
-        .eq('user_id', user.id);
-
-      const map: PermMap = {};
-      for (const row of data || []) {
-        map[row.module] = {
-          canView: row.can_view,
-          canCreate: row.can_create,
-          canEdit: row.can_edit,
-          canDelete: row.can_delete,
-        };
-      }
-      setPerms(map);
-      setLoading(false);
+    // Fallback: recarrega ao voltar para a aba (cobre casos onde Realtime falha)
+    const handleVisibility = () => {
+      if (!document.hidden && !isAdminRef.current) load(user.id);
     };
+    document.addEventListener('visibilitychange', handleVisibility);
 
-    load();
-  }, [user, authLoading]);
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [user, authLoading, load]);
 
   const canView   = useCallback((m: string) => isAdmin || (perms[m]?.canView   ?? false), [isAdmin, perms]);
   const canCreate = useCallback((m: string) => isAdmin || (perms[m]?.canCreate ?? false), [isAdmin, perms]);

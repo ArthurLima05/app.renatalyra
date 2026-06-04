@@ -17,6 +17,26 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Valida a API key do n8n
+    const apiKey = req.headers.get('x-api-key')
+    const expectedKey = Deno.env.get('N8N_WEBHOOK_SECRET')
+
+    if (!expectedKey) {
+      console.error('N8N_WEBHOOK_SECRET não configurado')
+      return new Response(
+        JSON.stringify({ error: 'Serviço não configurado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 },
+      )
+    }
+
+    if (!apiKey || apiKey !== expectedKey) {
+      return new Response(
+        JSON.stringify({ error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
+    // 2. Valida o payload
     const { id, type } = await req.json()
 
     if (!id || !type || !columnMap[type]) {

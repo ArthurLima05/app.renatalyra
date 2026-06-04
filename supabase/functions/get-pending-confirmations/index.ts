@@ -7,7 +7,7 @@ const corsHeaders = {
 
 function getHoursUntil(date: string, time: string): number {
   const datePart = date.split('T')[0]
-  const timePart = time.slice(0, 5) // garante formato HH:MM independente de HH:MM:SS
+  const timePart = time.slice(0, 5)
   const appointmentDate = new Date(`${datePart}T${timePart}:00-03:00`)
   return (appointmentDate.getTime() - Date.now()) / (1000 * 60 * 60)
 }
@@ -18,6 +18,25 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Valida a API key do n8n
+    const apiKey = req.headers.get('x-api-key')
+    const expectedKey = Deno.env.get('N8N_WEBHOOK_SECRET')
+
+    if (!expectedKey) {
+      console.error('N8N_WEBHOOK_SECRET não configurado')
+      return new Response(
+        JSON.stringify({ success: false, error: 'Serviço não configurado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 },
+      )
+    }
+
+    if (!apiKey || apiKey !== expectedKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -81,7 +100,6 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Notificações pendentes — 24h: ${appointments_24h.length}, 12h: ${appointments_12h.length}, 3h: ${appointments_3h.length}`)
-    console.log('Debug horas:', JSON.stringify(debug))
 
     return new Response(
       JSON.stringify({

@@ -11,6 +11,30 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Verifica autenticação do usuário logado
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Sessão inválida' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
+    // 2. Valida o payload
     const { patientId } = await req.json()
 
     if (!patientId) {
@@ -28,12 +52,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Busca dados do paciente
     const { data: patient, error: patientError } = await supabase
       .from('patients')
       .select('id, full_name, phone, feedback_given')
@@ -61,7 +82,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Busca link de feedback e template de mensagem nas configurações
     const { data: settings } = await supabase
       .from('clinic_settings')
       .select('key, value')
@@ -78,7 +98,6 @@ Deno.serve(async (req) => {
       .replace(/\{\{nome_paciente\}\}/g, patient.full_name)
       .replace(/\{\{link\}\}/g, feedbackLink)
 
-    // Chama o webhook do n8n
     const n8nRes = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

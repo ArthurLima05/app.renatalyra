@@ -126,6 +126,24 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
         <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
             const hasAccess = hasAnyPermission(item.module);
+
+            if (!hasAccess) {
+              return (
+                <div
+                  key={item.to}
+                  title={collapsed ? item.label : undefined}
+                  className={cn(
+                    'flex items-center rounded-lg px-2.5 py-2.5 text-sm opacity-30 cursor-not-allowed select-none',
+                    collapsed ? 'justify-center' : 'gap-3',
+                  )}
+                  style={{ color: 'var(--sb-text)' }}
+                >
+                  <item.icon className="h-[18px] w-[18px] shrink-0 opacity-70" />
+                  {!collapsed && <span className="flex-1 truncate font-medium text-[13px]">{item.label}</span>}
+                </div>
+              );
+            }
+
             return (
               <NavLink
                 key={item.to}
@@ -141,7 +159,6 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
                   cn(
                     'flex items-center rounded-lg transition-all duration-150 px-2.5 py-2.5 text-sm relative group',
                     collapsed ? 'justify-center' : 'gap-3',
-                    !hasAccess && 'opacity-30',
                   )
                 }
                 onMouseEnter={e => {

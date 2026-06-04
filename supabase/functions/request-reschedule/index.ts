@@ -11,6 +11,26 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Valida a API key do n8n
+    const apiKey = req.headers.get('x-api-key')
+    const expectedKey = Deno.env.get('N8N_WEBHOOK_SECRET')
+
+    if (!expectedKey) {
+      console.error('N8N_WEBHOOK_SECRET não configurado')
+      return new Response(
+        JSON.stringify({ success: false, error: 'Serviço não configurado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 },
+      )
+    }
+
+    if (!apiKey || apiKey !== expectedKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
+    // 2. Valida o payload
     const { phone, appointmentId, message } = await req.json()
 
     if (!phone) {
@@ -23,10 +43,9 @@ Deno.serve(async (req) => {
 
     console.log('Processando solicitação de remarcação:', { phone, appointmentId })
 
-    // 1. Busca o paciente pelo telefone (tenta diferentes formatos)
+    // 3. Busca o paciente pelo telefone (tenta diferentes formatos)
     let patient = null
-    
-    // Tenta primeiro com o telefone exato
+
     const { data } = await supabase
       .from('patients')
       .select('id, full_name, phone')
@@ -36,19 +55,16 @@ Deno.serve(async (req) => {
     if (data) {
       patient = data
     } else if (phone.length === 12 && phone.startsWith('55')) {
-      // Se não encontrou e o telefone tem 12 dígitos, tenta adicionar um 9
       const phoneWithNine = phone.slice(0, 4) + '9' + phone.slice(4)
       console.log('Tentando formato alternativo:', phoneWithNine)
-      
+
       const { data: data2 } = await supabase
         .from('patients')
         .select('id, full_name, phone')
         .eq('phone', phoneWithNine)
         .maybeSingle()
-      
-      if (data2) {
-        patient = data2
-      }
+
+      if (data2) patient = data2
     }
 
     if (!patient) {
@@ -58,10 +74,9 @@ Deno.serve(async (req) => {
 
     console.log('Paciente encontrado:', patient)
 
-    // 2. Se appointmentId foi fornecido, busca esse agendamento específico
-    // Senão, busca o último agendamento cancelado do paciente
+    // 4. Busca agendamento
     let appointment = null
-    
+
     if (appointmentId) {
       const { data: appointmentData } = await supabase
         .from('appointments')
@@ -72,7 +87,6 @@ Deno.serve(async (req) => {
 
       appointment = appointmentData
     } else {
-      // Prioriza o próximo agendamento confirmado/agendado de hoje ou futuro
       const today = new Date().toISOString().split('T')[0]
       const { data: agendado } = await supabase
         .from('appointments')
@@ -87,7 +101,6 @@ Deno.serve(async (req) => {
       if (agendado) {
         appointment = agendado
       } else {
-        // Fallback: consulta mais recente cancelada
         const { data: cancelado } = await supabase
           .from('appointments')
           .select('id, date, time, status')
@@ -101,8 +114,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Atualiza status do agendamento para 'sugerido'
-    // Isso remove o agendamento do ciclo de confirmações automáticas (24h, 12h, 3h)
+    // 5. Atualiza status para 'sugerido'
     if (appointment?.id) {
       const { error: updateError } = await supabase
         .from('appointments')
@@ -116,8 +128,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Cria notificação urgente de remarcação
-    const notificationMessage = message 
+    // 6. Cria notificação de remarcação
+    const notificationMessage = message
       ? `${patient.full_name} deseja remarcar a consulta. Mensagem: ${message}`
       : `${patient.full_name} deseja remarcar a consulta${appointment ? ` que estava agendada para ${new Date(appointment.date).toLocaleDateString('pt-BR')} às ${appointment.time}` : ''}`
 
@@ -130,7 +142,7 @@ Deno.serve(async (req) => {
         date: new Date().toISOString(),
         read: false,
         patient_id: patient.id,
-        appointment_id: appointment?.id || null
+        appointment_id: appointment?.id || null,
       })
       .select()
       .single()
@@ -147,25 +159,16 @@ Deno.serve(async (req) => {
         success: true,
         message: 'Solicitação de remarcação registrada com sucesso',
         notification,
-        patient: patient,
-        appointment: appointment
+        patient,
+        appointment,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     )
   } catch (error) {
     console.error('Erro na função request-reschedule:', error)
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 },
     )
   }
 })

@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 interface AdminContextType {
   appUsers: AppUser[];
   userPermissions: UserPermission[];
+  reloadUserPermissions: () => Promise<void>;
+  setModuleEnabled: (userId: string, module: AppModule, enabled: boolean) => Promise<void>;
   inviteAppUser: (data: { email: string; fullName: string; phone?: string; profile: UserProfile }) => Promise<void>;
   toggleAppUserActive: (id: string, active: boolean) => Promise<void>;
   updateUserPermission: (userId: string, module: AppModule, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => Promise<void>;
@@ -70,6 +72,45 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { error } = await (supabase as any).from('app_users').update({ active }).eq('id', id);
     if (error) { toast({ title: 'Erro ao atualizar usuário', description: error.message, variant: 'destructive' }); throw error; }
     setAppUsers(prev => prev.map(u => u.id === id ? { ...u, active } : u));
+  };
+
+  const setModuleEnabled = async (userId: string, module: AppModule, enabled: boolean) => {
+    const payload = {
+      can_view: enabled,
+      can_create: enabled,
+      can_edit: enabled,
+      can_delete: enabled,
+      updated_at: new Date().toISOString(),
+    };
+
+    // UPDATE primeiro — não aciona política de INSERT
+    const { data: updated, error: updateError } = await (supabase as any)
+      .from('user_permissions')
+      .update(payload)
+      .eq('user_id', userId)
+      .eq('module', module)
+      .select('id');
+
+    if (updateError) {
+      toast({ title: 'Erro ao salvar permissão', description: updateError.message, variant: 'destructive' });
+      throw updateError;
+    }
+
+    // Se não existia linha, INSERT
+    if (!updated || updated.length === 0) {
+      const { error: insertError } = await (supabase as any)
+        .from('user_permissions')
+        .insert({ user_id: userId, module, ...payload });
+      if (insertError) {
+        toast({ title: 'Erro ao salvar permissão', description: insertError.message, variant: 'destructive' });
+        throw insertError;
+      }
+    }
+
+    toast({ title: enabled ? 'Módulo ativado' : 'Módulo desativado', description: `Permissão salva com sucesso.` });
+
+    // Recarrega do banco para garantir estado correto
+    await loadUserPermissions();
   };
 
   const updateUserPermission = async (userId: string, module: AppModule, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => {
@@ -211,6 +252,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const value: AdminContextType = {
     appUsers,
     userPermissions,
+    reloadUserPermissions: loadUserPermissions,
+    setModuleEnabled,
     inviteAppUser,
     toggleAppUserActive,
     updateUserPermission,

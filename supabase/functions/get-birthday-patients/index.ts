@@ -11,17 +11,34 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1. Valida a API key do n8n
+    const apiKey = req.headers.get('x-api-key')
+    const expectedKey = Deno.env.get('N8N_WEBHOOK_SECRET')
+
+    if (!expectedKey) {
+      console.error('N8N_WEBHOOK_SECRET não configurado')
+      return new Response(
+        JSON.stringify({ success: false, error: 'Serviço não configurado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 },
+      )
+    }
+
+    if (!apiKey || apiKey !== expectedKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Não autorizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+      )
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Dia e mês atuais no fuso Brasil (UTC-3)
     const now = new Date(Date.now() - 3 * 60 * 60 * 1000)
     const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
     const dd = String(now.getUTCDate()).padStart(2, '0')
     const mmdd = `${mm}-${dd}`
 
-    // Busca todos os pacientes com data de nascimento e telefone preenchidos
     const { data: allPatients, error } = await supabase
       .from('patients')
       .select('id, full_name, phone, birth_date')
@@ -31,7 +48,6 @@ Deno.serve(async (req) => {
 
     if (error) throw error
 
-    // Filtra em JS os que fazem aniversário hoje (birth_date vem como "YYYY-MM-DD")
     const patients = (allPatients ?? []).filter((p: { birth_date: string | null }) => {
       const bd = p.birth_date
       if (!bd) return false
@@ -39,7 +55,6 @@ Deno.serve(async (req) => {
       return parts[1] === mm && parts[2] === dd
     })
 
-    // Busca template de mensagem configurado
     const { data: setting } = await supabase
       .from('clinic_settings')
       .select('value')
@@ -64,10 +79,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Erro em get-birthday-patients:', error)
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro desconhecido',
-      }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 },
     )
   }

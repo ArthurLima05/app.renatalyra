@@ -26,7 +26,9 @@ export type AppModule =
   | 'profissionais'
   | 'notificacoes'
   | 'configuracoes'
-  | 'funil';
+  | 'funil'
+  | 'mensagens_whatsapp'
+  | 'feriados';
 
 export interface AppUser {
   id: string;
