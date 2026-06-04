@@ -1428,7 +1428,7 @@ const ProntuarioPaciente = () => {
         </TabsContent>
       </Tabs>
 
-      {(reciboSession || reciboAnual) && patient && (
+      {patient && (
         <ReciboModal
           open={!!(reciboSession || reciboAnual)}
           onClose={() => { setReciboSession(null); setReciboAnual(false); }}

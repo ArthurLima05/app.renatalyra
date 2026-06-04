@@ -297,7 +297,7 @@ export const ReciboModal = ({ open, onClose, patient, session, allSessions, defa
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
-    onClose();
+    setTimeout(() => onClose(), 0);
   };
 
   const canPrint = data.amount.trim() && data.amountText.trim() && data.patientName.trim();
