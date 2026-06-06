@@ -251,7 +251,7 @@ export const ReciboModal = ({ open, onClose, patient, session, allSessions, defa
 
   // ── Dados do formulário ──────────────────────────────────────────────────
   const initData = () => {
-    if (mode === 'anual') {
+    if (mode === 'anual' || !session) {
       return {
         date: format(new Date(), 'yyyy-MM-dd'),
         amount: annualAmountFormatted,
@@ -261,7 +261,7 @@ export const ReciboModal = ({ open, onClose, patient, session, allSessions, defa
         service: `Tratamento Odontológico – Exercício ${selectedYear}`,
       };
     }
-    const s = session!;
+    const s = session;
     const amt = s.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return {
       date: format(s.date, 'yyyy-MM-dd'),

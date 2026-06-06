@@ -1435,7 +1435,7 @@ const ProntuarioPaciente = () => {
           patient={patient}
           session={reciboSession}
           allSessions={sessions}
-          defaultMode={reciboAnual && !reciboSession ? 'anual' : 'sessao'}
+          defaultMode={reciboSession ? 'sessao' : 'anual'}
         />
       )}
     </motion.div>
