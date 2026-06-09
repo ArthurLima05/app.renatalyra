@@ -52,8 +52,11 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const todayStr    = getBrDateStr(0)
-    const tomorrowStr = getBrDateStr(1)
+    // Limites de cada dia em BRT (UTC-3) como ISO strings — compatível com timestamptz
+    const tomorrowStart = `${getBrDateStr(1)}T00:00:00-03:00`
+    const tomorrowEnd   = `${getBrDateStr(2)}T00:00:00-03:00`
+    const todayStart    = `${getBrDateStr(0)}T00:00:00-03:00`
+    const todayEnd      = tomorrowStart
 
     // ── Modo "tomorrow" — disparado pelo scheduler das 15h ──────────────────
     // Busca consultas de AMANHÃ que ainda não receberam notificação.
@@ -73,7 +76,8 @@ Deno.serve(async (req) => {
             professionals (id, name, specialty)
           `)
           .eq('status', 'agendado')
-          .eq('date', tomorrowStr)
+          .gte('date', tomorrowStart)
+          .lt('date', tomorrowEnd)
           .is('notified_24h_at', null)
           .order('time', { ascending: true }),
       ])
@@ -112,7 +116,8 @@ Deno.serve(async (req) => {
           professionals (id, name, specialty)
         `)
         .eq('status', 'agendado')
-        .eq('date', todayStr)
+        .gte('date', todayStart)
+        .lt('date', todayEnd)
         .order('time', { ascending: true }),
     ])
 

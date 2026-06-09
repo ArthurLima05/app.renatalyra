@@ -30,3 +30,4 @@ n8n_workflows/
 *.njsproj
 *.sln
 *.sw?
+.bot_confirmacao_v2.json
