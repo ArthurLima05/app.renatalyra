@@ -13,10 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  Trophy,
   X,
 } from 'lucide-react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
+import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +44,7 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: SidebarProps) => {
   const { notifications } = useClinic();
   const { hasAnyPermission } = usePermissionsCtx();
+  const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const { toast } = useToast();
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -203,6 +206,65 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
             );
           })}
         </nav>
+
+        {/* Copa 2026 — visível apenas para admin */}
+        {isAdmin && (
+          <div className="px-2 pb-2 shrink-0">
+            <div className="h-px mb-2" style={{ background: 'var(--sb-border)' }} />
+            <NavLink
+              to="/palpites-copa"
+              onClick={() => setIsOpen(false)}
+              title={collapsed ? 'Copa 2026' : undefined}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center rounded-lg px-2.5 py-2.5 text-sm transition-all duration-150 relative group overflow-hidden',
+                  collapsed ? 'justify-center' : 'gap-3',
+                  isActive
+                    ? 'text-amber-300'
+                    : 'text-amber-400/70 hover:text-amber-300',
+                )
+              }
+              style={({ isActive }) => ({
+                background: isActive
+                  ? 'linear-gradient(135deg, hsl(150 50% 12%), hsl(40 40% 14%))'
+                  : undefined,
+              })}
+              onMouseEnter={e => {
+                if (!e.currentTarget.dataset.active)
+                  e.currentTarget.style.background = 'linear-gradient(135deg, hsl(150 50% 10%), hsl(40 35% 12%))';
+              }}
+              onMouseLeave={e => {
+                if (!e.currentTarget.dataset.active)
+                  e.currentTarget.style.background = '';
+              }}
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <span
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
+                      style={{ background: 'hsl(40 80% 60%)' }}
+                    />
+                  )}
+                  <Trophy className={cn('h-[18px] w-[18px] shrink-0', isActive ? 'opacity-100' : 'opacity-70')} />
+                  {!collapsed && (
+                    <span className={cn('flex-1 truncate font-medium text-[13px]', isActive && 'font-semibold')}>
+                      Copa 2026
+                    </span>
+                  )}
+                  {!collapsed && (
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0"
+                      style={{ background: 'hsl(150 50% 20%)', color: 'hsl(150 70% 60%)' }}
+                    >
+                      Beta
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          </div>
+        )}
 
         {/* Símbolo decorativo */}
         {!collapsed && (

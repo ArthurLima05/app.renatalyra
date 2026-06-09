@@ -25,6 +25,8 @@ import AceitarConvite from "./pages/AceitarConvite";
 import RedefinirSenha from "./pages/RedefinirSenha";
 import NotFound from "./pages/NotFound";
 import ImportacaoAgendamentos from "./pages/ImportacaoAgendamentos";
+import PalpiteCopa from "./pages/PalpiteCopa";
+import PalpitesCopa from "./pages/PalpitesCopa";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +83,7 @@ const App = () => (
           <Route path="/aceitar-convite" element={<AceitarConvite />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route path="/anamnese/:token" element={<AnamnesePaciente />} />
+          <Route path="/palpite-copa" element={<PalpiteCopa />} />
           <Route element={
             <ProtectedRoute>
               <ClinicProvider>
@@ -126,6 +129,7 @@ const App = () => (
               <ModuleRoute module="funil"><Funil /></ModuleRoute>
             } />
             <Route path="/importacao-agendamentos" element={<ImportacaoAgendamentos />} />
+            <Route path="/palpites-copa" element={<PalpitesCopa />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
