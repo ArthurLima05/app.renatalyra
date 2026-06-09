@@ -54,7 +54,7 @@ function CountUnit({ value, label }: { value: number; label: string }) {
     <div className="flex flex-col items-center">
       <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center shadow-inner">
         <span
-          className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums"
+          className="text-2xl sm:text-3xl font-bold text-white tabular-nums"
           style={{ fontFamily: "'Bebas Neue', sans-serif" }}
         >
           {String(value).padStart(2, "0")}
@@ -82,10 +82,10 @@ function ScoreSelector({
         onClick={() => onChange(value + 1)}
         className="w-10 h-10 rounded-full bg-primary/20 hover:bg-primary/40 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors active:scale-95"
       >
-        <Plus className="w-4 h-4 text-foreground" />
+        <Plus className="w-4 h-4 text-white" />
       </button>
       <span
-        className="text-6xl sm:text-7xl font-bold text-foreground tabular-nums leading-none w-16 text-center select-none"
+        className="text-6xl sm:text-7xl font-bold text-white tabular-nums leading-none w-16 text-center select-none"
         style={{ fontFamily: "'Bebas Neue', sans-serif" }}
       >
         {value}
@@ -96,7 +96,7 @@ function ScoreSelector({
         onClick={() => onChange(Math.max(0, value - 1))}
         className="w-10 h-10 rounded-full bg-primary/20 hover:bg-primary/40 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors active:scale-95"
       >
-        <Minus className="w-4 h-4 text-foreground" />
+        <Minus className="w-4 h-4 text-white" />
       </button>
     </div>
   );
