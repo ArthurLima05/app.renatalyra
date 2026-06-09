@@ -72,15 +72,17 @@ const MODULES: { id: AppModule; label: string; description: string }[] = [
 const CONFIRMATION_TEMPLATES = [
   {
     key: 'msg_appointment_confirmation',
-    tabLabel: '24h antes',
+    tabLabel: 'Primeiro lembrete',
+    description: 'Enviado às 15h do dia anterior.',
     variables: ['{{nome_paciente}}', '{{data}}', '{{hora}}'],
     defaultValue: 'Olá, {{nome_paciente}}! 😊 Você tem consulta para *{{data}}* às *{{hora}}*.',
   },
   {
     key: 'msg_confirmation_12h',
-    tabLabel: '12h antes',
+    tabLabel: 'Segundo lembrete',
+    description: 'Enviado às 8h do dia da consulta, se ainda não confirmado.',
     variables: ['{{nome_paciente}}', '{{data}}', '{{hora}}'],
-    defaultValue: '🔔 Ainda aguardamos sua confirmação.\n\nOlá, {{nome_paciente}}! Sua consulta está marcada para *{{data}}* às *{{hora}}*.',
+    defaultValue: '🔔 Ainda aguardamos sua confirmação.\n\nOlá, {{nome_paciente}}! Sua consulta está marcada para *hoje* às *{{hora}}*. Confirme com SIM ou cancele com NÃO.',
   },
 ];
 
@@ -309,7 +311,6 @@ function ConfirmacaoCard({
           </p>
         </div>
 
-        {/* Tabs 24h / 12h */}
         <div className="flex rounded-lg bg-muted p-1 gap-1">
           {CONFIRMATION_TEMPLATES.map((t, i) => (
             <button
@@ -325,6 +326,7 @@ function ConfirmacaoCard({
             </button>
           ))}
         </div>
+        <p className="text-xs text-muted-foreground">{tpl.description}</p>
 
         {/* Variable chips */}
         <div className="flex flex-wrap gap-1.5 items-center">

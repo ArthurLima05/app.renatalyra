@@ -5,18 +5,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Gera variantes do telefone para cobrir diferentes formatações no banco
+// Ex: "5511987654321" → também tenta "11987654321" (sem prefixo 55)
+function buildPhoneCandidates(phone: string): string[] {
+  const candidates = new Set<string>([phone])
+
+  if (phone.startsWith('55') && phone.length >= 12) {
+    candidates.add(phone.slice(2)) // sem prefixo 55
+  }
+  if (!phone.startsWith('55') && phone.length >= 10) {
+    candidates.add('55' + phone) // com prefixo 55
+  }
+  // Formato antigo sem 9º dígito (12 dígitos com 55)
+  if (phone.startsWith('55') && phone.length === 12) {
+    candidates.add(phone.slice(0, 4) + '9' + phone.slice(4))
+  }
+
+  return [...candidates]
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    // 1. Valida a API key do n8n
     const apiKey = req.headers.get('x-api-key')
     const expectedKey = Deno.env.get('N8N_WEBHOOK_SECRET')
 
     if (!expectedKey) {
-      console.error('N8N_WEBHOOK_SECRET não configurado')
       return new Response(
         JSON.stringify({ success: false, error: 'Serviço não configurado' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 },
@@ -30,41 +47,34 @@ Deno.serve(async (req) => {
       )
     }
 
-    // 2. Valida o payload
     const { buttonId, phone } = await req.json()
 
     if (!buttonId || !phone) {
       throw new Error('buttonId e phone são obrigatórios')
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
 
     console.log('Processando resposta WhatsApp:', { buttonId, phone })
 
-    // 3. Busca o paciente pelo telefone (tenta diferentes formatos)
-    let patient = null
+    // Busca o paciente tentando todas as variantes de formatação do telefone
+    let patient: { id: string; full_name: string } | null = null
 
-    let { data } = await supabase
-      .from('patients')
-      .select('id, full_name')
-      .eq('phone', phone)
-      .maybeSingle()
-
-    if (data) {
-      patient = data
-    } else if (phone.length === 12 && phone.startsWith('55')) {
-      const phoneWithNine = phone.slice(0, 4) + '9' + phone.slice(4)
-      console.log('Tentando formato alternativo:', phoneWithNine)
-
-      const { data: data2 } = await supabase
+    for (const candidate of buildPhoneCandidates(phone)) {
+      const { data } = await supabase
         .from('patients')
         .select('id, full_name')
-        .eq('phone', phoneWithNine)
+        .eq('phone', candidate)
         .maybeSingle()
 
-      if (data2) patient = data2
+      if (data) {
+        patient = data
+        console.log(`Paciente encontrado com telefone: ${candidate}`)
+        break
+      }
     }
 
     if (!patient) {
@@ -72,31 +82,31 @@ Deno.serve(async (req) => {
       throw new Error(`Paciente não encontrado para o telefone ${phone}`)
     }
 
-    console.log('Paciente encontrado:', patient)
-
-    // 4. Busca o agendamento pendente de hoje ou futuro (evita confirmar consultas passadas esquecidas)
+    // Busca o agendamento pendente mais próximo que JÁ foi notificado.
+    // Exige notified_24h_at para garantir que o paciente realmente recebeu
+    // uma mensagem de confirmação — evita confirmar fora de contexto.
     const today = new Date().toISOString().split('T')[0]
+
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
-      .select('id, date, time, status, professional_id')
+      .select('id, date, time, status, professional_id, notified_24h_at')
       .eq('patient_id', patient.id)
       .eq('status', 'agendado')
+      .not('notified_24h_at', 'is', null)
       .gte('date', today)
       .order('date', { ascending: true })
       .limit(1)
       .maybeSingle()
 
     if (appointmentError || !appointment) {
-      console.error('Agendamento não encontrado para paciente:', patient.id)
-      throw new Error(`Nenhum agendamento pendente encontrado para ${patient.full_name}`)
+      console.error('Nenhum agendamento notificado pendente para:', patient.id)
+      throw new Error(`Nenhum agendamento aguardando confirmação para ${patient.full_name}`)
     }
 
     console.log('Agendamento encontrado:', appointment)
 
-    // 5. Define novo status
     const newStatus = buttonId === 'confirmar' ? 'confirmado' : 'cancelado'
 
-    // 6. Atualiza o status do agendamento
     const { data: updatedAppointment, error: updateError } = await supabase
       .from('appointments')
       .update({ status: newStatus })
@@ -104,10 +114,7 @@ Deno.serve(async (req) => {
       .select()
       .single()
 
-    if (updateError) {
-      console.error('Erro ao atualizar agendamento:', updateError)
-      throw updateError
-    }
+    if (updateError) throw updateError
 
     console.log(`Agendamento ${newStatus}:`, updatedAppointment)
 
@@ -120,22 +127,16 @@ Deno.serve(async (req) => {
         patient,
         professional_id: appointment.professional_id ?? null,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     )
   } catch (error) {
-    console.error('Erro na função process-whatsapp-response:', error)
+    console.error('Erro em process-whatsapp-response:', error)
     return new Response(
       JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : 'Erro desconhecido',
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 },
     )
   }
 })

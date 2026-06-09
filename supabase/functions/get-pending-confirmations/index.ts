@@ -5,11 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function getHoursUntil(date: string, time: string): number {
-  const datePart = date.split('T')[0]
-  const timePart = time.slice(0, 5)
-  const appointmentDate = new Date(`${datePart}T${timePart}:00-03:00`)
-  return (appointmentDate.getTime() - Date.now()) / (1000 * 60 * 60)
+function getBrDateStr(offsetDays = 0): string {
+  const br = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
+  br.setDate(br.getDate() + offsetDays)
+  const y = br.getFullYear()
+  const m = String(br.getMonth() + 1).padStart(2, '0')
+  const d = String(br.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 Deno.serve(async (req) => {
@@ -18,12 +20,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 1. Valida a API key do n8n
     const apiKey = req.headers.get('x-api-key')
     const expectedKey = Deno.env.get('N8N_WEBHOOK_SECRET')
 
     if (!expectedKey) {
-      console.error('N8N_WEBHOOK_SECRET não configurado')
       return new Response(
         JSON.stringify({ success: false, error: 'Serviço não configurado' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 },
@@ -37,84 +37,103 @@ Deno.serve(async (req) => {
       )
     }
 
+    const body = await req.json().catch(() => ({}))
+    const mode: string = body.mode ?? 'tomorrow'
+
+    if (mode !== 'tomorrow' && mode !== 'today') {
+      return new Response(
+        JSON.stringify({ success: false, error: 'mode deve ser "tomorrow" ou "today"' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
+      )
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const { data: appointments, error } = await supabase
-      .from('appointments')
-      .select(`
-        id,
-        date,
-        time,
-        status,
-        notes,
-        patient_id,
-        professional_id,
-        notified_24h_at,
-        notified_12h_at,
-        notified_3h_at,
-        patients (id, full_name, phone, email),
-        professionals (id, name, specialty)
-      `)
-      .eq('status', 'agendado')
-      .order('date', { ascending: true })
+    const todayStr    = getBrDateStr(0)
+    const tomorrowStr = getBrDateStr(1)
+
+    // ── Modo "tomorrow" — disparado pelo scheduler das 15h ──────────────────
+    // Busca consultas de AMANHÃ que ainda não receberam notificação.
+    if (mode === 'tomorrow') {
+      const [{ data: setting }, { data: appointments, error }] = await Promise.all([
+        supabase
+          .from('clinic_settings')
+          .select('value')
+          .eq('key', 'msg_appointment_confirmation')
+          .maybeSingle(),
+        supabase
+          .from('appointments')
+          .select(`
+            id, date, time, status, patient_id, professional_id,
+            notified_24h_at,
+            patients (id, full_name, phone, email),
+            professionals (id, name, specialty)
+          `)
+          .eq('status', 'agendado')
+          .eq('date', tomorrowStr)
+          .is('notified_24h_at', null)
+          .order('time', { ascending: true }),
+      ])
+
+      if (error) throw error
+
+      const confirmationMessage = setting?.value
+        ?? 'Olá {{nome_paciente}}, tudo bem? 😊\n\nSua consulta está marcada para *amanhã, {{data}}* às *{{hora}}*.\n\nConfirme sua presença respondendo *SIM* ou cancele respondendo *NÃO*.\n\n❤️ Clínica Dra. Renata Lyra'
+
+      console.log(`[tomorrow] ${appointments?.length ?? 0} consultas para notificar`)
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          mode,
+          appointments_tomorrow: appointments ?? [],
+          confirmationMessage,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
+      )
+    }
+
+    // ── Modo "today" — disparado pelo scheduler das 8h ──────────────────────
+    // Busca consultas de HOJE que ainda não foram confirmadas (status agendado).
+    const [{ data: setting2 }, { data: appointments, error }] = await Promise.all([
+      supabase
+        .from('clinic_settings')
+        .select('value')
+        .eq('key', 'msg_confirmation_12h')
+        .maybeSingle(),
+      supabase
+        .from('appointments')
+        .select(`
+          id, date, time, status, patient_id, professional_id,
+          patients (id, full_name, phone, email),
+          professionals (id, name, specialty)
+        `)
+        .eq('status', 'agendado')
+        .eq('date', todayStr)
+        .order('time', { ascending: true }),
+    ])
 
     if (error) throw error
 
-    const { data: setting } = await supabase
-      .from('clinic_settings')
-      .select('value')
-      .eq('key', 'msg_appointment_confirmation')
-      .maybeSingle()
+    const reminderMessage = setting2?.value
+      ?? '🔔 Ainda aguardamos sua confirmação.\n\nOlá {{nome_paciente}}! Sua consulta está marcada para *hoje* às *{{hora}}*. Confirme com SIM ou cancele com NÃO.'
 
-    const { data: setting12h } = await supabase
-      .from('clinic_settings')
-      .select('value')
-      .eq('key', 'msg_confirmation_12h')
-      .maybeSingle()
-
-    const confirmationMessage = setting?.value
-      ?? 'Olá {{nome_paciente}}, tudo bem? Sua consulta está marcada para {{data}} às {{hora}}. Por favor, confirme sua presença.'
-
-    const confirmationMessage12h = setting12h?.value
-      ?? '🔔 Ainda aguardamos sua confirmação.\n\nOlá {{nome_paciente}}, sua consulta está marcada para {{data}} às {{hora}}.'
-
-    const appointments_24h = []
-    const appointments_12h = []
-    const appointments_3h = []
-    const debug = []
-
-    for (const appt of (appointments ?? [])) {
-      const hours = getHoursUntil(appt.date, appt.time)
-      debug.push({ id: appt.id, date: appt.date, time: appt.time, hours_until: Math.round(hours * 100) / 100 })
-
-      if (hours >= 22 && hours <= 26 && !appt.notified_24h_at) {
-        appointments_24h.push(appt)
-      } else if (hours >= 10 && hours <= 14 && !appt.notified_12h_at) {
-        appointments_12h.push(appt)
-      } else if (hours >= 2 && hours <= 4 && !appt.notified_3h_at) {
-        appointments_3h.push(appt)
-      }
-    }
-
-    console.log(`Notificações pendentes — 24h: ${appointments_24h.length}, 12h: ${appointments_12h.length}, 3h: ${appointments_3h.length}`)
+    console.log(`[today] ${appointments?.length ?? 0} consultas sem confirmação`)
 
     return new Response(
       JSON.stringify({
         success: true,
-        appointments_24h,
-        appointments_12h,
-        appointments_3h,
-        confirmationMessage,
-        confirmationMessage12h,
-        debug,
+        mode,
+        appointments_today: appointments ?? [],
+        reminderMessage,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     )
   } catch (error) {
-    console.error('Erro na função get-pending-confirmations:', error)
+    console.error('Erro em get-pending-confirmations:', error)
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 },
