@@ -73,16 +73,16 @@ const CONFIRMATION_TEMPLATES = [
   {
     key: 'msg_appointment_confirmation',
     tabLabel: 'Primeiro lembrete',
-    description: 'Enviado às 15h do dia anterior.',
+    description: 'Enviado às 8h do dia anterior (sexta-feira, no caso de consultas de segunda-feira).',
     variables: ['{{nome_paciente}}', '{{data}}', '{{hora}}'],
     defaultValue: 'Olá, {{nome_paciente}}! 😊 Você tem consulta para *{{data}}* às *{{hora}}*.',
   },
   {
     key: 'msg_confirmation_12h',
     tabLabel: 'Segundo lembrete',
-    description: 'Enviado às 8h do dia da consulta, se ainda não confirmado.',
+    description: 'Enviado às 15h do dia anterior (domingo, no caso de consultas de segunda-feira), se ainda não confirmado.',
     variables: ['{{nome_paciente}}', '{{data}}', '{{hora}}'],
-    defaultValue: '🔔 Ainda aguardamos sua confirmação.\n\nOlá, {{nome_paciente}}! Sua consulta está marcada para *hoje* às *{{hora}}*. Confirme com SIM ou cancele com NÃO.',
+    defaultValue: '🔔 Ainda aguardamos sua confirmação.\n\nOlá, {{nome_paciente}}! Sua consulta está marcada para o dia *{{data}}* às *{{hora}}*. Confirme com SIM ou cancele com NÃO.',
   },
 ];
 

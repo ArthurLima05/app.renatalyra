@@ -5,6 +5,8 @@ import { Odontogram as OdontogramChart } from "react-odontogram";
 import "react-odontogram/style.css";
 import { useClinic } from "@/contexts/ClinicContext";
 import { useProntuario } from "@/contexts/ProntuarioContext";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +22,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -33,7 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Printer, ChevronDown } from "lucide-react";
+import { Plus, Printer, ChevronDown, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -73,18 +85,81 @@ const STATUS_BADGE: Record<OdontogramStatus, "default" | "secondary" | "outline"
 const DEC_UPPER = [55, 54, 53, 52, 51, 61, 62, 63, 64, 65];
 const DEC_LOWER = [85, 84, 83, 82, 81, 71, 72, 73, 74, 75];
 
-// Mapeamento FDI permanente (biblioteca) ↔ FDI decíduo
+// A biblioteca react-odontogram desenha os grupos SVG dos quadrantes
+// inferiores trocados de lado: o elemento "teeth-3X" fica fisicamente onde
+// a notação FDI padrão (e os rótulos fixos do gráfico) esperam o
+// quadrante 4, e "teeth-4X" fica onde se espera o quadrante 3. A correção
+// é sua própria inversa, então serve tanto para ler quanto para destacar.
+const fixLowerQuadrantSwap = (fdi: string): string => {
+  const n = parseInt(fdi, 10);
+  const quad = Math.floor(n / 10);
+  const pos = n % 10;
+  if (quad === 3) return String(40 + pos);
+  if (quad === 4) return String(30 + pos);
+  return fdi;
+};
+
+// Mapeamento FDI permanente (corrigido) ↔ FDI decíduo
 // A biblioteca usa quadrantes 1-4; decídua usa 5-8 (mesmo dígito de posição)
 // ex: "11" → 51,  "25" → 65,  "41" → 81
-const permToDecFDI = (permFdi: string): number => {
-  const n = parseInt(permFdi, 10);
+const permToDecFDI = (rawLibFdi: string): number => {
+  const fixed = fixLowerQuadrantSwap(rawLibFdi);
+  const n = parseInt(fixed, 10);
   return (Math.floor(n / 10) + 4) * 10 + (n % 10);
 };
 const decToPermId = (decFdi: number): string => {
   const q = Math.floor(decFdi / 10) - 4; // 5→1, 6→2, 7→3, 8→4
   const pos = decFdi % 10;
-  return `teeth-${q}${pos}`;
+  return `teeth-${fixLowerQuadrantSwap(`${q}${pos}`)}`;
 };
+
+// Tabelas para recalcular Universal/Palmer a partir do FDI já corrigido —
+// a biblioteca calcula esses valores a partir do FDI bruto (trocado de
+// lado nos quadrantes inferiores, ver fixLowerQuadrantSwap).
+const FDI_TO_UNIVERSAL: Record<string, number> = {
+  "11": 8, "12": 7, "13": 6, "14": 5, "15": 4, "16": 3, "17": 2, "18": 1,
+  "21": 9, "22": 10, "23": 11, "24": 12, "25": 13, "26": 14, "27": 15, "28": 16,
+  "31": 24, "32": 23, "33": 22, "34": 21, "35": 20, "36": 19, "37": 18, "38": 17,
+  "41": 25, "42": 26, "43": 27, "44": 28, "45": 29, "46": 30, "47": 31, "48": 32,
+};
+const PALMER_QUADRANT_LABEL: Record<string, string> = { "1": "UR", "2": "UL", "3": "LL", "4": "LR" };
+
+// Tipos de dentes decíduos por posição (1-5 dentro do quadrante) — a
+// biblioteca não conhece dentição decídua e devolve o tipo do dente
+// permanente correspondente, que não corresponde à mesma posição.
+const DECIDUOUS_TOOTH_TYPE: Record<string, string> = {
+  "1": "Segundo molar decíduo",
+  "2": "Primeiro molar decíduo",
+  "3": "Canino decíduo",
+  "4": "Incisivo lateral decíduo",
+  "5": "Incisivo central decíduo",
+};
+
+function permanentToothTooltip(payload?: ToothDetail) {
+  if (!payload) return null;
+  const fdi = fixLowerQuadrantSwap(payload.notations.fdi);
+  const universal = FDI_TO_UNIVERSAL[fdi];
+  const palmer = `${fdi[1]}${PALMER_QUADRANT_LABEL[fdi[0]] ?? ""}`;
+  return (
+    <>
+      <div>Dente: {fdi}</div>
+      <div>Tipo: {payload.type}</div>
+      <div>Universal: {universal ?? "—"}, Palmer: {palmer}</div>
+    </>
+  );
+}
+
+function deciduousToothTooltip(payload?: ToothDetail) {
+  if (!payload) return null;
+  const decFdi = permToDecFDI(payload.notations.fdi);
+  const pos = decFdi % 10;
+  return (
+    <>
+      <div>Dente: {decFdi}</div>
+      <div>Tipo: {DECIDUOUS_TOOTH_TYPE[String(pos)] ?? payload.type}</div>
+    </>
+  );
+}
 
 function parseFacesForTooth(toothFaces: string[], tooth: string): string {
   const perTooth = toothFaces.find((f) => f.startsWith(`${tooth}:`));
@@ -358,9 +433,14 @@ const emptyForm = () => ({
 
 export function Odontograma({ patientId }: { patientId: string }) {
   const { professionals, getPatientById } = useClinic();
-  const { addOdontogramProcedure, getOdontogramByPatientId, odontogramProcedures } = useProntuario();
+  const { addOdontogramProcedure, deleteOdontogramProcedure, getOdontogramByPatientId, odontogramProcedures } = useProntuario();
+  const { user } = useAuth();
+  const { isAdmin, isSecretaria } = useUserRole();
   const patient = getPatientById(patientId);
   const procedures = getOdontogramByPatientId(patientId);
+
+  const isLinkedProfessional = professionals.some((p) => p.userId === user?.id);
+  const canDeleteProcedure = isAdmin || isSecretaria || isLinkedProfessional;
 
   const procedureSuggestions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -379,6 +459,8 @@ export function Odontograma({ patientId }: { patientId: string }) {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [selectedDecTeeth, setSelectedDecTeeth] = useState<Set<number>>(new Set());
+  const [deletingProcId, setDeletingProcId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Condições para o gráfico permanente
   const teethConditions = useMemo(() => {
@@ -395,7 +477,7 @@ export function Odontograma({ patientId }: { patientId: string }) {
     const groups: Record<OdontogramStatus, string[]> = {
       a_realizar: [], executado: [], existente: [],
     };
-    toothStatus.forEach((status, tn) => groups[status].push(`teeth-${tn}`));
+    toothStatus.forEach((status, tn) => groups[status].push(`teeth-${fixLowerQuadrantSwap(tn)}`));
 
     return (["a_realizar", "executado", "existente"] as OdontogramStatus[])
       .filter((s) => groups[s].length > 0)
@@ -437,7 +519,7 @@ export function Odontograma({ patientId }: { patientId: string }) {
   }, [procedures]);
 
   const handleOdontogramChange = (selected: ToothDetail[]) => {
-    setSelectedToothNums(selected.map((t) => t.notations.fdi));
+    setSelectedToothNums(selected.map((t) => fixLowerQuadrantSwap(t.notations.fdi)));
   };
 
   const handleDecOdontogramChange = (selected: ToothDetail[]) => {
@@ -516,9 +598,9 @@ export function Odontograma({ patientId }: { patientId: string }) {
         procedureDescription: form.procedureDescription,
         status: form.status,
         professionalId: form.professionalId,
-        executionDate: new Date(form.executionDate),
+        executionDate: new Date(form.executionDate + 'T12:00:00'),
         nextAppointmentDate: form.nextAppointmentDate
-          ? new Date(form.nextAppointmentDate)
+          ? new Date(form.nextAppointmentDate + 'T12:00:00')
           : undefined,
         notes: form.notes || undefined,
       });
@@ -526,6 +608,17 @@ export function Odontograma({ patientId }: { patientId: string }) {
       clearSelection();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingProcId) return;
+    setDeleting(true);
+    try {
+      await deleteOdontogramProcedure(deletingProcId);
+      setDeletingProcId(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -630,6 +723,7 @@ export function Odontograma({ patientId }: { patientId: string }) {
                 showLabels={teethConditions.length > 0}
                 notation="FDI"
                 layout="square"
+                tooltip={{ content: permanentToothTooltip }}
                 styles={{ width: "100%" }}
               />
 
@@ -682,6 +776,7 @@ export function Odontograma({ patientId }: { patientId: string }) {
                 notation="FDI"
                 layout="square"
                 maxTeeth={5}
+                tooltip={{ content: deciduousToothTooltip }}
                 styles={{ width: "100%" }}
               />
 
@@ -917,9 +1012,21 @@ export function Odontograma({ patientId }: { patientId: string }) {
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <p className="text-sm font-medium leading-snug">{proc.procedureDescription}</p>
-                    <Badge variant={STATUS_BADGE[proc.status]} className="text-xs flex-shrink-0">
-                      {STATUS_LABEL[proc.status]}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <Badge variant={STATUS_BADGE[proc.status]} className="text-xs">
+                        {STATUS_LABEL[proc.status]}
+                      </Badge>
+                      {canDeleteProcedure && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          onClick={() => setDeletingProcId(proc.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span>{format(proc.executionDate, "dd/MM/yyyy", { locale: ptBR })}</span>
@@ -941,6 +1048,27 @@ export function Odontograma({ patientId }: { patientId: string }) {
           })}
         </div>
       )}
+
+      <AlertDialog open={!!deletingProcId} onOpenChange={(open) => !open && setDeletingProcId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Procedimento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este procedimento do odontograma? Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

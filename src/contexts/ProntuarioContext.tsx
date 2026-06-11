@@ -18,6 +18,7 @@ import { useClinic } from "./ClinicContext";
 interface ProntuarioContextType {
   odontogramProcedures: OdontogramProcedure[];
   addOdontogramProcedure: (proc: Omit<OdontogramProcedure, "id" | "createdAt">) => Promise<void>;
+  deleteOdontogramProcedure: (id: string) => Promise<void>;
   getOdontogramByPatientId: (patientId: string) => OdontogramProcedure[];
   anamneseQuestions: AnamneseQuestion[];
   anamneseResponses: AnamneseResponse[];
@@ -403,8 +404,8 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         procedureDescription: r.procedure_description,
         status: r.status,
         professionalId: r.professional_id,
-        executionDate: new Date(r.execution_date),
-        nextAppointmentDate: r.next_appointment_date ? new Date(r.next_appointment_date) : undefined,
+        executionDate: new Date(r.execution_date + 'T12:00:00'),
+        nextAppointmentDate: r.next_appointment_date ? new Date(r.next_appointment_date + 'T12:00:00') : undefined,
         notes: r.notes ?? undefined,
         createdAt: new Date(r.created_at),
       }))
@@ -430,6 +431,16 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
     toast({ title: "Procedimento salvo com sucesso" });
     await loadOdontogramProcedures();
+  };
+
+  const deleteOdontogramProcedure = async (id: string) => {
+    const { error } = await supabase.from("odontogram_procedures").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir procedimento", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    setOdontogramProcedures((prev) => prev.filter((p) => p.id !== id));
+    toast({ title: "Procedimento excluído" });
   };
 
   const getOdontogramByPatientId = (patientId: string) =>
@@ -530,6 +541,7 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const value: ProntuarioContextType = {
     odontogramProcedures,
     addOdontogramProcedure,
+    deleteOdontogramProcedure,
     getOdontogramByPatientId,
     anamneseQuestions,
     anamneseResponses,

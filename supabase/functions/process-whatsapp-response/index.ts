@@ -5,20 +5,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Gera variantes do telefone para cobrir diferentes formatações no banco
-// Ex: "5511987654321" → também tenta "11987654321" (sem prefixo 55)
+// Gera variantes do telefone para cobrir diferentes formatações no banco:
+// com/sem prefixo 55 (DDI) × com/sem o 9º dígito do celular.
+// Ex: "5581999662386" → também tenta "81999662386", "8199662386" e "558199662386"
 function buildPhoneCandidates(phone: string): string[] {
   const candidates = new Set<string>([phone])
 
-  if (phone.startsWith('55') && phone.length >= 12) {
-    candidates.add(phone.slice(2)) // sem prefixo 55
+  const withCountryCode = phone.startsWith('55') ? phone : '55' + phone
+  const withoutCountryCode = phone.startsWith('55') ? phone.slice(2) : phone
+
+  candidates.add(withCountryCode)
+  candidates.add(withoutCountryCode)
+
+  // DDD (2) + 9 + número (8) = 11 dígitos → também tenta sem o 9º dígito
+  if (withoutCountryCode.length === 11 && withoutCountryCode[2] === '9') {
+    const semNono = withoutCountryCode.slice(0, 2) + withoutCountryCode.slice(3)
+    candidates.add(semNono)
+    candidates.add('55' + semNono)
   }
-  if (!phone.startsWith('55') && phone.length >= 10) {
-    candidates.add('55' + phone) // com prefixo 55
-  }
-  // Formato antigo sem 9º dígito (12 dígitos com 55)
-  if (phone.startsWith('55') && phone.length === 12) {
-    candidates.add(phone.slice(0, 4) + '9' + phone.slice(4))
+
+  // DDD (2) + número (8) = 10 dígitos → também tenta com o 9º dígito
+  if (withoutCountryCode.length === 10) {
+    const comNono = withoutCountryCode.slice(0, 2) + '9' + withoutCountryCode.slice(2)
+    candidates.add(comNono)
+    candidates.add('55' + comNono)
   }
 
   return [...candidates]
