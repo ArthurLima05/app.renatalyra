@@ -20,6 +20,9 @@ dist-ssr
 # Workflows n8n — backup local, não versionado (contém credenciais)
 n8n_workflows/
 
+# Arquivos temporários de importação — dados de pacientes, não versionado
+tmp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

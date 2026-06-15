@@ -6,15 +6,29 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Input } from "@/components/ui/input";
 import brasilFlag from "../../imagens-copa/brasil.png";
 import marrocosFlag from "../../imagens-copa/marrocos.png";
+import haitiFlag from "../../imagens-copa/haiti.png";
 
 interface Palpite {
   id: string;
   nome: string;
   cpf: string;
+  adversario: string;
   placar_brasil: number;
-  placar_marrocos: number;
+  placar_adversario: number;
   created_at: string;
 }
+
+interface Jogo {
+  key: string;
+  label: string;
+  flag: string;
+  data: string;
+}
+
+const JOGOS: Jogo[] = [
+  { key: "Haiti", label: "Brasil × Haiti", flag: haitiFlag, data: "Copa do Mundo 2026 · 19/06 · 21h30" },
+  { key: "Marrocos", label: "Brasil × Marrocos", flag: marrocosFlag, data: "Copa do Mundo 2026 · 13/06 · 19h00" },
+];
 
 function maskCPF(cpf: string) {
   if (cpf.length !== 11) return cpf;
@@ -34,7 +48,7 @@ function getMostPopularScore(palpites: Palpite[]) {
   if (!palpites.length) return "—";
   const counts: Record<string, number> = {};
   palpites.forEach((p) => {
-    const key = `${p.placar_brasil}x${p.placar_marrocos}`;
+    const key = `${p.placar_brasil}x${p.placar_adversario}`;
     counts[key] = (counts[key] ?? 0) + 1;
   });
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
@@ -52,6 +66,7 @@ export default function PalpitesCopa() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [jogo, setJogo] = useState<string>(JOGOS[0].key);
 
   async function fetchPalpites() {
     setLoading(true);
@@ -72,7 +87,10 @@ export default function PalpitesCopa() {
     else { setSortKey(key); setSortDir("asc"); }
   }
 
-  const filtered = palpites
+  const jogoAtual = JOGOS.find((j) => j.key === jogo) ?? JOGOS[0];
+  const palpitesDoJogo = palpites.filter((p) => p.adversario === jogo);
+
+  const filtered = palpitesDoJogo
     .filter((p) =>
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
       p.cpf.includes(search.replace(/\D/g, ""))
@@ -86,7 +104,7 @@ export default function PalpitesCopa() {
       return 0;
     });
 
-  const hoje = palpites.filter((p) => {
+  const hoje = palpitesDoJogo.filter((p) => {
     const d = new Date(p.created_at);
     const n = new Date();
     return d.getDate() === n.getDate() && d.getMonth() === n.getMonth();
@@ -138,9 +156,9 @@ export default function PalpitesCopa() {
               <p className="text-xs uppercase tracking-[0.2em] text-primary/50 mb-0.5">Temporada Copa</p>
               <h1 className="font-cocon text-2xl sm:text-3xl text-primary tracking-wide"
                 style={{ textShadow: "0 2px 16px hsl(40 45% 68% / 0.35)" }}>
-                Palpites — Brasil × Marrocos
+                Palpites — {jogoAtual.label}
               </h1>
-              <p className="text-xs text-white/30 mt-0.5">Copa do Mundo 2026 · 13/06 · 19h00</p>
+              <p className="text-xs text-white/30 mt-0.5">{jogoAtual.data}</p>
             </div>
           </div>
 
@@ -148,12 +166,35 @@ export default function PalpitesCopa() {
           <div className="flex items-center gap-3 sm:mr-4">
             <img src={brasilFlag} alt="Brasil" className="w-10 h-10 object-contain rounded-lg opacity-90 shadow-lg" />
             <span className="text-lg font-bold text-white/20">×</span>
-            <img src={marrocosFlag} alt="Marrocos" className="w-10 h-10 object-contain rounded-lg opacity-90 shadow-lg" />
+            <img src={jogoAtual.flag} alt={jogoAtual.key} className="w-10 h-10 object-contain rounded-lg opacity-90 shadow-lg" />
           </div>
         </div>
       </div>
 
       <div className="px-4 sm:px-6 py-6 max-w-5xl mx-auto space-y-6">
+        {/* Seletor de jogo */}
+        <div className="flex items-center gap-2">
+          {JOGOS.map((j) => {
+            const count = palpites.filter((p) => p.adversario === j.key).length;
+            const active = j.key === jogo;
+            return (
+              <button
+                key={j.key}
+                onClick={() => setJogo(j.key)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-transparent bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                <img src={j.flag} alt={j.key} className="w-5 h-5 object-contain rounded" />
+                {j.label}
+                <span className="text-xs text-muted-foreground/60">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -163,13 +204,13 @@ export default function PalpitesCopa() {
           {[
             {
               label: "Total de palpites",
-              value: palpites.length,
+              value: palpitesDoJogo.length,
               icon: Users,
               color: "hsl(40 45% 68%)",
             },
             {
               label: "Mais palpitado",
-              value: getMostPopularScore(palpites),
+              value: getMostPopularScore(palpitesDoJogo),
               icon: Trophy,
               color: "hsl(150 50% 40%)",
             },
@@ -298,9 +339,9 @@ export default function PalpitesCopa() {
                           className="text-base font-bold text-foreground tabular-nums"
                           style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                         >
-                          {p.placar_marrocos}
+                          {p.placar_adversario}
                         </span>
-                        <img src={marrocosFlag} alt="MA" className="w-5 h-5 object-contain rounded" />
+                        <img src={jogoAtual.flag} alt={jogoAtual.key} className="w-5 h-5 object-contain rounded" />
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-right text-muted-foreground text-xs">

@@ -6,11 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import brasilFlag from "../../imagens-copa/brasil.png";
-import marrocosFlag from "../../imagens-copa/marrocos.png";
+import haitiFlag from "../../imagens-copa/haiti.png";
 import renataBrasil from "../../imagens-copa/renata-brasil.jpg";
 
-// Prazo: Sábado 13/06/2026 às 18:59 BRT (UTC-3) = 21:59 UTC
-const DEADLINE = new Date("2026-06-13T21:59:00Z");
+// Prazo: Sexta-feira 19/06/2026 às 21:29 BRT (UTC-3) = 00:29 UTC do dia 20/06
+const DEADLINE = new Date("2026-06-20T00:29:00Z");
 
 function formatCPF(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
@@ -116,7 +116,7 @@ export default function PalpiteCopa() {
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
   const [scoreBrasil, setScoreBrasil] = useState(0);
-  const [scoreMarrocos, setScoreMarrocos] = useState(0);
+  const [scoreHaiti, setScoreHaiti] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -138,8 +138,9 @@ export default function PalpiteCopa() {
     const { error: dbError } = await supabase.from("palpites_copa").insert({
       nome: nome.trim(),
       cpf: cpf.replace(/\D/g, ""),
+      adversario: "Haiti",
       placar_brasil: scoreBrasil,
-      placar_marrocos: scoreMarrocos,
+      placar_adversario: scoreHaiti,
     });
     setLoading(false);
 
@@ -215,7 +216,7 @@ export default function PalpiteCopa() {
                 <CountUnit value={seconds} label="seg" />
               </div>
               <p className="text-xs text-muted-foreground/60 text-center">
-                Prazo até sábado, 13/06 às 18h59 — Jogo começa às 19h00
+                Prazo até sexta-feira, 19/06 às 21h29 — Jogo começa às 21h30
               </p>
             </motion.div>
           )}
@@ -251,9 +252,9 @@ export default function PalpiteCopa() {
                     </div>
                     <span className="text-xl font-bold text-primary/40">×</span>
                     <div className="flex flex-col items-center gap-2">
-                      <img src={marrocosFlag} alt="Marrocos" className="w-10 h-10 object-contain rounded" />
-                      <span className="text-3xl font-bold text-white" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>{scoreMarrocos}</span>
-                      <span className="text-xs text-muted-foreground/60">Marrocos</span>
+                      <img src={haitiFlag} alt="Haiti" className="w-10 h-10 object-contain rounded" />
+                      <span className="text-3xl font-bold text-white" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>{scoreHaiti}</span>
+                      <span className="text-xs text-muted-foreground/60">Haiti</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-primary/70">
@@ -326,8 +327,8 @@ export default function PalpiteCopa() {
                 >
                   {/* Match header */}
                   <div className="bg-primary/10 border-b border-white/10 py-3 px-5 flex items-center justify-between">
-                    <span className="text-xs uppercase tracking-widest text-primary/60">Brasil × Marrocos</span>
-                    <span className="text-xs text-muted-foreground/50">13/06/2026 — 19h00</span>
+                    <span className="text-xs uppercase tracking-widest text-primary/60">Brasil × Haiti</span>
+                    <span className="text-xs text-muted-foreground/50">19/06/2026 — 21h30</span>
                   </div>
 
                   <div className="p-6 sm:p-8">
@@ -351,17 +352,17 @@ export default function PalpiteCopa() {
                       {/* Separator */}
                       <span className="text-3xl font-bold text-primary/30 mb-2">×</span>
 
-                      {/* Marrocos */}
+                      {/* Haiti */}
                       <div className="flex flex-col items-center gap-3">
                         <img
-                          src={marrocosFlag}
-                          alt="Marrocos"
+                          src={haitiFlag}
+                          alt="Haiti"
                           className="w-14 h-14 object-contain rounded-lg shadow-md"
                         />
-                        <span className="text-xs font-semibold uppercase tracking-widest text-white/60">Marrocos</span>
+                        <span className="text-xs font-semibold uppercase tracking-widest text-white/60">Haiti</span>
                         <ScoreSelector
-                          value={scoreMarrocos}
-                          onChange={setScoreMarrocos}
+                          value={scoreHaiti}
+                          onChange={setScoreHaiti}
                           disabled={isFormDisabled}
                         />
                       </div>
@@ -437,7 +438,7 @@ export default function PalpiteCopa() {
 
                 {/* Footer hint */}
                 <p className="text-center text-xs text-white/25 mt-4 leading-relaxed">
-                  Palpites aceitos até sábado, 13/06 às 18h59
+                  Palpites aceitos até sexta-feira, 19/06 às 21h29
                   <br />
                   Clínica Dra. Renata Lyra — Copa do Mundo 2026
                 </p>

@@ -70,37 +70,32 @@ Deno.serve(async (req) => {
 
     console.log('Processando resposta WhatsApp:', { buttonId, phone })
 
-    // Busca o paciente tentando todas as variantes de formatação do telefone
-    let patient: { id: string; full_name: string } | null = null
+    // Busca todos os pacientes que casam com alguma variante de formatação do telefone.
+    // Importante: o mesmo telefone pode estar cadastrado em vários pacientes
+    // (ex: familiares que compartilham o número), então não dá para assumir
+    // um único resultado aqui.
+    const { data: patients, error: patientsError } = await supabase
+      .from('patients')
+      .select('id, full_name')
+      .in('phone', buildPhoneCandidates(phone))
 
-    for (const candidate of buildPhoneCandidates(phone)) {
-      const { data } = await supabase
-        .from('patients')
-        .select('id, full_name')
-        .eq('phone', candidate)
-        .maybeSingle()
+    if (patientsError) throw patientsError
 
-      if (data) {
-        patient = data
-        console.log(`Paciente encontrado com telefone: ${candidate}`)
-        break
-      }
-    }
-
-    if (!patient) {
+    if (!patients || patients.length === 0) {
       console.error('Paciente não encontrado para nenhum formato:', phone)
       throw new Error(`Paciente não encontrado para o telefone ${phone}`)
     }
 
-    // Busca o agendamento pendente mais próximo que JÁ foi notificado.
+    // Busca o agendamento pendente mais próximo que JÁ foi notificado, entre
+    // todos os pacientes que compartilham este telefone.
     // Exige notified_24h_at para garantir que o paciente realmente recebeu
     // uma mensagem de confirmação — evita confirmar fora de contexto.
     const today = new Date().toISOString().split('T')[0]
 
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
-      .select('id, date, time, status, professional_id, notified_24h_at')
-      .eq('patient_id', patient.id)
+      .select('id, date, time, status, professional_id, notified_24h_at, patient_id')
+      .in('patient_id', patients.map((p: { id: string; full_name: string }) => p.id))
       .eq('status', 'agendado')
       .not('notified_24h_at', 'is', null)
       .gte('date', today)
@@ -108,10 +103,14 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle()
 
-    if (appointmentError || !appointment) {
-      console.error('Nenhum agendamento notificado pendente para:', patient.id)
-      throw new Error(`Nenhum agendamento aguardando confirmação para ${patient.full_name}`)
+    if (appointmentError) throw appointmentError
+
+    if (!appointment) {
+      console.error('Nenhum agendamento notificado pendente para o telefone:', phone)
+      throw new Error(`Nenhum agendamento aguardando confirmação para o telefone ${phone}`)
     }
+
+    const patient = patients.find((p: { id: string; full_name: string }) => p.id === appointment.patient_id)!
 
     console.log('Agendamento encontrado:', appointment)
 
