@@ -44,7 +44,7 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: SidebarProps) => {
   const { notifications } = useClinic();
   const { hasAnyPermission } = usePermissionsCtx();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, isSecretaria } = useUserRole();
   const navigate = useNavigate();
   const { toast } = useToast();
   const unreadCount = notifications.filter(n => !n.read).length;
