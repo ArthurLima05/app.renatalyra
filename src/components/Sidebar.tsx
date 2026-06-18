@@ -207,8 +207,8 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
           })}
         </nav>
 
-        {/* Copa 2026 — visível apenas para admin */}
-        {isAdmin && (
+        {/* Copa 2026 — visível para admin e secretaria */}
+        {(isAdmin || isSecretaria) && (
           <div className="px-2 pb-2 shrink-0">
             <div className="h-px mb-2" style={{ background: 'var(--sb-border)' }} />
             <NavLink

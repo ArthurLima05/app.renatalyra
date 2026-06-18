@@ -116,18 +116,26 @@ Deno.serve(async (req) => {
 
     // ── Modo "lembrete" — disparado pelo scheduler das 15h ───────────────────
     // Busca consultas de amanhã que ainda não foram confirmadas (status agendado).
+    // Inclui notified_24h_at para distinguir quem recebeu o aviso das 8h
+    // (lembrete) de quem nunca foi notificado (primeira e única mensagem).
     const { start, end } = dayBounds(1)
 
-    const [{ data: setting }, { data: appointments, error }] = await Promise.all([
+    const [{ data: settingLembrete }, { data: settingPrimeira }, { data: appointments, error }] = await Promise.all([
       supabase
         .from('clinic_settings')
         .select('value')
         .eq('key', 'msg_confirmation_12h')
         .maybeSingle(),
       supabase
+        .from('clinic_settings')
+        .select('value')
+        .eq('key', 'msg_appointment_first_only')
+        .maybeSingle(),
+      supabase
         .from('appointments')
         .select(`
           id, date, time, status, patient_id, professional_id,
+          notified_24h_at,
           patients (id, full_name, phone, email),
           professionals (id, name, specialty)
         `)
@@ -139,8 +147,13 @@ Deno.serve(async (req) => {
 
     if (error) throw error
 
-    const message = setting?.value
+    // message → lembrete para quem já recebeu o aviso das 8h
+    const message = settingLembrete?.value
       ?? '🔔 Ainda aguardamos sua confirmação.\n\nOlá {{nome_paciente}}! Sua consulta está marcada para o dia *{{data}}* às *{{hora}}*. Confirme com SIM ou cancele com NÃO.'
+
+    // message_primeira → primeira (e única) notificação para quem foi agendado depois das 8h
+    const message_primeira = settingPrimeira?.value
+      ?? 'Olá {{nome_paciente}}! 😊\n\nSua consulta com {{profissional}} está marcada para *amanhã, {{data}}* às *{{hora}}*.\n\nResponda:\n*SIM* para confirmar\n*NÃO* para cancelar\n*REMARCAR* para remarcar'
 
     console.log(`[lembrete] ${appointments?.length ?? 0} consultas sem confirmação`)
 
@@ -150,6 +163,7 @@ Deno.serve(async (req) => {
         mode,
         appointments: appointments ?? [],
         message,
+        message_primeira,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     )

@@ -59,7 +59,8 @@ type SortKey = "nome" | "placar_brasil" | "created_at";
 type SortDir = "asc" | "desc";
 
 export default function PalpitesCopa() {
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdmin, isSecretaria, loading: roleLoading } = useUserRole();
+  const canView = isAdmin || isSecretaria;
 
   const [palpites, setPalpites] = useState<Palpite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,8 +80,8 @@ export default function PalpitesCopa() {
   }
 
   useEffect(() => {
-    if (isAdmin) fetchPalpites();
-  }, [isAdmin]);
+    if (canView) fetchPalpites();
+  }, [canView]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -116,11 +117,11 @@ export default function PalpitesCopa() {
     </div>
   );
 
-  if (!isAdmin) return (
+  if (!canView) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-center px-4">
       <Trophy className="w-10 h-10 text-muted-foreground/30" />
       <p className="font-semibold text-foreground">Acesso restrito</p>
-      <p className="text-sm text-muted-foreground">Apenas administradores podem acessar esta página.</p>
+      <p className="text-sm text-muted-foreground">Você não tem permissão para acessar esta página.</p>
     </div>
   );
 
