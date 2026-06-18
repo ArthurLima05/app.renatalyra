@@ -517,7 +517,7 @@ export default function Financeiro() {
           <div>
             <h1 className="text-2xl sm:text-3xl text-foreground">Financeiro</h1>
             <p className="text-sm sm:text-base text-muted-foreground font-cocon">
-              {isSecretaria ? 'Adicionar lançamentos' : 'Controle detalhado de receitas e despesas'}
+              Controle detalhado de receitas e despesas
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -771,7 +771,7 @@ export default function Financeiro() {
       </motion.div>
 
       {/* Cards de Resumo - apenas para quem tem canView */}
-      {canView('financeiro') && !isSecretaria && (
+      {canView('financeiro') && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.25 }}>
           <Card className="border-l-4 border-l-emerald-500">
@@ -840,7 +840,7 @@ export default function Financeiro() {
       )}
 
       {/* Tabs com Gráficos - apenas para quem tem canView */}
-      {canView('financeiro') && !isSecretaria && (
+      {canView('financeiro') && (
         <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -993,7 +993,7 @@ export default function Financeiro() {
       )}
 
       {/* Caixa Diária */}
-      {canView('financeiro') && !isSecretaria && (
+      {canView('financeiro') && (
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.43 }}>
           <Card>
             <CardHeader>
@@ -1113,7 +1113,7 @@ export default function Financeiro() {
       )}
 
       {/* Relatório de Faturamento */}
-      {canView('financeiro') && !isSecretaria && (
+      {canView('financeiro') && (
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
