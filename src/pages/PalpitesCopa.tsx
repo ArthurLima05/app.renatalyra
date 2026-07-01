@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import brasilFlag from "../../imagens-copa/brasil.png";
 import marrocosFlag from "../../imagens-copa/marrocos.png";
 import haitiFlag from "../../imagens-copa/haiti.png";
+import noruegaFlag from "../../imagens-copa/noruega.png";
 
 interface Palpite {
   id: string;
@@ -26,6 +27,7 @@ interface Jogo {
 }
 
 const JOGOS: Jogo[] = [
+  { key: "Noruega", label: "Brasil × Noruega", flag: noruegaFlag, data: "Copa do Mundo 2026 · 05/07 · 15h00" },
   { key: "Haiti", label: "Brasil × Haiti", flag: haitiFlag, data: "Copa do Mundo 2026 · 19/06 · 21h30" },
   { key: "Marrocos", label: "Brasil × Marrocos", flag: marrocosFlag, data: "Copa do Mundo 2026 · 13/06 · 19h00" },
 ];
