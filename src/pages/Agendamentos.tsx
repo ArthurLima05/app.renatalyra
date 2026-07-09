@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AppointmentStatus, Appointment } from "@/types";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -583,6 +584,7 @@ export default function Agendamentos() {
     date: "",
     time: "",
     duration: 1,
+    isEncaixe: false,
   });
 
   // Verifica disponibilidade por dentista — mesmo horário é permitido para dentistas diferentes
@@ -748,7 +750,7 @@ export default function Agendamentos() {
         status: "agendado",
       });
       setIsOpen(false);
-      setFormData({ patientId: "", professionalId: myProfessionalId ?? "", date: "", time: "", duration: 1 });
+      setFormData({ patientId: "", professionalId: myProfessionalId ?? "", date: "", time: "", duration: 1, isEncaixe: false });
     } finally {
       setIsSubmitting(false);
     }
@@ -1056,10 +1058,20 @@ export default function Agendamentos() {
               {/* Horários */}
               {formData.date && (
                 <div className="space-y-2">
-                  <Label>Horário de Início</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Horário de Início</Label>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="encaixe"
+                        checked={formData.isEncaixe}
+                        onCheckedChange={(checked) => setFormData({ ...formData, isEncaixe: checked === true, time: "" })}
+                      />
+                      <Label htmlFor="encaixe" className="text-sm font-normal cursor-pointer">Encaixe</Label>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-3 gap-2 max-h-[260px] overflow-y-auto p-2 border rounded-lg">
                     {TIME_SLOTS.map((slot) => {
-                      const available = isSlotAvailable(formData.date, slot, formData.duration, formData.professionalId);
+                      const available = formData.isEncaixe || isSlotAvailable(formData.date, slot, formData.duration, formData.professionalId);
                       const selected = formData.time === slot;
                       // Oculta slots onde a duração ultrapassaria o fim do dia
                       const startIdx = TIME_SLOTS.indexOf(slot);
