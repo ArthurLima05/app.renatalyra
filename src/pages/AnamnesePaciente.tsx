@@ -187,7 +187,8 @@ export default function AnamnesePaciente() {
         if (personal.gender) updatePayload.gender = personal.gender;
         if (personal.maritalStatus) updatePayload.marital_status = personal.maritalStatus;
 
-        await (supabase as any).from("patients").update(updatePayload).eq("id", patientId);
+        const { error: patientErr } = await (supabase as any).from("patients").update(updatePayload).eq("id", patientId);
+        if (patientErr) throw patientErr;
       }
 
       // Salva respostas da anamnese
@@ -201,8 +202,10 @@ export default function AnamnesePaciente() {
         answer_text: answers[q.id]?.text ?? null,
       }));
 
-      await (supabase as any).from("anamnese_answers").insert(rows);
-      await (supabase as any).from("anamnese_responses").update({
+      const { error: answersErr } = await (supabase as any).from("anamnese_answers").insert(rows);
+      if (answersErr) throw answersErr;
+
+      const { error: responseErr } = await (supabase as any).from("anamnese_responses").update({
         status: "completed",
         completed_at: now,
         patient_signed_name: personal.fullName || patientName,
@@ -211,13 +214,19 @@ export default function AnamnesePaciente() {
         user_agent: userAgent,
         verified_phone: patientPhone || null,
       }).eq("id", tokenRecord!.response_id);
-      await (supabase as any).from("anamnese_tokens")
+      if (responseErr) throw responseErr;
+
+      // Só marca o token como usado depois que a anamnese foi confirmada como concluída,
+      // para que uma falha nas etapas acima não trave o link sem os dados salvos.
+      const { error: tokenErr } = await (supabase as any).from("anamnese_tokens")
         .update({ used_at: now })
         .eq("id", tokenRecord!.id);
+      if (tokenErr) throw tokenErr;
 
       setStep("done");
-    } catch {
-      setErrorMessage("Erro ao enviar. Tente novamente.");
+    } catch (err) {
+      console.error("Erro ao enviar anamnese:", err);
+      setErrorMessage("Erro ao enviar. Tente novamente ou entre em contato com a clínica.");
     } finally {
       setSubmitting(false);
     }

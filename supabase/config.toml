@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.request-reschedule]
 verify_jwt = false
+
+[functions.get-overdue-installments]
+verify_jwt = false
+
+[functions.mark-installment-notified]
+verify_jwt = false
