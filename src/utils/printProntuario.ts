@@ -143,10 +143,26 @@ export function generateFichaOdontologicaHtml(params: {
     }
   }
 
+  // Higiene bucal e Hábitos têm layout fixo (checkboxes) mais abaixo — não
+  // devem aparecer também na lista genérica de perguntas.
+  const HIGIENE_LABEL = "Higiene bucal utiliza:";
+  const HABITOS_LABEL = "Hábitos:";
+  const HIGIENE_OPTIONS = ["Fio", "Fita Dental", "Interdental", "Escova Macia", "Escova Média", "Escova Dura", "Unitufos / Bitufos", "Palito", "Creme Dental", "Enxaguante Bucal"];
+  const HABITOS_OPTIONS = ["Roer unhas", "Respirar pela boca", "Chupar dedo", "Morder caneta / lápis", "Ranger dentes (dia)", "Ranger dentes (noite)", "Outros"];
+
   // Perguntas ativas do sistema
   const activeQ = [...anamneseQuestions]
-    .filter((q) => q.active)
+    .filter((q) => q.active && q.question !== HIGIENE_LABEL && q.question !== HABITOS_LABEL)
     .sort((a, b) => a.sequence - b.sequence);
+
+  const selectedOptions = (questionText: string): Set<string> => {
+    const q = anamneseQuestions.find((qq) => qq.active && qq.question === questionText);
+    if (!q) return new Set();
+    const ans = aMap.get(q.id) ?? aMap.get(q.question);
+    return new Set((ans?.text ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+  };
+  const higieneSelected = selectedOptions(HIGIENE_LABEL);
+  const habitosSelected = selectedOptions(HABITOS_LABEL);
 
   const qRows = activeQ.map((q, i) => {
     const ans = aMap.get(q.id) ?? aMap.get(q.question);
@@ -174,16 +190,17 @@ export function generateFichaOdontologicaHtml(params: {
 
   const nextNum = activeQ.length + 1;
 
-  // Perguntas fixas (higiene e hábitos)
-  const box = (label: string) =>
-    `<span style="white-space:nowrap;margin-right:8px">(&nbsp;&nbsp;)&nbsp;${label}</span>`;
+  // Perguntas fixas (higiene e hábitos) — marca X nas opções que o paciente
+  // selecionou na anamnese digital.
+  const box = (label: string, checked: boolean) =>
+    `<span style="white-space:nowrap;margin-right:8px">(${checked ? "&nbsp;<b>X</b>&nbsp;" : "&nbsp;&nbsp;&nbsp;"})&nbsp;${label}</span>`;
 
   const q15Row = `<tr>
     <td class="qn">${nextNum}.</td>
     <td class="qt" colspan="2" style="padding-bottom:4px">
       <span style="font-weight:600">HIGIENE BUCAL UTILIZA:</span><br>
       <div style="display:flex;flex-wrap:wrap;gap:1px 0;margin-top:3px;font-size:10.5px">
-        ${box("Fio")}${box("Fita Dental")}${box("Interdental")}${box("Escova Macia")}${box("Escova Média")}${box("Escova Dura")}${box("Unitufos / Bitufos")}${box("Palito")}${box("Creme Dental")}${box("Enxaguante Bucal")}
+        ${HIGIENE_OPTIONS.map((o) => box(o, higieneSelected.has(o))).join("")}
       </div>
     </td>
   </tr>`;
@@ -193,7 +210,7 @@ export function generateFichaOdontologicaHtml(params: {
     <td class="qt" colspan="2" style="padding-bottom:4px">
       <span style="font-weight:600">HÁBITOS:</span><br>
       <div style="display:flex;flex-wrap:wrap;gap:1px 0;margin-top:3px;font-size:10.5px">
-        ${box("Roer unhas")}${box("Respirar pela boca")}${box("Chupar dedo")}${box("Morder caneta / lápis")}${box("Ranger dentes (dia)")}${box("Ranger dentes (noite)")}${box("Outros")}
+        ${HABITOS_OPTIONS.map((o) => box(o, habitosSelected.has(o))).join("")}
       </div>
     </td>
   </tr>`;
