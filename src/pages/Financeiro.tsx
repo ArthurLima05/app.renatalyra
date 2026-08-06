@@ -50,32 +50,37 @@ export default function Financeiro() {
   const [showFullRelatorio, setShowFullRelatorio] = useState(false);
   const [showCaixaDiaria, setShowCaixaDiaria] = useState(false);
   const [deletingTransaction, setDeletingTransaction] = useState<{ id: string; sessionId?: string; description: string } | null>(null);
-  const [metaDiaria, setMetaDiaria] = useState<number>(8500);
-  const [metaDiariaInput, setMetaDiariaInput] = useState<string>('8500');
+  const [metaMensalInput, setMetaMensalInput] = useState<string>('');
 
-  // Sincroniza metaDiaria com o valor do banco quando clinicSettings carregar
+  // Chave da meta mensal é vinculada ao mês/ano exibido no relatório, então
+  // cada mês guarda seu próprio valor e editar o mês atual não altera os anteriores.
+  const metaMensalKey = `meta_mensal_${format(relatorioMes, 'yyyy-MM')}`;
+  const metaMensal = (() => {
+    const saved = clinicSettings[metaMensalKey];
+    if (!saved) return null;
+    const num = parseFloat(saved);
+    return isNaN(num) ? null : num;
+  })();
+
+  // Sincroniza o input com o valor salvo do mês exibido
   useEffect(() => {
-    const saved = clinicSettings['meta_diaria'];
-    if (saved) {
-      const num = parseFloat(saved);
-      if (!isNaN(num)) {
-        setMetaDiaria(num);
-        setMetaDiariaInput(saved);
-      }
-    }
-  }, [clinicSettings]);
+    setMetaMensalInput(metaMensal !== null ? String(metaMensal) : '');
+  }, [metaMensalKey, metaMensal]);
 
-  const handleMetaDiariaChange = (value: string) => {
-    setMetaDiariaInput(value);
+  const handleMetaMensalChange = (value: string) => {
+    setMetaMensalInput(value);
   };
 
-  const handleSaveMetaDiaria = () => {
-    const num = parseFloat(metaDiariaInput.replace(',', '.'));
+  const handleSaveMetaMensal = () => {
+    const num = parseFloat(metaMensalInput.replace(',', '.'));
     if (!isNaN(num) && num >= 0) {
-      setMetaDiaria(num);
-      updateClinicSetting('meta_diaria', String(num));
+      updateClinicSetting(metaMensalKey, String(num));
     }
   };
+
+  const diasUteisNoMes = eachDayOfInterval({ start: startOfMonth(relatorioMes), end: endOfMonth(relatorioMes) })
+    .filter(day => { const dow = getDay(day); return dow !== 0 && dow !== 6 && !isHoliday(day); }).length;
+  const metaDiaria = metaMensal !== null && diasUteisNoMes > 0 ? metaMensal / diasUteisNoMes : null;
 
   const relatorioData = (() => {
     const days = eachDayOfInterval({ start: startOfMonth(relatorioMes), end: endOfMonth(relatorioMes) });
@@ -1139,20 +1144,20 @@ export default function Financeiro() {
                     </Button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Meta diária (R$):</Label>
+                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Meta do mês (R$):</Label>
                     <Input
                       type="number"
                       min="0"
-                      step="100"
-                      value={metaDiariaInput}
-                      onChange={(e) => handleMetaDiariaChange(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveMetaDiaria(); }}
+                      step="1000"
+                      value={metaMensalInput}
+                      onChange={(e) => handleMetaMensalChange(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveMetaMensal(); }}
                       className="w-28 text-right h-8 text-sm"
                     />
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={handleSaveMetaDiaria}
+                      onClick={handleSaveMetaMensal}
                       className="h-8 px-3 text-xs"
                     >
                       Salvar
