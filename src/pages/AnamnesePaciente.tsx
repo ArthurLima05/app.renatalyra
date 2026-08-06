@@ -202,10 +202,14 @@ export default function AnamnesePaciente() {
         answer_text: answers[q.id]?.text ?? null,
       }));
 
-      const { error: answersErr } = await (supabase as any).from("anamnese_answers").insert(rows);
+      const { data: answersData, error: answersErr } = await (supabase as any)
+        .from("anamnese_answers").insert(rows).select("id");
       if (answersErr) throw answersErr;
+      if (!answersData || answersData.length !== rows.length) {
+        throw new Error("Não foi possível salvar as respostas (nenhuma linha gravada).");
+      }
 
-      const { error: responseErr } = await (supabase as any).from("anamnese_responses").update({
+      const { data: responseData, error: responseErr } = await (supabase as any).from("anamnese_responses").update({
         status: "completed",
         completed_at: now,
         patient_signed_name: personal.fullName || patientName,
@@ -213,15 +217,25 @@ export default function AnamnesePaciente() {
         ip_address: ipAddress || null,
         user_agent: userAgent,
         verified_phone: patientPhone || null,
-      }).eq("id", tokenRecord!.response_id);
+      }).eq("id", tokenRecord!.response_id).select("id");
       if (responseErr) throw responseErr;
+      // O Supabase retorna 200 OK com lista vazia (sem erro) quando o RLS filtra a
+      // linha silenciosamente — por isso a checagem explícita de linhas afetadas é
+      // obrigatória aqui, não apenas o `error`.
+      if (!responseData || responseData.length === 0) {
+        throw new Error("A anamnese não pôde ser marcada como concluída (permissão negada no banco).");
+      }
 
       // Só marca o token como usado depois que a anamnese foi confirmada como concluída,
       // para que uma falha nas etapas acima não trave o link sem os dados salvos.
-      const { error: tokenErr } = await (supabase as any).from("anamnese_tokens")
+      const { data: tokenData, error: tokenErr } = await (supabase as any).from("anamnese_tokens")
         .update({ used_at: now })
-        .eq("id", tokenRecord!.id);
+        .eq("id", tokenRecord!.id)
+        .select("id");
       if (tokenErr) throw tokenErr;
+      if (!tokenData || tokenData.length === 0) {
+        throw new Error("Não foi possível confirmar o uso do link.");
+      }
 
       setStep("done");
     } catch (err) {

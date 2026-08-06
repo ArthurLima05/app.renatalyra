@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.mark-installment-notified]
 verify_jwt = false
+
+[functions.anamnese-flow]
+verify_jwt = false
