@@ -19,17 +19,6 @@ interface Question {
   type: "descritivo" | "sim_nao";
 }
 
-interface TokenRecord {
-  id: string;
-  response_id: string;
-  patient_id: string;
-  code: string;
-  expires_at: string;
-  used_at: string | null;
-  attempts: number;
-  blocked_at: string | null;
-}
-
 interface PersonalData {
   fullName: string;
   email: string;
@@ -56,11 +45,9 @@ const DECLARATIONS = [
 export default function AnamnesePaciente() {
   const { token } = useParams<{ token: string }>();
   const [step, setStep] = useState<Step>("loading");
-  const [tokenRecord, setTokenRecord] = useState<TokenRecord | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
-  const [patientId, setPatientId] = useState("");
   const [codeInput, setCodeInput] = useState(["", "", "", "", "", ""]);
   const [codeError, setCodeError] = useState("");
   const [answers, setAnswers] = useState<FormAnswers>({});
@@ -84,26 +71,20 @@ export default function AnamnesePaciente() {
   useEffect(() => {
     if (!token) { setStep("error"); setErrorMessage("Link inválido."); return; }
     (async () => {
-      const { data: tk, error: tkErr } = await (supabase as any)
-        .from("anamnese_tokens")
-        .select("*")
-        .eq("token", token)
-        .single();
+      const { data, error } = await supabase.functions.invoke("anamnese-flow", {
+        body: { action: "load", token },
+      });
 
-      if (tkErr || !tk) { setStep("error"); setErrorMessage("Link não encontrado."); return; }
-      if (tk.used_at) { setStep("error"); setErrorMessage("Este formulário já foi preenchido."); return; }
-      if (new Date(tk.expires_at) < new Date()) { setStep("error"); setErrorMessage("Este link expirou."); return; }
-      if (tk.blocked_at) { setStep("blocked"); return; }
+      if (error || !data?.success) {
+        const code = (data as { error?: string } | null)?.error;
+        if (code === "blocked") { setStep("blocked"); return; }
+        if (code === "already_used") { setStep("error"); setErrorMessage("Este formulário já foi preenchido."); return; }
+        if (code === "expired") { setStep("error"); setErrorMessage("Este link expirou."); return; }
+        setStep("error"); setErrorMessage("Link não encontrado.");
+        return;
+      }
 
-      setTokenRecord(tk);
-      setPatientId(tk.patient_id);
-
-      const { data: pt } = await (supabase as any)
-        .from("patients")
-        .select("full_name, phone, email, birth_date, gender, marital_status, profession, address, responsible, responsible_cpf")
-        .eq("id", tk.patient_id)
-        .single();
-
+      const pt = data.patient;
       if (pt) {
         setPatientName(pt.full_name ?? "");
         setPatientPhone(pt.phone ?? "");
@@ -120,41 +101,34 @@ export default function AnamnesePaciente() {
         });
       }
 
-      const { data: qs } = await (supabase as any)
-        .from("anamnese_questions").select("*").eq("active", true).order("sequence");
-      setQuestions(qs || []);
-
+      setQuestions(data.questions || []);
       setStep("code");
     })();
   }, [token]);
 
   const handleCodeSubmit = async () => {
-    if (!tokenRecord) return;
+    if (!token) return;
     const entered = codeInput.join("");
 
-    if (entered === tokenRecord.code) {
+    const { data, error } = await supabase.functions.invoke("anamnese-flow", {
+      body: { action: "verify-code", token, code: entered },
+    });
+
+    if (error || !data?.success) {
+      setCodeError("Não foi possível verificar o código. Tente novamente.");
+      return;
+    }
+
+    if (data.valid) {
       setCodeError("");
       setStep("form");
       return;
     }
 
-    const newAttempts = (tokenRecord.attempts ?? 0) + 1;
-    const isBlocked = newAttempts >= MAX_ATTEMPTS;
-
-    await (supabase as any)
-      .from("anamnese_tokens")
-      .update({
-        attempts: newAttempts,
-        ...(isBlocked ? { blocked_at: new Date().toISOString() } : {}),
-      })
-      .eq("id", tokenRecord.id);
-
-    setTokenRecord((prev) => prev ? { ...prev, attempts: newAttempts } : prev);
-
-    if (isBlocked) {
+    if (data.blocked) {
       setStep("blocked");
     } else {
-      const restantes = MAX_ATTEMPTS - newAttempts;
+      const restantes = data.attemptsRemaining ?? 0;
       setCodeError(
         `Código incorreto. ${restantes} tentativa${restantes === 1 ? "" : "s"} restante${restantes === 1 ? "" : "s"}.`
       );
@@ -162,79 +136,30 @@ export default function AnamnesePaciente() {
   };
 
   const handleSubmit = async () => {
-    if (!declarations.every(Boolean)) return;
+    if (!declarations.every(Boolean) || !token) return;
     setSubmitting(true);
     try {
-      let ipAddress = "";
-      try {
-        const res = await fetch("https://api.ipify.org?format=json");
-        const json = await res.json();
-        ipAddress = json.ip ?? "";
-      } catch { /* ignora */ }
-      const userAgent = navigator.userAgent;
-      const now = new Date().toISOString();
-
-      // Salva dados pessoais no cadastro do paciente
-      if (patientId) {
-        const updatePayload: Record<string, string | null> = {
-          email: personal.email || null,
-          profession: personal.profession || null,
-          address: personal.address || null,
-          responsible: personal.responsible || null,
-          responsible_cpf: personal.responsibleCpf || null,
-        };
-        if (personal.birthDate) updatePayload.birth_date = personal.birthDate;
-        if (personal.gender) updatePayload.gender = personal.gender;
-        if (personal.maritalStatus) updatePayload.marital_status = personal.maritalStatus;
-
-        const { error: patientErr } = await (supabase as any).from("patients").update(updatePayload).eq("id", patientId);
-        if (patientErr) throw patientErr;
-      }
-
-      // Salva respostas da anamnese
-      const rows = questions.map((q) => ({
-        response_id: tokenRecord!.response_id,
-        question_id: q.id,
-        question_text: q.question,
-        question_type: q.type,
-        question_sequence: q.sequence,
-        answer_bool: q.type === "sim_nao" ? (answers[q.id]?.bool ?? null) : null,
-        answer_text: answers[q.id]?.text ?? null,
+      const answersPayload = questions.map((q) => ({
+        questionId: q.id,
+        questionText: q.question,
+        questionType: q.type,
+        questionSequence: q.sequence,
+        answerBool: q.type === "sim_nao" ? (answers[q.id]?.bool ?? null) : null,
+        answerText: answers[q.id]?.text ?? null,
       }));
 
-      const { data: answersData, error: answersErr } = await (supabase as any)
-        .from("anamnese_answers").insert(rows).select("id");
-      if (answersErr) throw answersErr;
-      if (!answersData || answersData.length !== rows.length) {
-        throw new Error("Não foi possível salvar as respostas (nenhuma linha gravada).");
-      }
+      const { data, error } = await supabase.functions.invoke("anamnese-flow", {
+        body: {
+          action: "submit",
+          token,
+          code: codeInput.join(""),
+          personal,
+          answers: answersPayload,
+        },
+      });
 
-      const { data: responseData, error: responseErr } = await (supabase as any).from("anamnese_responses").update({
-        status: "completed",
-        completed_at: now,
-        patient_signed_name: personal.fullName || patientName,
-        signed_at: now,
-        ip_address: ipAddress || null,
-        user_agent: userAgent,
-        verified_phone: patientPhone || null,
-      }).eq("id", tokenRecord!.response_id).select("id");
-      if (responseErr) throw responseErr;
-      // O Supabase retorna 200 OK com lista vazia (sem erro) quando o RLS filtra a
-      // linha silenciosamente — por isso a checagem explícita de linhas afetadas é
-      // obrigatória aqui, não apenas o `error`.
-      if (!responseData || responseData.length === 0) {
-        throw new Error("A anamnese não pôde ser marcada como concluída (permissão negada no banco).");
-      }
-
-      // Só marca o token como usado depois que a anamnese foi confirmada como concluída,
-      // para que uma falha nas etapas acima não trave o link sem os dados salvos.
-      const { data: tokenData, error: tokenErr } = await (supabase as any).from("anamnese_tokens")
-        .update({ used_at: now })
-        .eq("id", tokenRecord!.id)
-        .select("id");
-      if (tokenErr) throw tokenErr;
-      if (!tokenData || tokenData.length === 0) {
-        throw new Error("Não foi possível confirmar o uso do link.");
+      if (error || !data?.success) {
+        throw new Error(data?.error ?? error?.message ?? "Falha desconhecida ao enviar.");
       }
 
       setStep("done");
