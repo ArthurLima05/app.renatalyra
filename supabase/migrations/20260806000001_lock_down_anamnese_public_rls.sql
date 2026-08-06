@@ -14,9 +14,17 @@
 -- Depois desta migração, essas tabelas só são acessíveis por: administradores
 -- autenticados (gestão da clínica) e a service role (Edge Function).
 
+-- Idempotente: apaga tanto o nome antigo ("Anyone can...") quanto o novo
+-- ("Authenticated users can...") antes de recriar, porque o histórico real de
+-- políticas neste banco diverge dos arquivos de migração (mudanças aplicadas
+-- fora do controle de versão) — não dá para confiar que o nome antigo é o que
+-- está de fato ativo.
+
 -- ── anamnese_tokens: remove leitura/escrita pública ──
 DROP POLICY IF EXISTS "Anyone can read anamnese tokens" ON public.anamnese_tokens;
 DROP POLICY IF EXISTS "Anyone can update anamnese tokens" ON public.anamnese_tokens;
+DROP POLICY IF EXISTS "Authenticated users can view anamnese tokens" ON public.anamnese_tokens;
+DROP POLICY IF EXISTS "Authenticated users can update anamnese tokens" ON public.anamnese_tokens;
 CREATE POLICY "Authenticated users can view anamnese tokens"
   ON public.anamnese_tokens FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated users can update anamnese tokens"
@@ -25,6 +33,8 @@ CREATE POLICY "Authenticated users can update anamnese tokens"
 -- ── anamnese_responses: remove leitura/escrita pública ──
 DROP POLICY IF EXISTS "Anyone can read anamnese responses" ON public.anamnese_responses;
 DROP POLICY IF EXISTS "Anyone can update anamnese responses" ON public.anamnese_responses;
+DROP POLICY IF EXISTS "Authenticated users can view anamnese responses" ON public.anamnese_responses;
+DROP POLICY IF EXISTS "Authenticated users can update anamnese responses" ON public.anamnese_responses;
 CREATE POLICY "Authenticated users can view anamnese responses"
   ON public.anamnese_responses FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated users can update anamnese responses"
@@ -33,6 +43,8 @@ CREATE POLICY "Authenticated users can update anamnese responses"
 -- ── anamnese_answers: remove escrita pública (SELECT já era authenticated-only) ──
 DROP POLICY IF EXISTS "Anyone can insert anamnese answers" ON public.anamnese_answers;
 DROP POLICY IF EXISTS "Anyone can update anamnese answers" ON public.anamnese_answers;
+DROP POLICY IF EXISTS "Authenticated users can insert anamnese answers" ON public.anamnese_answers;
+DROP POLICY IF EXISTS "Authenticated users can update anamnese answers" ON public.anamnese_answers;
 CREATE POLICY "Authenticated users can insert anamnese answers"
   ON public.anamnese_answers FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Authenticated users can update anamnese answers"

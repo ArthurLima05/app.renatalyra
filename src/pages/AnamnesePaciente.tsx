@@ -16,7 +16,8 @@ interface Question {
   id: string;
   question: string;
   sequence: number;
-  type: "descritivo" | "sim_nao";
+  type: "descritivo" | "sim_nao" | "multipla_escolha";
+  options?: string[];
 }
 
 interface PersonalData {
@@ -501,6 +502,31 @@ export default function AnamnesePaciente() {
                       value={answers[q.id]?.text ?? ""}
                       onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: { ...prev[q.id], text: e.target.value } }))}
                     />
+                  )}
+
+                  {q.type === "multipla_escolha" && (
+                    <div className="flex flex-wrap gap-2">
+                      {(q.options ?? []).map((opt) => {
+                        const selected = (answers[q.id]?.text ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+                        const isChecked = selected.includes(opt);
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => {
+                              const next = isChecked ? selected.filter((o) => o !== opt) : [...selected, opt];
+                              setAnswers((prev) => ({ ...prev, [q.id]: { ...prev[q.id], text: next.join(", ") } }));
+                            }}
+                            className={cn(
+                              "px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-colors",
+                              isChecked ? "bg-primary/10 border-primary text-primary" : "border-border hover:bg-muted",
+                            )}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               ))}

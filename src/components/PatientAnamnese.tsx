@@ -77,7 +77,7 @@ function AnamneseProgress({ status }: { status: "sent" | "completed" }) {
 // ── Gerenciador de perguntas ─────────────────────────────────────────────────
 function QuestionsManager({ onClose }: { onClose: () => void }) {
   const { anamneseQuestions, addAnamneseQuestion, updateAnamneseQuestion, deleteAnamneseQuestion } = useProntuario();
-  const [newQ, setNewQ] = useState({ question: "", type: "sim_nao" as AnamneseQuestionType });
+  const [newQ, setNewQ] = useState({ question: "", type: "sim_nao" as AnamneseQuestionType, optionsText: "" });
   const [saving, setSaving] = useState(false);
 
   const active = [...anamneseQuestions].filter((q) => q.active).sort((a, b) => a.sequence - b.sequence);
@@ -85,10 +85,14 @@ function QuestionsManager({ onClose }: { onClose: () => void }) {
 
   const handleAdd = async () => {
     if (!newQ.question.trim()) return;
+    if (newQ.type === "multipla_escolha" && !newQ.optionsText.trim()) return;
     setSaving(true);
     try {
-      await addAnamneseQuestion(newQ.question.trim(), newQ.type, nextSeq);
-      setNewQ({ question: "", type: "sim_nao" });
+      const options = newQ.type === "multipla_escolha"
+        ? newQ.optionsText.split(",").map((o) => o.trim()).filter(Boolean)
+        : undefined;
+      await addAnamneseQuestion(newQ.question.trim(), newQ.type, nextSeq, options);
+      setNewQ({ question: "", type: "sim_nao", optionsText: "" });
     } finally { setSaving(false); }
   };
 
@@ -133,8 +137,11 @@ function QuestionsManager({ onClose }: { onClose: () => void }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">{q.question}</p>
                   <Badge variant="outline" className="mt-1 text-xs">
-                    {q.type === "sim_nao" ? "Sim / Não" : "Descritivo"}
+                    {q.type === "sim_nao" ? "Sim / Não" : q.type === "multipla_escolha" ? "Múltipla escolha" : "Descritivo"}
                   </Badge>
+                  {q.type === "multipla_escolha" && q.options && (
+                    <p className="text-xs text-muted-foreground mt-1">{q.options.join(", ")}</p>
+                  )}
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -177,13 +184,22 @@ function QuestionsManager({ onClose }: { onClose: () => void }) {
                 <SelectContent>
                   <SelectItem value="sim_nao">Sim / Não</SelectItem>
                   <SelectItem value="descritivo">Descritivo</SelectItem>
+                  <SelectItem value="multipla_escolha">Múltipla escolha</SelectItem>
                 </SelectContent>
               </Select>
-              <Button size="sm" className="gap-1.5" disabled={!newQ.question.trim() || saving} onClick={handleAdd}>
+              <Button size="sm" className="gap-1.5" disabled={!newQ.question.trim() || saving || (newQ.type === "multipla_escolha" && !newQ.optionsText.trim())} onClick={handleAdd}>
                 <Plus className="h-3.5 w-3.5" />
                 {saving ? "Adicionando..." : "Adicionar"}
               </Button>
             </div>
+            {newQ.type === "multipla_escolha" && (
+              <Input
+                placeholder="Opções separadas por vírgula (ex: Fio, Escova Macia, Palito)"
+                className="text-sm"
+                value={newQ.optionsText}
+                onChange={(e) => setNewQ({ ...newQ, optionsText: e.target.value })}
+              />
+            )}
           </div>
         </div>
       </DialogContent>
@@ -223,6 +239,18 @@ function AnamneseViewer({ response, onClose }: { response: AnamneseResponse; onC
                     </span>
                     {ans.answerText && <p className="text-sm text-muted-foreground">{ans.answerText}</p>}
                   </div>
+                ) : ans.questionType === "multipla_escolha" ? (
+                  ans.answerText ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {ans.answerText.split(",").map((opt) => (
+                        <span key={opt} className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-muted text-foreground">
+                          {opt.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Não respondido</p>
+                  )
                 ) : (
                   <p className="text-sm text-muted-foreground">{ans.answerText || <span className="italic">Não respondido</span>}</p>
                 )}

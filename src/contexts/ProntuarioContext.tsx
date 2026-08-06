@@ -22,8 +22,8 @@ interface ProntuarioContextType {
   getOdontogramByPatientId: (patientId: string) => OdontogramProcedure[];
   anamneseQuestions: AnamneseQuestion[];
   anamneseResponses: AnamneseResponse[];
-  addAnamneseQuestion: (question: string, type: AnamneseQuestionType, sequence: number) => Promise<void>;
-  updateAnamneseQuestion: (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active'>>) => Promise<void>;
+  addAnamneseQuestion: (question: string, type: AnamneseQuestionType, sequence: number, options?: string[]) => Promise<void>;
+  updateAnamneseQuestion: (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active' | 'options'>>) => Promise<void>;
   deleteAnamneseQuestion: (id: string) => Promise<void>;
   saveAnamneseResponse: (patientId: string, answers: Omit<AnamneseAnswerRecord, 'id' | 'responseId'>[]) => Promise<void>;
   requestAnamneseForPatient: (patientId: string) => Promise<{ link: string; code: string }>;
@@ -112,7 +112,7 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setAnamneseQuestions(
         (qRes.data || []).map((q: any) => ({
           id: q.id, question: q.question, sequence: q.sequence,
-          type: q.type, active: q.active, createdAt: new Date(q.created_at),
+          type: q.type, options: q.options ?? undefined, active: q.active, createdAt: new Date(q.created_at),
         }))
       );
     }
@@ -146,13 +146,13 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  const addAnamneseQuestion = async (question: string, type: AnamneseQuestionType, sequence: number) => {
-    const { error } = await (supabase as any).from("anamnese_questions").insert({ question, type, sequence, active: true });
+  const addAnamneseQuestion = async (question: string, type: AnamneseQuestionType, sequence: number, options?: string[]) => {
+    const { error } = await (supabase as any).from("anamnese_questions").insert({ question, type, sequence, options: options ?? null, active: true });
     if (error) { toast({ title: "Erro ao adicionar pergunta", description: error.message, variant: "destructive" }); throw error; }
     await loadAnamneseData();
   };
 
-  const updateAnamneseQuestion = async (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active'>>) => {
+  const updateAnamneseQuestion = async (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active' | 'options'>>) => {
     const { error } = await (supabase as any).from("anamnese_questions").update(data).eq("id", id);
     if (error) { toast({ title: "Erro ao atualizar pergunta", description: error.message, variant: "destructive" }); throw error; }
     setAnamneseQuestions(prev => prev.map(q => q.id === id ? { ...q, ...data } : q));

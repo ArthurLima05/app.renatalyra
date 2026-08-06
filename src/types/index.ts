@@ -154,13 +154,14 @@ export interface Session {
   professionalId?: string;
 }
 
-export type AnamneseQuestionType = 'descritivo' | 'sim_nao';
+export type AnamneseQuestionType = 'descritivo' | 'sim_nao' | 'multipla_escolha';
 
 export interface AnamneseQuestion {
   id: string;
   question: string;
   sequence: number;
   type: AnamneseQuestionType;
+  options?: string[];
   active: boolean;
   createdAt: Date;
 }
