@@ -16,6 +16,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 const CACHE_KEY = "techclin_cache_v1";
+// Evita rebuscar todas as tabelas do banco a cada refresh/reabertura do app.
+// Dentro da janela, os dados em tela continuam corretos via realtime (postgres_changes).
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
 interface ClinicContextType {
   professionals: Professional[];
@@ -91,6 +94,17 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { toast } = useToast();
   const isCheckingNotifications = useRef(false);
   const apptReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getCachedSavedAt = (): number | null => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const c = JSON.parse(raw);
+      return typeof c.savedAt === "number" ? c.savedAt : null;
+    } catch {
+      return null;
+    }
+  };
 
   const hydrateFromCache = (): boolean => {
     try {
@@ -402,9 +416,16 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setClinicSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const loadAllData = async () => {
+  const loadAllData = async (force = false) => {
     const cacheHit = hydrateFromCache();
     if (!cacheHit) setLoading(true);
+
+    const savedAt = getCachedSavedAt();
+    if (!force && cacheHit && savedAt && Date.now() - savedAt < CACHE_TTL_MS) {
+      // Cache recente: evita rebuscar tudo do banco. Realtime mantém os dados em dia.
+      setLoading(false);
+      return;
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -444,6 +465,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         notifications,
         holidays: holidaysData,
         myProfessionalId: myProfessionalIdRef.current,
+        savedAt: Date.now(),
       }));
     } catch { /* ignora QuotaExceededError */ }
   };
