@@ -251,6 +251,16 @@ export interface PatientDocument {
   createdAt: Date;
 }
 
+export interface TransactionAttachment {
+  id: string;
+  transactionId: string;
+  name: string;
+  url: string;
+  fileType?: string;
+  fileSize?: number;
+  createdAt: Date;
+}
+
 export interface ReturnAlert {
   id: string;
   patientId: string;

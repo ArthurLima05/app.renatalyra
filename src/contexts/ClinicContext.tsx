@@ -11,6 +11,7 @@ import {
   Installment,
   PaymentMethod,
   Holiday,
+  TransactionAttachment,
 } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -34,9 +35,11 @@ interface ClinicContextType {
   updateAppointmentTime: (id: string, date: Date, time: string, duration: number) => Promise<void>;
   updateAppointmentProfessional: (id: string, professionalId: string) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
-  addTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
-  updateTransactionComprovante: (id: string, comprovanteUrl: string | null) => Promise<void>;
+  addTransaction: (transaction: Omit<Transaction, "id">) => Promise<string>;
   deleteTransaction: (id: string) => Promise<void>;
+  getTransactionAttachments: (transactionId: string) => Promise<TransactionAttachment[]>;
+  addTransactionAttachment: (transactionId: string, file: File) => Promise<TransactionAttachment>;
+  deleteTransactionAttachment: (id: string, url: string) => Promise<void>;
   addProfessional: (professional: Omit<Professional, "id">) => Promise<void>;
   updateProfessional: (id: string, data: Partial<Omit<Professional, "id">>) => Promise<void>;
   deleteProfessional: (id: string) => Promise<void>;
@@ -814,7 +817,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addTransaction = async (transaction: Omit<Transaction, "id">) => {
-    const { error } = await supabase.from("transactions").insert({
+    const { data, error } = await supabase.from("transactions").insert({
       type: transaction.type,
       description: transaction.description,
       amount: transaction.amount,
@@ -824,7 +827,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       payment_method: transaction.paymentMethod ?? null,
       installment_count: transaction.installmentCount ?? null,
       professional_id: transaction.professionalId ?? null,
-    } as any);
+    } as any).select("id").single();
 
     if (error) {
       toast({ title: "Erro ao adicionar transação", description: error.message, variant: "destructive" });
@@ -832,23 +835,77 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     toast({ title: "Transação adicionada com sucesso" });
+    return (data as any).id as string;
   };
 
-  const updateTransactionComprovante = async (id: string, comprovanteUrl: string | null) => {
-    const { error } = await (supabase as any)
-      .from("transactions")
-      .update({ comprovante_url: comprovanteUrl })
-      .eq("id", id);
+  const getTransactionAttachments = async (transactionId: string): Promise<TransactionAttachment[]> => {
+    const { data, error } = await (supabase as any)
+      .from("transaction_attachments")
+      .select("*")
+      .eq("transaction_id", transactionId)
+      .order("created_at", { ascending: true });
+    if (error) {
+      toast({ title: "Erro ao carregar anexos", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    return (data || []).map((r: any) => ({
+      id: r.id,
+      transactionId: r.transaction_id,
+      name: r.name,
+      url: r.url,
+      fileType: r.file_type ?? undefined,
+      fileSize: r.file_size ?? undefined,
+      createdAt: new Date(r.created_at),
+    }));
+  };
 
+  const addTransactionAttachment = async (transactionId: string, file: File): Promise<TransactionAttachment> => {
+    const ext = file.name.split(".").pop() ?? "bin";
+    const path = `${transactionId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error: uploadError } = await supabase.storage
+      .from("transaction-attachments")
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    if (uploadError) {
+      toast({ title: "Erro ao enviar comprovante", description: uploadError.message, variant: "destructive" });
+      throw uploadError;
+    }
+    const { data: { publicUrl } } = supabase.storage.from("transaction-attachments").getPublicUrl(path);
+    const { data, error } = await (supabase as any)
+      .from("transaction_attachments")
+      .insert({
+        transaction_id: transactionId,
+        name: file.name,
+        url: publicUrl,
+        file_type: file.type || ext,
+        file_size: file.size,
+      })
+      .select("*")
+      .single();
     if (error) {
       toast({ title: "Erro ao salvar comprovante", description: error.message, variant: "destructive" });
       throw error;
     }
+    return {
+      id: data.id,
+      transactionId: data.transaction_id,
+      name: data.name,
+      url: data.url,
+      fileType: data.file_type ?? undefined,
+      fileSize: data.file_size ?? undefined,
+      createdAt: new Date(data.created_at),
+    };
+  };
 
-    setTransactions((prev) =>
-      prev.map((t) => t.id === id ? { ...t, comprovanteUrl: comprovanteUrl ?? undefined } : t)
-    );
-    toast({ title: "Comprovante salvo com sucesso" });
+  const deleteTransactionAttachment = async (id: string, url: string) => {
+    const { error } = await (supabase as any).from("transaction_attachments").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir comprovante", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    try {
+      const parts = url.split("/transaction-attachments/");
+      if (parts[1]) await supabase.storage.from("transaction-attachments").remove([parts[1]]);
+    } catch (_) { /* ignora erro de storage */ }
   };
 
   const deleteTransaction = async (id: string) => {
@@ -1403,8 +1460,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     updateAppointmentProfessional,
     deleteAppointment,
     addTransaction,
-    updateTransactionComprovante,
     deleteTransaction,
+    getTransactionAttachments,
+    addTransactionAttachment,
+    deleteTransactionAttachment,
     addProfessional,
     updateProfessional,
     deleteProfessional,

@@ -3,7 +3,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, CheckCircle2, ChevronLeft, ChevronRight, Target, Trash2 } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, CheckCircle2, ChevronLeft, ChevronRight, Target, Trash2, Paperclip, X } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -25,8 +25,62 @@ import * as XLSX from 'xlsx';
 
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
+const MAX_COMPROVANTES = 2;
+
+function ComprovanteButton({ transactionId }: { transactionId: string }) {
+  const { getTransactionAttachments } = useClinic();
+  const [attachments, setAttachments] = useState<import('@/types').TransactionAttachment[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    if (attachments !== null) return;
+    setLoading(true);
+    try {
+      setAttachments(await getTransactionAttachments(transactionId));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Popover onOpenChange={(open) => { if (open) load(); }}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+        >
+          <Paperclip className="h-3.5 w-3.5" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64" align="end">
+        {loading && <p className="text-xs text-muted-foreground">Carregando...</p>}
+        {!loading && attachments?.length === 0 && (
+          <p className="text-xs text-muted-foreground">Nenhum comprovante anexado</p>
+        )}
+        {!loading && attachments && attachments.length > 0 && (
+          <ul className="space-y-1.5">
+            {attachments.map(a => (
+              <li key={a.id}>
+                <a
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary underline truncate block"
+                >
+                  {a.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function Financeiro() {
-  const { transactions, addTransaction, deleteTransaction, deleteSession, installments, updateInstallment, sessions, getPatientById, professionals, isHoliday, clinicSettings, updateClinicSetting } = useClinic();
+  const { transactions, addTransaction, addTransactionAttachment, deleteTransaction, deleteSession, installments, updateInstallment, sessions, getPatientById, professionals, isHoliday, clinicSettings, updateClinicSetting } = useClinic();
   const { canView, canCreate } = usePermissionsCtx();
   const { role, isSecretaria, loading: roleLoading } = useUserRole();
   const [isOpen, setIsOpen] = useState(false);
@@ -41,11 +95,12 @@ export default function Financeiro() {
     description: '',
     amount: '',
     category: '',
-    comprovanteUrl: '',
     paymentMethod: '' as import('@/types').PaymentMethod | '',
     installmentCount: '',
     professionalId: '',
   });
+  const [comprovanteFiles, setComprovanteFiles] = useState<File[]>([]);
+  const [isSubmittingTransaction, setIsSubmittingTransaction] = useState(false);
   const [relatorioMes, setRelatorioMes] = useState(startOfMonth(new Date()));
   const [showFullRelatorio, setShowFullRelatorio] = useState(false);
   const [showCaixaDiaria, setShowCaixaDiaria] = useState(false);
@@ -290,29 +345,37 @@ export default function Financeiro() {
     { name: 'Saídas', value: totalSaidas },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const selectedDate = dateOption === 'hoje' ? new Date() : (customDate || new Date());
-    
-    addTransaction({
-      ...transactionData,
-      amount: parseFloat(transactionData.amount),
-      date: selectedDate,
-      comprovanteUrl: transactionData.comprovanteUrl.trim() || undefined,
-      paymentMethod: transactionData.paymentMethod || undefined,
-      installmentCount: transactionData.installmentCount ? parseInt(transactionData.installmentCount) : undefined,
-      professionalId: transactionData.professionalId || undefined,
-    });
+
+    setIsSubmittingTransaction(true);
+    try {
+      const transactionId = await addTransaction({
+        ...transactionData,
+        amount: parseFloat(transactionData.amount),
+        date: selectedDate,
+        paymentMethod: transactionData.paymentMethod || undefined,
+        installmentCount: transactionData.installmentCount ? parseInt(transactionData.installmentCount) : undefined,
+        professionalId: transactionData.professionalId || undefined,
+      });
+
+      for (const file of comprovanteFiles) {
+        await addTransactionAttachment(transactionId, file);
+      }
+    } finally {
+      setIsSubmittingTransaction(false);
+    }
 
     setIsOpen(false);
     setDateOption('hoje');
     setCustomDate(undefined);
+    setComprovanteFiles([]);
     setTransactionData({
       type: 'entrada',
       description: '',
       amount: '',
       category: '',
-      comprovanteUrl: '',
       paymentMethod: '',
       installmentCount: '',
       professionalId: '',
@@ -565,7 +628,7 @@ export default function Financeiro() {
                 </div>
               </PopoverContent>
             </Popover>
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) setComprovanteFiles([]); }}>
               <DialogTrigger asChild>
                 <Button className="gap-2 w-full sm:w-auto" disabled={!canCreate('financeiro')}>
                   <Plus className="h-4 w-4" />
@@ -696,17 +759,42 @@ export default function Financeiro() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="comprovante">Link do Comprovante (opcional)</Label>
-                    <Input
-                      id="comprovante"
-                      placeholder="Cole o link do Google Drive, Dropbox, etc."
-                      value={transactionData.comprovanteUrl}
-                      onChange={(e) => setTransactionData({ ...transactionData, comprovanteUrl: e.target.value })}
-                    />
+                    <Label htmlFor="comprovante">Comprovante (opcional, até {MAX_COMPROVANTES} arquivos)</Label>
+                    <div className="space-y-2">
+                      {comprovanteFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
+                          <span className="flex items-center gap-2 truncate">
+                            <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            <span className="truncate">{file.name}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setComprovanteFiles(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-muted-foreground hover:text-rose-500 shrink-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {comprovanteFiles.length < MAX_COMPROVANTES && (
+                        <Input
+                          id="comprovante"
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) setComprovanteFiles(prev => [...prev, file]);
+                            e.target.value = '';
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
                 </>
               )}
-              <Button type="submit" className="w-full">Adicionar</Button>
+              <Button type="submit" className="w-full" disabled={isSubmittingTransaction}>
+                {isSubmittingTransaction ? 'Adicionando...' : 'Adicionar'}
+              </Button>
             </form>
           </DialogContent>
             </Dialog>
@@ -1064,14 +1152,17 @@ export default function Financeiro() {
                                       <TableCell className="text-sm py-2.5 text-muted-foreground">{pmLabel(item.paymentMethod, item.installmentCount)}</TableCell>
                                       <TableCell className="text-center text-sm py-2.5 text-muted-foreground">{item.installmentCount && item.installmentCount > 1 ? `${item.installmentCount}x` : ''}</TableCell>
                                       <TableCell className="text-center py-2.5">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                                          onClick={() => setDeletingTransaction({ id: item.id, sessionId: item.sessionId, description: item.service ?? item.clientName })}
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
+                                        <div className="flex items-center justify-center gap-0.5">
+                                          {item.type === 'saida' && <ComprovanteButton transactionId={item.id} />}
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                                            onClick={() => setDeletingTransaction({ id: item.id, sessionId: item.sessionId, description: item.service ?? item.clientName })}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   ))}
