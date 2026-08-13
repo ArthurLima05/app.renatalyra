@@ -104,6 +104,7 @@ export default function Financeiro() {
   const [relatorioMes, setRelatorioMes] = useState(startOfMonth(new Date()));
   const [showFullRelatorio, setShowFullRelatorio] = useState(false);
   const [showCaixaDiaria, setShowCaixaDiaria] = useState(false);
+  const [showSaidas, setShowSaidas] = useState(false);
   const [deletingTransaction, setDeletingTransaction] = useState<{ id: string; sessionId?: string; description: string } | null>(null);
   const [metaMensalInput, setMetaMensalInput] = useState<string>('');
 
@@ -150,8 +151,8 @@ export default function Financeiro() {
       const isFutureDay = isAfter(startOfDay(day), today);
       const isToday = isSameDay(day, today);
       const realizado = skipDay ? null : transactions
-        .filter(t => isSameDay(new Date(t.date), day))
-        .reduce((acc, t) => acc + (t.type === 'entrada' ? t.amount : -t.amount), 0);
+        .filter(t => t.type === 'entrada' && isSameDay(new Date(t.date), day))
+        .reduce((acc, t) => acc + t.amount, 0);
       const meta = skipDay ? null : metaDiaria;
       const diferenca = realizado !== null && meta !== null ? realizado - meta : null;
       const percentual = realizado !== null && meta !== null && meta > 0 ? (realizado / meta) * 100 : (realizado !== null ? 0 : null);
@@ -181,6 +182,7 @@ export default function Financeiro() {
     const monthStart = startOfMonth(relatorioMes);
     const monthEnd = endOfMonth(relatorioMes);
     const items = transactions
+      .filter(t => t.type === 'entrada')
       .filter(t => { const d = new Date(t.date); return d >= monthStart && d <= monthEnd; })
       .map(t => {
         const session = t.sessionId ? sessions.find(s => s.id === t.sessionId) : null;
@@ -209,6 +211,33 @@ export default function Financeiro() {
     return byDay;
   })();
 
+  // Saídas ficam de fora do Caixa Diário e do Relatório de Faturamento —
+  // são uma conta à parte, exibida só no card "Saídas".
+  const saidasData = (() => {
+    const monthStart = startOfMonth(relatorioMes);
+    const monthEnd = endOfMonth(relatorioMes);
+    return transactions
+      .filter(t => t.type === 'saida')
+      .filter(t => { const d = new Date(t.date); return d >= monthStart && d <= monthEnd; })
+      .map(t => {
+        const professional = t.professionalId ? professionals.find(p => p.id === t.professionalId) : null;
+        return {
+          id: t.id,
+          date: new Date(t.date),
+          dayKey: format(new Date(t.date), 'dd/MM'),
+          description: t.description,
+          professionalName: professional?.name,
+          amount: t.amount,
+          paymentMethod: t.paymentMethod,
+          installmentCount: t.installmentCount,
+          sessionId: t.sessionId,
+        };
+      })
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  })();
+
+  const totalSaidasMes = saidasData.reduce((a, i) => a + i.amount, 0);
+
   const exportCaixaDiaria = () => {
     const wb = XLSX.utils.book_new();
     const mesLabel = format(relatorioMes, 'MMMM yyyy', { locale: ptBR }).toUpperCase();
@@ -233,11 +262,11 @@ export default function Financeiro() {
 
       for (const item of items) {
         wsData.push([dayKey, item.clientName, item.service,
-          item.type === 'saida' ? -item.amount : item.amount,
+          item.amount,
           pmLabel(item.paymentMethod, item.installmentCount),
           item.installmentCount && item.installmentCount > 1 ? item.installmentCount : '', '']);
       }
-      const liquido = items.reduce((a, i) => a + (i.type === 'entrada' ? i.amount : -i.amount), 0);
+      const liquido = items.reduce((a, i) => a + i.amount, 0);
       wsData.push(['TOTAL DO DIA', '', '', liquido, '', '', '']);
       wsData.push([]);
     }
@@ -1129,60 +1158,39 @@ export default function Financeiro() {
                           </TableHeader>
                           <TableBody>
                             {Object.entries(caixaData).map(([dayKey, items]) => {
-                              const totalEntrada = items.filter(i => i.type === 'entrada').reduce((a, i) => a + i.amount, 0);
-                              const totalSaida = items.filter(i => i.type === 'saida').reduce((a, i) => a + i.amount, 0);
-                              const liquido = totalEntrada - totalSaida;
+                              const totalEntrada = items.reduce((a, i) => a + i.amount, 0);
                               return (
                                 <Fragment key={dayKey}>
                                   {items.map((item, idx) => (
                                     <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
                                       <TableCell className="text-sm py-2.5 text-muted-foreground whitespace-nowrap font-mono">{idx === 0 ? dayKey : ''}</TableCell>
                                       <TableCell className="text-sm py-2.5">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="font-medium">{item.clientName}</span>
-                                          {item.type === 'saida' && (
-                                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-400 leading-none shrink-0">saída</span>
-                                          )}
-                                        </div>
+                                        <span className="font-medium">{item.clientName}</span>
                                       </TableCell>
                                       <TableCell className="text-sm py-2.5 text-muted-foreground">{item.service}</TableCell>
-                                      <TableCell className={cn('text-right text-sm py-2.5 tabular-nums font-semibold', item.type === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400')}>
-                                        {item.type === 'saida' ? '− ' : ''}{fmtBRL(item.amount)}
+                                      <TableCell className="text-right text-sm py-2.5 tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+                                        {fmtBRL(item.amount)}
                                       </TableCell>
                                       <TableCell className="text-sm py-2.5 text-muted-foreground">{pmLabel(item.paymentMethod, item.installmentCount)}</TableCell>
                                       <TableCell className="text-center text-sm py-2.5 text-muted-foreground">{item.installmentCount && item.installmentCount > 1 ? `${item.installmentCount}x` : ''}</TableCell>
                                       <TableCell className="text-center py-2.5">
-                                        <div className="flex items-center justify-center gap-0.5">
-                                          {item.type === 'saida' && <ComprovanteButton transactionId={item.id} />}
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                                            onClick={() => setDeletingTransaction({ id: item.id, sessionId: item.sessionId, description: item.service ?? item.clientName })}
-                                          >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                          </Button>
-                                        </div>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                                          onClick={() => setDeletingTransaction({ id: item.id, sessionId: item.sessionId, description: item.service ?? item.clientName })}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
                                       </TableCell>
                                     </TableRow>
                                   ))}
                                   <TableRow>
                                     <TableCell colSpan={7} className="p-0 pb-3">
-                                      <div className={cn(
-                                        'mx-1 mt-1 rounded-lg px-4 py-2.5 flex items-center justify-between gap-4',
-                                        liquido >= 0 ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-rose-50 dark:bg-rose-950/30'
-                                      )}>
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total {dayKey}</span>
-                                          {totalSaida > 0 && (
-                                            <div className="flex items-center gap-2 text-xs">
-                                              <span className="text-emerald-600 dark:text-emerald-400">↑ {fmtBRL(totalEntrada)}</span>
-                                              <span className="text-rose-500 dark:text-rose-400">↓ {fmtBRL(totalSaida)}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                        <span className={cn('text-lg font-bold tabular-nums', liquido >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}>
-                                          {fmtBRL(liquido)}
+                                      <div className="mx-1 mt-1 rounded-lg px-4 py-2.5 flex items-center justify-between gap-4 bg-emerald-50 dark:bg-emerald-950/30">
+                                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total {dayKey}</span>
+                                        <span className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                          {fmtBRL(totalEntrada)}
                                         </span>
                                       </div>
                                     </TableCell>
@@ -1365,6 +1373,97 @@ export default function Financeiro() {
                   )}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Saídas — conta à parte, não impacta Caixa Diária nem Relatório de Faturamento */}
+      {canView('financeiro') && (
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.47 }}>
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <TrendingDown className="h-5 w-5 text-rose-500" />
+                  <CardTitle className="text-lg sm:text-xl">Saídas</CardTitle>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioMes(subMonths(relatorioMes, 1))}><ChevronLeft className="h-4 w-4" /></Button>
+                  <span className="text-sm font-medium min-w-[130px] text-center capitalize">{format(relatorioMes, 'MMMM yyyy', { locale: ptBR })}</span>
+                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioMes(addMonths(relatorioMes, 1))}><ChevronRight className="h-4 w-4" /></Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {saidasData.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8 text-sm">Nenhuma saída registrada neste mês</p>
+              ) : (
+                <>
+                  <div className="relative overflow-x-auto -mx-4 sm:mx-0">
+                    <div className={cn('overflow-hidden transition-all duration-300', !showSaidas && 'max-h-[360px]')}>
+                      <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                        <Table className="min-w-[560px]">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-16 text-xs">Data</TableHead>
+                              <TableHead className="text-xs">Descrição</TableHead>
+                              <TableHead className="text-xs">Dentista</TableHead>
+                              <TableHead className="text-right text-xs">Valor</TableHead>
+                              <TableHead className="text-xs">Forma Pgto</TableHead>
+                              <TableHead className="w-16 text-xs"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {saidasData.map((item) => (
+                              <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
+                                <TableCell className="text-sm py-2.5 text-muted-foreground whitespace-nowrap font-mono">{item.dayKey}</TableCell>
+                                <TableCell className="text-sm py-2.5 font-medium">{item.description}</TableCell>
+                                <TableCell className="text-sm py-2.5 text-muted-foreground">{item.professionalName ?? '—'}</TableCell>
+                                <TableCell className="text-right text-sm py-2.5 tabular-nums font-semibold text-rose-500 dark:text-rose-400">
+                                  {fmtBRL(item.amount)}
+                                </TableCell>
+                                <TableCell className="text-sm py-2.5 text-muted-foreground">{pmLabel(item.paymentMethod, item.installmentCount)}</TableCell>
+                                <TableCell className="text-center py-2.5">
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <ComprovanteButton transactionId={item.id} />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                                      onClick={() => setDeletingTransaction({ id: item.id, sessionId: item.sessionId, description: item.description })}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow>
+                              <TableCell colSpan={6} className="p-0 pb-3">
+                                <div className="mx-1 mt-1 rounded-lg px-4 py-2.5 flex items-center justify-between gap-4 bg-rose-50 dark:bg-rose-950/30">
+                                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total do mês</span>
+                                  <span className="text-lg font-bold tabular-nums text-rose-600 dark:text-rose-400">
+                                    {fmtBRL(totalSaidasMes)}
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                    {!showSaidas && saidasData.length > 5 && <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />}
+                  </div>
+                  {saidasData.length > 5 && (
+                    <div className="mt-2 text-center">
+                      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground gap-1" onClick={() => setShowSaidas(v => !v)}>
+                        {showSaidas ? <><ChevronLeft className="h-3 w-3 rotate-90" />Recolher</> : <><ChevronRight className="h-3 w-3 rotate-90" />Exibir Mais</>}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </motion.div>
