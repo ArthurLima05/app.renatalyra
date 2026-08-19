@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
       const [{ data: patient }, { data: questions, error: qErr }] = await Promise.all([
         supabase
           .from('patients')
-          .select('full_name, phone, email, birth_date, gender, marital_status, profession, address, responsible, responsible_cpf')
+          .select('full_name, phone, email, cpf, birth_date, gender, marital_status, profession, address, responsible, responsible_cpf')
           .eq('id', tk.patient_id)
           .maybeSingle(),
         supabase.from('anamnese_questions').select('*').eq('active', true).order('sequence'),
@@ -90,6 +90,9 @@ Deno.serve(async (req) => {
       if (!Array.isArray(answers) || answers.length === 0) {
         return json({ success: false, error: 'answers é obrigatório' }, 400)
       }
+      if (!personal?.email || !personal?.cpf) {
+        return json({ success: false, error: 'E-mail e CPF são obrigatórios' }, 400)
+      }
 
       const { data: patient } = await supabase
         .from('patients').select('full_name, phone').eq('id', tk.patient_id).maybeSingle()
@@ -100,6 +103,7 @@ Deno.serve(async (req) => {
 
       const updatePayload: Record<string, string | null> = {
         email: personal?.email || null,
+        cpf: personal?.cpf || null,
         profession: personal?.profession || null,
         address: personal?.address || null,
         responsible: personal?.responsible || null,

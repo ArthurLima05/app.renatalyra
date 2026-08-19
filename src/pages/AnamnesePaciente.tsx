@@ -12,6 +12,17 @@ import logoClinicaDark from "@/assets/DarkLogo.svg";
 
 type Step = "code" | "form" | "sign" | "done" | "error" | "loading" | "blocked";
 
+const formatCpf = (value: string) => {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+};
+
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+const isValidCpf = (value: string) => value.replace(/\D/g, "").length === 11;
+
 interface Question {
   id: string;
   question: string;
@@ -23,6 +34,7 @@ interface Question {
 interface PersonalData {
   fullName: string;
   email: string;
+  cpf: string;
   birthDate: string;
   gender: string;
   maritalStatus: string;
@@ -57,9 +69,11 @@ export default function AnamnesePaciente() {
   const [errorMessage, setErrorMessage] = useState("");
   const [confirmedAt] = useState(() => new Date());
 
+  const [formError, setFormError] = useState("");
   const [personal, setPersonal] = useState<PersonalData>({
     fullName: "",
     email: "",
+    cpf: "",
     birthDate: "",
     gender: "",
     maritalStatus: "",
@@ -92,6 +106,7 @@ export default function AnamnesePaciente() {
         setPersonal({
           fullName: pt.full_name ?? "",
           email: pt.email ?? "",
+          cpf: pt.cpf ? formatCpf(pt.cpf) : "",
           birthDate: pt.birth_date ? pt.birth_date.slice(0, 10) : "",
           gender: pt.gender ?? "",
           maritalStatus: pt.marital_status ?? "",
@@ -403,15 +418,28 @@ export default function AnamnesePaciente() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">E-mail</Label>
-                <Input
-                  type="email"
-                  value={personal.email}
-                  onChange={(e) => setPersonal((p) => ({ ...p, email: e.target.value }))}
-                  placeholder="seu@email.com"
-                  className="text-sm"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">E-mail *</Label>
+                  <Input
+                    type="email"
+                    required
+                    value={personal.email}
+                    onChange={(e) => setPersonal((p) => ({ ...p, email: e.target.value }))}
+                    placeholder="seu@email.com"
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">CPF *</Label>
+                  <Input
+                    required
+                    value={personal.cpf}
+                    onChange={(e) => setPersonal((p) => ({ ...p, cpf: formatCpf(e.target.value) }))}
+                    placeholder="000.000.000-00"
+                    className="text-sm"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -532,7 +560,22 @@ export default function AnamnesePaciente() {
               ))}
             </div>
 
-            <Button className="w-full" onClick={() => setStep("sign")}>
+            {formError && <p className="text-sm text-destructive text-center">{formError}</p>}
+            <Button
+              className="w-full"
+              onClick={() => {
+                if (!personal.email.trim() || !isValidEmail(personal.email)) {
+                  setFormError("Informe um e-mail válido para continuar.");
+                  return;
+                }
+                if (!personal.cpf.trim() || !isValidCpf(personal.cpf)) {
+                  setFormError("Informe um CPF válido (11 dígitos) para continuar.");
+                  return;
+                }
+                setFormError("");
+                setStep("sign");
+              }}
+            >
               Continuar para Confirmação
             </Button>
           </div>
