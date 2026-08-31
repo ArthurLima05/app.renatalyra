@@ -126,6 +126,16 @@ export function generateFichaOdontologicaHtml(params: {
   const isFem  = patient.gender === "feminino";
   const isMasc = patient.gender === "masculino";
 
+  const isMinor = (() => {
+    if (!patient.birthDate) return false;
+    const birth = new Date(patient.birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age < 18;
+  })();
+
   // Checkbox inline: pré-marcado ou vazio
   const chk = (v: boolean | null | undefined) =>
     v === true
@@ -296,7 +306,9 @@ export function generateFichaOdontologicaHtml(params: {
   <div class="data-row">
     ${fld("Nome do Responsável", patient.responsible ?? "")}
     ${gap}
-    ${fld("CPF do Responsável", patient.responsibleCpf ?? "", "130px")}
+    ${isMinor
+      ? fld("CPF do Responsável", patient.responsibleCpf ?? "", "130px")
+      : fld("CPF", patient.cpf ?? "", "130px")}
   </div>
 
   <div class="data-row">
