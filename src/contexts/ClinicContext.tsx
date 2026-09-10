@@ -408,10 +408,24 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateClinicSetting = async (key: string, value: string) => {
-    const { error } = await (supabase as any)
+    const { data: existing, error: selectError } = await (supabase as any)
       .from("clinic_settings")
-      .update({ value, updated_at: new Date().toISOString() })
-      .eq("key", key);
+      .select("key")
+      .eq("key", key)
+      .maybeSingle();
+    if (selectError) {
+      toast({ title: "Erro ao salvar configuração", description: selectError.message, variant: "destructive" });
+      throw selectError;
+    }
+
+    const { error } = existing
+      ? await (supabase as any)
+          .from("clinic_settings")
+          .update({ value, updated_at: new Date().toISOString() })
+          .eq("key", key)
+      : await (supabase as any)
+          .from("clinic_settings")
+          .insert({ key, value, updated_at: new Date().toISOString() });
     if (error) {
       toast({ title: "Erro ao salvar configuração", description: error.message, variant: "destructive" });
       throw error;
