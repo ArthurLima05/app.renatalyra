@@ -2,8 +2,8 @@ import { motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import logoClinica from '@/assets/LightLogo.svg';
 import logoClinicaDark from '@/assets/DarkLogo.svg';
-import logoTechClin from '@/assets/logo-techclin.png';
-import logoTechClinDark from '@/assets/logo-techclin-dark.png';
+import logoLume from '@/assets/logo-lume.png';
+import logoLumeEscura from '@/assets/logo-lume-escura.png';
 import { Button } from './ui/button';
 import { Menu, X } from 'lucide-react';
 
@@ -72,8 +72,8 @@ export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
           className="ml-auto flex-shrink-0 flex-col items-end gap-0.5 z-10 hidden sm:flex"
         >
           <span className="text-xs text-muted-foreground">Desenvolvido por</span>
-          <img src={logoTechClin} alt="TechClin" className="h-7 w-auto object-contain dark:hidden" />
-          <img src={logoTechClinDark} alt="TechClin" className="h-7 w-auto object-contain hidden dark:block" />
+          <img src={logoLumeEscura} alt="Lume" className="h-7 w-auto object-contain dark:hidden" />
+          <img src={logoLume} alt="Lume" className="h-7 w-auto object-contain hidden dark:block" />
         </motion.div>
       </div>
     </motion.header>

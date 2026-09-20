@@ -25,6 +25,7 @@ import { Odontograma } from '@/components/Odontograma';
 import { PatientPhotos } from '@/components/PatientPhotos';
 import { PatientAnamnese } from '@/components/PatientAnamnese';
 import { PatientDocuments } from '@/components/PatientDocuments';
+import { PlanoTratamento } from '@/components/PlanoTratamento';
 import { ReciboModal } from '@/components/ReciboModal';
 import { PaymentStatus, PaymentMethod, PatientGender, MaritalStatus, PatientOrigin, Session } from '@/types';
 import { useRef } from 'react';
@@ -706,6 +707,7 @@ const ProntuarioPaciente = () => {
                 { value: 'anamnese',    icon: <ClipboardList className="h-5 w-5 shrink-0" />, label: 'Anamnese' },
                 { value: 'fotos',       icon: <Images className="h-5 w-5 shrink-0" />,        label: 'Fotos' },
                 { value: 'odontograma', icon: <Stethoscope className="h-5 w-5 shrink-0" />,  label: 'Odontograma' },
+                { value: 'plano_tratamento', icon: <FileText className="h-5 w-5 shrink-0" />, label: 'Plano de Tratamento' },
                 { value: 'documentos',  icon: <FolderOpen className="h-5 w-5 shrink-0" />,   label: 'Documentos' },
                 { value: 'notes',       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>, label: 'Observações' },
               ] as { value: string; icon: React.ReactNode; label: string }[]
@@ -1404,6 +1406,10 @@ const ProntuarioPaciente = () => {
 
         <TabsContent value="odontograma">
           {id && <Odontograma patientId={id} />}
+        </TabsContent>
+
+        <TabsContent value="plano_tratamento">
+          {id && patient && <PlanoTratamento patientId={id} patientName={patient.fullName} />}
         </TabsContent>
 
         <TabsContent value="documentos" className="space-y-4">

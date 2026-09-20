@@ -1,6 +1,11 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { DEMO_MODE } from '@/lib/demoMode';
+import { DemoPermissionsProvider } from './PermissionsContext.demo';
+import { PermissionsContext, PermissionsContextType, usePermissionsCtx } from './base/permissionsContextBase';
+
+export { usePermissionsCtx };
 
 type PermMap = Record<string, {
   canView: boolean;
@@ -9,29 +14,7 @@ type PermMap = Record<string, {
   canDelete: boolean;
 }>;
 
-interface PermissionsContextType {
-  isAdmin: boolean;
-  loading: boolean;
-  canView: (module: string) => boolean;
-  canCreate: (module: string) => boolean;
-  canEdit: (module: string) => boolean;
-  canDelete: (module: string) => boolean;
-  hasAnyPermission: (module: string) => boolean;
-}
-
-const PermissionsContext = createContext<PermissionsContextType>({
-  isAdmin: false,
-  loading: true,
-  canView: () => false,
-  canCreate: () => false,
-  canEdit: () => false,
-  canDelete: () => false,
-  hasAnyPermission: () => false,
-});
-
-export const usePermissionsCtx = () => useContext(PermissionsContext);
-
-export const PermissionsProvider = ({ children }: { children: React.ReactNode }) => {
+const PermissionsProviderReal = ({ children }: { children: React.ReactNode }) => {
   const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [perms, setPerms] = useState<PermMap>({});
@@ -114,3 +97,5 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
     </PermissionsContext.Provider>
   );
 };
+
+export const PermissionsProvider = DEMO_MODE ? DemoPermissionsProvider : PermissionsProviderReal;

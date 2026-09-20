@@ -284,6 +284,31 @@ export interface Installment {
   createdAt: Date;
 }
 
+export type TreatmentPlanStatus = 'em_andamento' | 'concluido' | 'cancelado';
+
+export interface TreatmentPlanItem {
+  id: string;
+  planId: string;
+  description: string;
+  teeth?: string;
+  quantity: number;
+  unitValue: number;
+  sequence: number;
+  createdAt: Date;
+}
+
+export interface TreatmentPlan {
+  id: string;
+  patientId: string;
+  professionalId?: string;
+  title: string;
+  status: TreatmentPlanStatus;
+  advanceValue: number;
+  notes?: string;
+  items: TreatmentPlanItem[];
+  createdAt: Date;
+}
+
 export interface Holiday {
   id: string;
   date: string; // YYYY-MM-DD

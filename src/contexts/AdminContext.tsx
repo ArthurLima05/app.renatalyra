@@ -1,32 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Lead, LeadStage, AppUser, UserProfile, AppModule, UserPermission } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { DEMO_MODE } from "@/lib/demoMode";
+import { DemoAdminProvider } from "./AdminContext.demo";
+import { AdminContext, AdminContextType, useAdmin } from "./base/adminContextBase";
 
-interface AdminContextType {
-  appUsers: AppUser[];
-  userPermissions: UserPermission[];
-  reloadUserPermissions: () => Promise<void>;
-  setModuleEnabled: (userId: string, module: AppModule, enabled: boolean) => Promise<void>;
-  inviteAppUser: (data: { email: string; fullName: string; phone?: string; profile: UserProfile }) => Promise<void>;
-  toggleAppUserActive: (id: string, active: boolean) => Promise<void>;
-  updateUserPermission: (userId: string, module: AppModule, field: 'canView' | 'canCreate' | 'canEdit' | 'canDelete', value: boolean) => Promise<void>;
-  leads: Lead[];
-  addLead: (data: Omit<Lead, 'id' | 'stage' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateLead: (id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>) => Promise<void>;
-  moveLeadStage: (id: string, stage: LeadStage, extra?: { lostReason?: string }) => Promise<{ patientId?: string }>;
-  deleteLead: (id: string) => Promise<void>;
-}
+export { useAdmin };
 
-const AdminContext = createContext<AdminContextType | undefined>(undefined);
-
-export const useAdmin = () => {
-  const context = useContext(AdminContext);
-  if (!context) throw new Error("useAdmin must be used within AdminProvider");
-  return context;
-};
-
-export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const AdminProviderReal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [appUsers, setAppUsers] = useState<AppUser[]>([]);
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -266,3 +248,5 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
 };
+
+export const AdminProvider = DEMO_MODE ? DemoAdminProvider : AdminProviderReal;

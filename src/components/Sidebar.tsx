@@ -23,6 +23,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { DEMO_MODE } from '@/lib/demoMode';
+import { demoSignOut } from '@/lib/demoAuth';
 
 const NAV_ITEMS = [
   { to: '/',              module: 'agenda',        icon: Calendar,        label: 'Agendamentos' },
@@ -53,7 +55,11 @@ export const Sidebar = ({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: Side
   const w = collapsed ? 'w-[64px]' : 'w-64';
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    if (DEMO_MODE) {
+      demoSignOut();
+    } else {
+      await supabase.auth.signOut();
+    }
     toast({ title: 'Logout realizado', description: 'Você saiu do sistema com sucesso' });
     navigate('/login');
   };

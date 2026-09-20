@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { DEMO_MODE } from '@/lib/demoMode';
 
 export type UserRole = 'admin' | 'secretaria' | null;
 
-export const useUserRole = () => {
+const useUserRoleDemo = () => {
+  const { user } = useAuth();
+  const role: UserRole = user ? 'admin' : null;
+  return { role, loading: false, isAdmin: role === 'admin', isSecretaria: false };
+};
+
+const useUserRoleReal = () => {
   const { user } = useAuth();
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
@@ -38,3 +45,5 @@ export const useUserRole = () => {
 
   return { role, loading, isAdmin: role === 'admin', isSecretaria: role === 'secretaria' };
 };
+
+export const useUserRole = DEMO_MODE ? useUserRoleDemo : useUserRoleReal;

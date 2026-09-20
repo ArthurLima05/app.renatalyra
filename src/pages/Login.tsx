@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import logoClinica from '@/assets/LightLogo.svg';
 import fotoDra from '@/assets/_MF_9787.jpg';
 import { motion } from 'framer-motion';
+import { DEMO_MODE, DEMO_CREDENTIALS } from '@/lib/demoMode';
+import { demoSignIn } from '@/lib/demoAuth';
 
 const EASE = [0.25, 0.46, 0.45, 0.94] as const;
 
@@ -25,6 +27,11 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
+      if (DEMO_MODE) {
+        demoSignIn(formData.email, formData.password);
+        navigate('/');
+        return;
+      }
       const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -42,6 +49,10 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
+      if (DEMO_MODE) {
+        toast({ title: 'Indisponível na demonstração', description: `Use as credenciais de demonstração: ${DEMO_CREDENTIALS.email}`, variant: 'destructive' });
+        return;
+      }
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
         redirectTo: `${window.location.origin}/redefinir-senha`,
       });

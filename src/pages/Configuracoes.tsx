@@ -27,6 +27,7 @@ import {
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { DEMO_MODE } from '@/lib/demoMode';
 import type { AppUser, UserProfile, AppModule, UserPermission } from '@/types';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { cn } from '@/lib/utils';
@@ -858,6 +859,11 @@ function AlterarSenhaSection() {
     if (form.next.length < 8) { setFormError('A nova senha deve ter pelo menos 8 caracteres.'); return; }
     if (form.next !== form.confirm) { setFormError('As senhas não coincidem.'); return; }
 
+    if (DEMO_MODE) {
+      toast({ title: 'Indisponível na demonstração', description: 'A troca de senha é desabilitada no ambiente de demonstração.', variant: 'destructive' });
+      return;
+    }
+
     setSaving(true);
     try {
       // Verifica senha atual tentando reautenticar
@@ -1146,6 +1152,10 @@ function ImportarAgendamentosSubsection() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const processFile = async (file: File) => {
+    if (DEMO_MODE) {
+      toast({ title: 'Indisponível na demonstração', description: 'A importação de agendamentos é desabilitada no ambiente de demonstração.', variant: 'destructive' });
+      return;
+    }
     setFileName(file.name);
     let raw: Record<string, unknown>[];
     try {
@@ -1468,6 +1478,10 @@ function ImportarPacientesSubsection() {
   };
 
   const handleImport = async () => {
+    if (DEMO_MODE) {
+      toast({ title: 'Indisponível na demonstração', description: 'A importação de pacientes é desabilitada no ambiente de demonstração.', variant: 'destructive' });
+      return;
+    }
     setImporting(true);
     let imported = 0;
     const errors: string[] = [];

@@ -16,6 +16,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.demo
 
 # Workflows n8n — backup local, não versionado (contém credenciais)
 n8n_workflows/

@@ -1,8 +1,19 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { DEMO_MODE } from '@/lib/demoMode';
+import { demoGetUser, onDemoAuthChange, DemoUser } from '@/lib/demoAuth';
 
-export const useAuth = () => {
+const useAuthDemo = () => {
+  const [user, setUser] = useState<DemoUser | null>(() => demoGetUser());
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => onDemoAuthChange(() => setUser(demoGetUser())), []);
+
+  return { user: user as unknown as User | null, loading };
+};
+
+const useAuthReal = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,3 +32,5 @@ export const useAuth = () => {
 
   return { user, loading };
 };
+
+export const useAuth = DEMO_MODE ? useAuthDemo : useAuthReal;

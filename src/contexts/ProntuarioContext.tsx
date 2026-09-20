@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   OdontogramProcedure,
   PatientPhoto,
@@ -10,56 +10,26 @@ import {
   AnamneseStatus,
   ReturnAlert,
   PatientDocument,
+  TreatmentPlan,
+  TreatmentPlanItem,
 } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useClinic } from "./ClinicContext";
+import { DEMO_MODE } from "@/lib/demoMode";
+import { DemoProntuarioProvider } from "./ProntuarioContext.demo";
+import { ProntuarioContext, ProntuarioContextType, useProntuario } from "./base/prontuarioContextBase";
 
-interface ProntuarioContextType {
-  odontogramProcedures: OdontogramProcedure[];
-  addOdontogramProcedure: (proc: Omit<OdontogramProcedure, "id" | "createdAt">) => Promise<void>;
-  deleteOdontogramProcedure: (id: string) => Promise<void>;
-  getOdontogramByPatientId: (patientId: string) => OdontogramProcedure[];
-  anamneseQuestions: AnamneseQuestion[];
-  anamneseResponses: AnamneseResponse[];
-  addAnamneseQuestion: (question: string, type: AnamneseQuestionType, sequence: number, options?: string[]) => Promise<void>;
-  updateAnamneseQuestion: (id: string, data: Partial<Pick<AnamneseQuestion, 'question' | 'sequence' | 'type' | 'active' | 'options'>>) => Promise<void>;
-  deleteAnamneseQuestion: (id: string) => Promise<void>;
-  saveAnamneseResponse: (patientId: string, answers: Omit<AnamneseAnswerRecord, 'id' | 'responseId'>[]) => Promise<void>;
-  requestAnamneseForPatient: (patientId: string) => Promise<{ link: string; code: string }>;
-  sendAnamneseViaWhatsapp: (patientId: string, responseId: string, token: string, code: string) => Promise<void>;
-  deleteAnamneseResponse: (id: string) => Promise<void>;
-  getAnamneseByPatientId: (patientId: string) => AnamneseResponse[];
-  patientPhotos: PatientPhoto[];
-  addPatientPhoto: (patientId: string, file: File, caption: string, category: PhotoCategory) => Promise<void>;
-  deletePatientPhoto: (id: string, url: string) => Promise<void>;
-  updatePatientAvatar: (patientId: string, file: File) => Promise<void>;
-  getPhotosByPatientId: (patientId: string) => PatientPhoto[];
-  patientDocuments: PatientDocument[];
-  addPatientDocument: (patientId: string, file: File) => Promise<void>;
-  deletePatientDocument: (id: string, url: string) => Promise<void>;
-  getDocumentsByPatientId: (patientId: string) => PatientDocument[];
-  returnAlerts: ReturnAlert[];
-  addReturnAlert: (patientId: string, returnDate: Date, notes?: string) => Promise<void>;
-  deleteReturnAlert: (id: string) => Promise<void>;
-  sendReturnAlertWhatsApp: (id: string) => Promise<void>;
-}
+export { useProntuario };
 
-const ProntuarioContext = createContext<ProntuarioContextType | undefined>(undefined);
-
-export const useProntuario = () => {
-  const context = useContext(ProntuarioContext);
-  if (!context) throw new Error("useProntuario must be used within ProntuarioProvider");
-  return context;
-};
-
-export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const ProntuarioProviderReal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [odontogramProcedures, setOdontogramProcedures] = useState<OdontogramProcedure[]>([]);
   const [patientPhotos, setPatientPhotos] = useState<PatientPhoto[]>([]);
   const [patientDocuments, setPatientDocuments] = useState<PatientDocument[]>([]);
   const [anamneseQuestions, setAnamneseQuestions] = useState<AnamneseQuestion[]>([]);
   const [anamneseResponses, setAnamneseResponses] = useState<AnamneseResponse[]>([]);
   const [returnAlerts, setReturnAlerts] = useState<ReturnAlert[]>([]);
+  const [treatmentPlans, setTreatmentPlans] = useState<TreatmentPlan[]>([]);
   const { toast } = useToast();
   const { getPatientById, clinicSettings, updatePatient, loading: clinicLoading } = useClinic();
 
@@ -70,6 +40,7 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       loadPatientDocuments(),
       loadAnamneseData(),
       loadReturnAlerts(),
+      loadTreatmentPlans(),
     ]);
   }, []);
 
@@ -538,6 +509,124 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     toast({ title: '✅ Alerta enviado', description: `Mensagem de retorno disparada para ${patient.fullName}` });
   };
 
+  const loadTreatmentPlans = async () => {
+    const [plansRes, itemsRes] = await Promise.all([
+      (supabase as any).from("treatment_plans").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("treatment_plan_items").select("*").order("sequence", { ascending: true }),
+    ]);
+    if (plansRes.error) { console.error("Error loading treatment plans:", plansRes.error); return; }
+    if (itemsRes.error) { console.error("Error loading treatment plan items:", itemsRes.error); return; }
+
+    const itemsByPlan = new Map<string, TreatmentPlanItem[]>();
+    for (const r of itemsRes.data || []) {
+      const item: TreatmentPlanItem = {
+        id: r.id,
+        planId: r.plan_id,
+        description: r.description,
+        teeth: r.teeth ?? undefined,
+        quantity: Number(r.quantity),
+        unitValue: Number(r.unit_value),
+        sequence: r.sequence,
+        createdAt: new Date(r.created_at),
+      };
+      const arr = itemsByPlan.get(item.planId) ?? [];
+      arr.push(item);
+      itemsByPlan.set(item.planId, arr);
+    }
+
+    setTreatmentPlans(
+      (plansRes.data || []).map((r: any) => ({
+        id: r.id,
+        patientId: r.patient_id,
+        professionalId: r.professional_id ?? undefined,
+        title: r.title,
+        status: r.status,
+        advanceValue: Number(r.advance_value),
+        notes: r.notes ?? undefined,
+        items: itemsByPlan.get(r.id) ?? [],
+        createdAt: new Date(r.created_at),
+      }))
+    );
+  };
+
+  const addTreatmentPlan = async (
+    plan: Omit<TreatmentPlan, "id" | "createdAt" | "items">,
+    items: Omit<TreatmentPlanItem, "id" | "planId" | "createdAt">[]
+  ) => {
+    const { data, error } = await (supabase as any).from("treatment_plans").insert({
+      patient_id: plan.patientId,
+      professional_id: plan.professionalId ?? null,
+      title: plan.title,
+      status: plan.status,
+      advance_value: plan.advanceValue,
+      notes: plan.notes ?? null,
+    }).select().single();
+    if (error) { toast({ title: "Erro ao criar plano de tratamento", description: error.message, variant: "destructive" }); throw error; }
+
+    if (items.length > 0) {
+      const rows = items.map((it) => ({
+        plan_id: data.id,
+        description: it.description,
+        teeth: it.teeth ?? null,
+        quantity: it.quantity,
+        unit_value: it.unitValue,
+        sequence: it.sequence,
+      }));
+      const { error: itemsError } = await (supabase as any).from("treatment_plan_items").insert(rows);
+      if (itemsError) { toast({ title: "Erro ao salvar itens do plano", description: itemsError.message, variant: "destructive" }); throw itemsError; }
+    }
+
+    await loadTreatmentPlans();
+    toast({ title: "Plano de tratamento criado com sucesso" });
+  };
+
+  const updateTreatmentPlan = async (
+    id: string,
+    plan: Partial<Pick<TreatmentPlan, "title" | "status" | "advanceValue" | "notes" | "professionalId">>,
+    items: Omit<TreatmentPlanItem, "id" | "planId" | "createdAt">[]
+  ) => {
+    const updateData: any = {};
+    if (plan.title !== undefined) updateData.title = plan.title;
+    if (plan.status !== undefined) updateData.status = plan.status;
+    if (plan.advanceValue !== undefined) updateData.advance_value = plan.advanceValue;
+    if (plan.notes !== undefined) updateData.notes = plan.notes ?? null;
+    if (plan.professionalId !== undefined) updateData.professional_id = plan.professionalId ?? null;
+
+    if (Object.keys(updateData).length > 0) {
+      const { error } = await (supabase as any).from("treatment_plans").update(updateData).eq("id", id);
+      if (error) { toast({ title: "Erro ao atualizar plano de tratamento", description: error.message, variant: "destructive" }); throw error; }
+    }
+
+    const { error: deleteError } = await (supabase as any).from("treatment_plan_items").delete().eq("plan_id", id);
+    if (deleteError) { toast({ title: "Erro ao atualizar itens do plano", description: deleteError.message, variant: "destructive" }); throw deleteError; }
+
+    if (items.length > 0) {
+      const rows = items.map((it) => ({
+        plan_id: id,
+        description: it.description,
+        teeth: it.teeth ?? null,
+        quantity: it.quantity,
+        unit_value: it.unitValue,
+        sequence: it.sequence,
+      }));
+      const { error: itemsError } = await (supabase as any).from("treatment_plan_items").insert(rows);
+      if (itemsError) { toast({ title: "Erro ao salvar itens do plano", description: itemsError.message, variant: "destructive" }); throw itemsError; }
+    }
+
+    await loadTreatmentPlans();
+    toast({ title: "Plano de tratamento atualizado" });
+  };
+
+  const deleteTreatmentPlan = async (id: string) => {
+    const { error } = await (supabase as any).from("treatment_plans").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir plano de tratamento", description: error.message, variant: "destructive" }); throw error; }
+    setTreatmentPlans((prev) => prev.filter((p) => p.id !== id));
+    toast({ title: "Plano de tratamento excluído" });
+  };
+
+  const getTreatmentPlansByPatientId = (patientId: string) =>
+    treatmentPlans.filter((p) => p.patientId === patientId);
+
   const value: ProntuarioContextType = {
     odontogramProcedures,
     addOdontogramProcedure,
@@ -566,7 +655,14 @@ export const ProntuarioProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     addReturnAlert,
     deleteReturnAlert,
     sendReturnAlertWhatsApp,
+    treatmentPlans,
+    addTreatmentPlan,
+    updateTreatmentPlan,
+    deleteTreatmentPlan,
+    getTreatmentPlansByPatientId,
   };
 
   return <ProntuarioContext.Provider value={value}>{children}</ProntuarioContext.Provider>;
 };
+
+export const ProntuarioProvider = DEMO_MODE ? DemoProntuarioProvider : ProntuarioProviderReal;
