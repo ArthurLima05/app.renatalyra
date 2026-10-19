@@ -462,7 +462,7 @@ const ProntuarioProviderReal: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    const template = clinicSettings['msg_return_alert'] ?? 'Olá, {{nome_paciente}}! Aqui é a clínica Dra. Renata Lyra. Que tal agendar um retorno?';
+    const template = clinicSettings['msg_return_alert'] ?? 'Olá, {{nome_paciente}}! Aqui é a Clínica Renata Lyra. Que tal agendar um retorno?';
     const message = template.replace('{{nome_paciente}}', patient.fullName);
 
     let res: Response;

@@ -45,11 +45,20 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    const { data: patient } = await supabase
+    // O n8n envia o telefone com DDI ("5511999998888"), mas o cadastro pode ter sido
+    // salvo com ou sem o 55. Busca as duas variações direto no banco (evita o limite
+    // de 1000 linhas do PostgREST).
+    const digits = String(phone).replace(/\D/g, '')
+    const national = digits.length > 11 && digits.startsWith('55') ? digits.slice(2) : digits
+    const variants = [digits, national, '55' + national]
+
+    const { data: matches } = await supabase
       .from('patients')
       .select('id, full_name')
-      .eq('phone', phone)
-      .maybeSingle()
+      .in('phone', variants)
+
+    const patient = matches?.[0] ?? null
+    const patientIds = (matches ?? []).map((p: { id: string }) => p.id)
 
     if (!patient) {
       return new Response(
@@ -64,7 +73,8 @@ Deno.serve(async (req) => {
     const { data: appointments } = await supabase
       .from('appointments')
       .select('id')
-      .eq('patient_id', patient.id)
+      .in('patient_id', patientIds)
+      .is('deleted_at', null)
       .in('status', ['agendado', 'confirmado'])
       .gte('date', today)
       .limit(1)

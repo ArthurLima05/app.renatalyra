@@ -98,19 +98,19 @@ const RETURN_ALERT_TEMPLATES = [
     key: 'msg_return_alert_1',
     tabLabel: '1ª mensagem',
     variables: ['{{nome_paciente}}', '{{data_retorno}}', '{{observacoes}}'],
-    defaultValue: 'Olá, {{nome_paciente}}! 😊\n\nA equipe da *Dra. Renata Lyra* entrando em contato.\n\nChegou a hora do seu *retorno odontológico*! 🦷\n\nPara agendar sua consulta de retorno, responda essa mensagem com:\n👇 *AGENDAR* — e nossa equipe entrará em contato para marcar o melhor horário para você.\n\nCuide do seu sorriso! 😊',
+    defaultValue: 'Olá, {{nome_paciente}}! 😊\n\nA equipe da *Clínica Renata Lyra* entrando em contato.\n\nChegou a hora do seu *retorno odontológico*! 🦷\n\nPara agendar sua consulta de retorno, responda essa mensagem com:\n👇 *AGENDAR* e nossa equipe entrará em contato para marcar o melhor horário para você.\n\nCuide do seu sorriso! 😊',
   },
   {
     key: 'msg_return_alert_2',
     tabLabel: '2ª mensagem',
     variables: ['{{nome_paciente}}'],
-    defaultValue: 'Oi, {{nome_paciente}}! 😊\n\nPassando novamente para lembrar do seu *retorno* na Clínica Dra. Renata Lyra. 🦷\n\nAinda não conseguimos marcar sua consulta — e queremos muito cuidar do seu sorriso!\n\nResponda *AGENDAR* que nossa equipe entra em contato rapidinho! 💙',
+    defaultValue: 'Oi, {{nome_paciente}}! 😊\n\nPassando novamente para lembrar do seu *retorno* na Clínica Renata Lyra. 🦷\n\nAinda não conseguimos marcar sua consulta e queremos muito cuidar do seu sorriso!\n\nResponda *AGENDAR* que nossa equipe entra em contato rapidinho! 💙',
   },
   {
     key: 'msg_return_alert_3',
     tabLabel: '3ª mensagem',
     variables: ['{{nome_paciente}}'],
-    defaultValue: '{{nome_paciente}}, última lembrança do seu retorno! 🦷\n\nSabemos que a rotina é corrida, mas cuidar da saúde bucal faz toda a diferença. 😊\n\nNossa equipe está à disposição — responda *AGENDAR* ou ligue diretamente para a clínica.\n\nTe esperamos! 😊 — Clínica Dra. Renata Lyra',
+    defaultValue: '{{nome_paciente}}, última lembrança do seu retorno! 🦷\n\nSabemos que a rotina é corrida, mas cuidar da saúde bucal faz toda a diferença. 😊\n\nNossa equipe está à disposição. Responda *AGENDAR* ou ligue diretamente para a clínica.\n\nTe esperamos! 😊\nClínica Renata Lyra',
   },
 ];
 
