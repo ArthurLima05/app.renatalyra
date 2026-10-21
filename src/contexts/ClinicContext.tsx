@@ -738,7 +738,7 @@ const ClinicProviderReal: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateAppointmentTime = async (id: string, date: Date, time: string, duration: number) => {
     const { error } = await supabase
       .from("appointments")
-      .update({ date: date.toISOString(), time, duration, notified_24h_at: null })
+      .update({ date: date.toISOString(), time, duration, notified_24h_at: null, notified_12h_at: null, notified_3h_at: null })
       .eq("id", id);
 
     if (error) {

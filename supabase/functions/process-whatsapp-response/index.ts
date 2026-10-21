@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
       .select('id, date, time, status, professional_id, notified_24h_at, patient_id')
       .in('patient_id', patients.map((p: { id: string; full_name: string }) => p.id))
       .eq('status', 'agendado')
-      .not('notified_24h_at', 'is', null)
+      .or('notified_24h_at.not.is.null,notified_12h_at.not.is.null,notified_3h_at.not.is.null')
       .gte('date', today)
       .order('date', { ascending: true })
       .limit(1)

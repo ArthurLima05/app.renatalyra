@@ -73,17 +73,24 @@ const MODULES: { id: AppModule; label: string; description: string }[] = [
 const CONFIRMATION_TEMPLATES = [
   {
     key: 'msg_appointment_confirmation',
-    tabLabel: 'Primeiro lembrete',
-    description: 'Enviado às 8h do dia anterior (sexta-feira, no caso de consultas de segunda-feira).',
+    tabLabel: 'Confirmação',
+    description: 'Enviada às 10h, 2 dias úteis antes da consulta (quinta-feira para consultas de segunda, sexta-feira para as de terça).',
     variables: ['{{nome_paciente}}', '{{data}}', '{{hora}}'],
     defaultValue: 'Olá, {{nome_paciente}}! 😊 Você tem consulta para *{{data}}* às *{{hora}}*.',
   },
   {
     key: 'msg_confirmation_12h',
-    tabLabel: 'Segundo lembrete',
-    description: 'Enviado às 15h do dia anterior (domingo, no caso de consultas de segunda-feira), se ainda não confirmado.',
+    tabLabel: 'Lembrete (dia anterior)',
+    description: 'Enviado às 15h do dia útil anterior (sexta-feira para consultas de segunda), se ainda não confirmado.',
     variables: ['{{nome_paciente}}', '{{data}}', '{{hora}}'],
     defaultValue: '🔔 Ainda aguardamos sua confirmação.\n\nOlá, {{nome_paciente}}! Sua consulta está marcada para o dia *{{data}}* às *{{hora}}*. Confirme com SIM ou cancele com NÃO.',
+  },
+  {
+    key: 'msg_reminder_day',
+    tabLabel: 'Lembrete (no dia)',
+    description: 'Enviado às 8h do dia da consulta, para quem confirmou e também para quem ainda não respondeu.',
+    variables: ['{{nome_paciente}}', '{{data}}', '{{hora}}', '{{profissional}}'],
+    defaultValue: 'Bom dia, {{nome_paciente}}! ☀️\n\nPassando para lembrar da sua consulta *hoje*, dia *{{data}}*, às *{{hora}}* com {{profissional}}.\n\nTe esperamos! 😊\n\n❤️ Clínica Renata Lyra',
   },
 ];
 
@@ -282,7 +289,7 @@ function ConfirmacaoCard({
   canEdit: (module: string) => boolean;
   toast: (opts: { title: string }) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<0 | 1>(0);
+  const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
 
@@ -316,7 +323,7 @@ function ConfirmacaoCard({
           {CONFIRMATION_TEMPLATES.map((t, i) => (
             <button
               key={t.key}
-              onClick={() => setActiveTab(i as 0 | 1)}
+              onClick={() => setActiveTab(i as 0 | 1 | 2)}
               className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
                 activeTab === i
                   ? 'bg-background shadow-sm text-foreground'
