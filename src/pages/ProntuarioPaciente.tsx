@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { StorageImage } from '@/components/StorageImage';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useClinic } from '@/contexts/ClinicContext';
@@ -447,7 +448,7 @@ const ProntuarioPaciente = () => {
             <div className="relative group cursor-pointer shrink-0" onClick={() => avatarInputRef.current?.click()}>
               <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary/20 bg-muted flex items-center justify-center shadow-[0_2px_8px_-2px_hsl(40_20%_50%/0.2)]">
                 {patient.avatarUrl ? (
-                  <img src={patient.avatarUrl} alt={patient.fullName} className="w-full h-full object-cover" />
+                  <StorageImage src={patient.avatarUrl} alt={patient.fullName} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-2xl font-cocon text-muted-foreground/70 tracking-[0.04em]">
                     {patient.fullName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}

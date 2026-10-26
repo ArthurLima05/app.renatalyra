@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { parseStorageUrl, signStorageUrls } from "@/lib/storageUrl";
 import {
   OdontogramProcedure,
   PatientPhoto,
@@ -228,11 +229,12 @@ const ProntuarioProviderReal: React.FC<{ children: React.ReactNode }> = ({ child
       .select("*")
       .order("created_at", { ascending: false });
     if (error) { console.error("Error loading photos:", error); return; }
+    const photoUrls = await signStorageUrls((data || []).map((r: any) => r.url));
     setPatientPhotos(
-      (data || []).map((r: any) => ({
+      (data || []).map((r: any, i: number) => ({
         id: r.id,
         patientId: r.patient_id,
-        url: r.url,
+        url: photoUrls[i],
         caption: r.caption ?? undefined,
         category: r.category,
         createdAt: new Date(r.created_at),
@@ -272,8 +274,8 @@ const ProntuarioProviderReal: React.FC<{ children: React.ReactNode }> = ({ child
       throw error;
     }
     try {
-      const parts = url.split("/patient-photos/");
-      if (parts[1]) await supabase.storage.from("patient-photos").remove([parts[1]]);
+      const target = parseStorageUrl(url);
+      if (target) await supabase.storage.from(target.bucket).remove([target.path]);
     } catch (_) { /* ignora erro de storage */ }
     await loadPatientPhotos();
     toast({ title: "Foto excluída" });
@@ -303,12 +305,13 @@ const ProntuarioProviderReal: React.FC<{ children: React.ReactNode }> = ({ child
       .select("*")
       .order("created_at", { ascending: false });
     if (error) { console.error("Error loading documents:", error); return; }
+    const documentUrls = await signStorageUrls((data || []).map((r: any) => r.url));
     setPatientDocuments(
-      (data || []).map((r: any) => ({
+      (data || []).map((r: any, i: number) => ({
         id: r.id,
         patientId: r.patient_id,
         name: r.name,
-        url: r.url,
+        url: documentUrls[i],
         fileType: r.file_type ?? undefined,
         fileSize: r.file_size ?? undefined,
         createdAt: new Date(r.created_at),
@@ -349,8 +352,8 @@ const ProntuarioProviderReal: React.FC<{ children: React.ReactNode }> = ({ child
       throw error;
     }
     try {
-      const parts = url.split("/patient-documents/");
-      if (parts[1]) await supabase.storage.from("patient-documents").remove([parts[1]]);
+      const target = parseStorageUrl(url);
+      if (target) await supabase.storage.from(target.bucket).remove([target.path]);
     } catch (_) { /* ignora erro de storage */ }
     await loadPatientDocuments();
     toast({ title: "Documento excluído" });

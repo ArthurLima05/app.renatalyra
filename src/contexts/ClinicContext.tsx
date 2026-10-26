@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { parseStorageUrl, signStorageUrls } from "@/lib/storageUrl";
 import {
   Appointment,
   Professional,
@@ -810,11 +811,12 @@ const ClinicProviderReal: React.FC<{ children: React.ReactNode }> = ({ children 
       toast({ title: "Erro ao carregar anexos", description: error.message, variant: "destructive" });
       throw error;
     }
-    return (data || []).map((r: any) => ({
+    const attachmentUrls = await signStorageUrls((data || []).map((r: any) => r.url));
+    return (data || []).map((r: any, i: number) => ({
       id: r.id,
       transactionId: r.transaction_id,
       name: r.name,
-      url: r.url,
+      url: attachmentUrls[i],
       fileType: r.file_type ?? undefined,
       fileSize: r.file_size ?? undefined,
       createdAt: new Date(r.created_at),
@@ -847,11 +849,12 @@ const ClinicProviderReal: React.FC<{ children: React.ReactNode }> = ({ children 
       toast({ title: "Erro ao salvar comprovante", description: error.message, variant: "destructive" });
       throw error;
     }
+    const [signedUrl] = await signStorageUrls([data.url]);
     return {
       id: data.id,
       transactionId: data.transaction_id,
       name: data.name,
-      url: data.url,
+      url: signedUrl,
       fileType: data.file_type ?? undefined,
       fileSize: data.file_size ?? undefined,
       createdAt: new Date(data.created_at),
@@ -865,8 +868,8 @@ const ClinicProviderReal: React.FC<{ children: React.ReactNode }> = ({ children 
       throw error;
     }
     try {
-      const parts = url.split("/transaction-attachments/");
-      if (parts[1]) await supabase.storage.from("transaction-attachments").remove([parts[1]]);
+      const target = parseStorageUrl(url);
+      if (target) await supabase.storage.from(target.bucket).remove([target.path]);
     } catch (_) { /* ignora erro de storage */ }
   };
 
