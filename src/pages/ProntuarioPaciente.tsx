@@ -16,8 +16,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History, MessageCircle, FileText, Printer } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, Calendar, Plus, Phone, Mail, MapPin, Trash2, UserCircle, Save, Stethoscope, Camera, Images, ClipboardList, DollarSign, CalendarRange, CreditCard, Banknote, Bell, FolderOpen, History, MessageCircle, FileText, Printer, Moon } from 'lucide-react';
 import { generateFichaOdontologicaHtml } from '@/utils/printProntuario';
+import { generateEpdHtml } from '@/utils/printEPD';
 import logoUrl from '@/assets/LightLogo.svg';
 import simboloUrl from '@/assets/SimboloDourado.svg';
 import { Switch } from '@/components/ui/switch';
@@ -100,6 +101,13 @@ const ProntuarioPaciente = () => {
       logoSrc: `${window.location.origin}${logoUrl}`,
       simboloSrc: `${window.location.origin}${simboloUrl}`,
     });
+    const win = window.open('', '_blank', 'width=960,height=720');
+    if (win) { win.document.write(html); win.document.close(); }
+  };
+
+  const handlePrintEpd = () => {
+    if (!patient) return;
+    const html = generateEpdHtml({ patient, logoSrc: `${window.location.origin}${logoUrl}` });
     const win = window.open('', '_blank', 'width=960,height=720');
     if (win) { win.document.write(html); win.document.close(); }
   };
@@ -499,6 +507,11 @@ const ProntuarioPaciente = () => {
               <Button size="sm" variant="outline" className="gap-2 w-full" onClick={handlePrint}>
                 <Printer className="h-4 w-4" />
                 <span>Imprimir Prontuário</span>
+              </Button>
+              {/* Imprimir EPD */}
+              <Button size="sm" variant="outline" className="gap-2 w-full" onClick={handlePrintEpd}>
+                <Moon className="h-4 w-4" />
+                <span>Imprimir EPD</span>
               </Button>
               {/* Toggle Feedback */}
               <div className="flex items-center justify-between border rounded-md px-3 h-9 w-full text-sm">
