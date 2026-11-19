@@ -3,7 +3,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, CheckCircle2, ChevronLeft, ChevronRight, Target, Trash2, Paperclip, X } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar as CalendarIcon, Download, CheckCircle2, ChevronLeft, ChevronRight, Target, Trash2, Paperclip, X, MessageCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, addMonths, eachMonthOfInterval, eachDayOfInterval, getDay, isSameDay, isAfter } from 'date-fns';
+import { format, differenceInCalendarDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, addMonths, eachMonthOfInterval, eachDayOfInterval, getDay, isSameDay, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
@@ -26,6 +26,20 @@ import * as XLSX from 'xlsx';
 type DatePeriod = 'hoje' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
 const MAX_COMPROVANTES = 2;
+
+// Link do WhatsApp com a mensagem de cobrança já preenchida (a equipe confere e envia).
+function buildCobrancaLink(phone: string | undefined, fullName: string, amount: number, number: number, total: number, dueDate: Date) {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  const to = digits.length <= 11 ? `55${digits}` : digits;
+  const firstName = fullName.trim().split(/\s+/)[0] ?? '';
+  const text =
+    `Olá ${firstName}, tudo bem? Aqui é do Consultório Dra. Renata Lyra.\n\n` +
+    `Notamos uma pendência de R$ ${amount.toFixed(2).replace('.', ',')} (parcela ${number}/${total}), ` +
+    `com vencimento em ${format(dueDate, 'dd/MM/yyyy')}.\n` +
+    `Podemos contar com o seu pagamento?`;
+  return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
+}
 
 function ComprovanteButton({ transactionId }: { transactionId: string }) {
   const { getTransactionAttachments } = useClinic();
@@ -90,6 +104,11 @@ export default function Financeiro() {
   const [dateOption, setDateOption] = useState<'hoje' | 'personalizado'>('hoje');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [showAllInstallments, setShowAllInstallments] = useState(false);
+  const today = startOfDay(new Date());
+  const overdueInstallments = installments
+    .filter(i => !i.paid && i.sessionId && i.predictedDate < today)
+    .sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime());
+  const overdueTotal = overdueInstallments.reduce((acc, i) => acc + i.amount, 0);
   const [transactionData, setTransactionData] = useState({
     type: 'entrada' as TransactionType,
     description: '',
@@ -974,10 +993,16 @@ export default function Financeiro() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="distribuicao" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 h-auto">
+              <TabsList className="grid w-full grid-cols-4 h-auto">
                 <TabsTrigger value="distribuicao" className="text-xs sm:text-sm py-2">Distribuição</TabsTrigger>
                 <TabsTrigger value="evolucao" className="text-xs sm:text-sm py-2">Evolução</TabsTrigger>
                 <TabsTrigger value="previsoes" className="text-xs sm:text-sm py-2">Previsões</TabsTrigger>
+                <TabsTrigger value="atraso" className="text-xs sm:text-sm py-2 gap-1">
+                  Em Atraso
+                  {overdueInstallments.length > 0 && (
+                    <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">{overdueInstallments.length}</Badge>
+                  )}
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="distribuicao" className="mt-4">
@@ -1105,6 +1130,97 @@ export default function Financeiro() {
                         </p>
                       </div>
                     </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="atraso" className="mt-4">
+                <div className="space-y-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Parcelas não pagas com vencimento anterior a hoje
+                  </p>
+                  {overdueInstallments.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8 text-sm">
+                      Nenhuma parcela em atraso 🎉
+                    </p>
+                  ) : (
+                    <>
+                      <div className="overflow-x-auto -mx-4 sm:mx-0">
+                        <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                          <Table className="min-w-[700px]">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-xs sm:text-sm">Paciente</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Vencimento</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Atraso</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Parcela</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Valor</TableHead>
+                                <TableHead className="text-right text-xs sm:text-sm">Ações</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {overdueInstallments.map((installment) => {
+                                const session = sessions.find(s => s.id === installment.sessionId);
+                                const patient = session ? getPatientById(session.patientId) : null;
+                                const days = differenceInCalendarDays(today, installment.predictedDate);
+                                const whatsappLink = patient
+                                  ? buildCobrancaLink(patient.phone, patient.fullName, installment.amount, installment.installmentNumber, installment.totalInstallments, installment.predictedDate)
+                                  : null;
+
+                                return (
+                                  <TableRow key={installment.id}>
+                                    <TableCell className="font-medium text-xs sm:text-sm">
+                                      {patient?.fullName || 'Paciente não encontrado'}
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
+                                      {format(installment.predictedDate, 'dd/MM/yyyy', { locale: ptBR })}
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
+                                      <Badge variant={days > 30 ? 'destructive' : 'secondary'} className="text-[10px] sm:text-xs">
+                                        {days} dia{days !== 1 ? 's' : ''}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm">
+                                      {installment.installmentNumber}/{installment.totalInstallments}
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
+                                      R$ {installment.amount.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell className="text-right whitespace-nowrap">
+                                      {whatsappLink ? (
+                                        <Button size="sm" variant="ghost" asChild className="text-xs">
+                                          <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                                            <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                            <span className="hidden sm:inline">Cobrar</span>
+                                          </a>
+                                        </Button>
+                                      ) : (
+                                        <span className="text-[10px] text-muted-foreground mr-2">sem telefone</span>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => updateInstallment(installment.id, { paid: true, paidDate: new Date() })}
+                                        className="text-xs"
+                                      >
+                                        <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                        <span className="hidden sm:inline">Marcar como Pago</span>
+                                        <span className="sm:hidden">Pago</span>
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                      <div className="p-3 sm:p-4 bg-muted rounded-lg">
+                        <p className="text-xs sm:text-sm font-medium">
+                          Total em atraso: R$ {overdueTotal.toFixed(2)} ({overdueInstallments.length} parcela{overdueInstallments.length !== 1 ? 's' : ''})
+                        </p>
+                      </div>
+                    </>
                   )}
                 </div>
               </TabsContent>
