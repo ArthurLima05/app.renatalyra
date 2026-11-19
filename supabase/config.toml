@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.anamnese-flow]
 verify_jwt = false
+
+[functions.get-daily-summary]
+verify_jwt = false
