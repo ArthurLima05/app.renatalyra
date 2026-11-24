@@ -22,8 +22,9 @@ import {
   Sun, Moon, Users, Plus, ChevronDown, ChevronUp, Mail, Phone, Shield,
   SlidersHorizontal, CalendarDays, List, Upload, FileSpreadsheet,
   CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, KeyRound, Eye, EyeOff,
-  Lock, RefreshCw,
+  Lock, RefreshCw, FileText,
 } from 'lucide-react';
+import { generatePapelTimbradoHtml } from '@/utils/printPapelTimbrado';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -32,7 +33,7 @@ import type { AppUser, UserProfile, AppModule, UserPermission } from '@/types';
 import { usePermissionsCtx } from '@/contexts/PermissionsContext';
 import { cn } from '@/lib/utils';
 
-type Section = null | 'aparencia' | 'mensagens' | 'usuarios' | 'preferencias' | 'importar' | 'feriados' | 'senha';
+type Section = null | 'aparencia' | 'mensagens' | 'usuarios' | 'preferencias' | 'importar' | 'feriados' | 'senha' | 'papel_timbrado';
 type UserView = null | AppUser;
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -1934,9 +1935,15 @@ const SECTIONS = [
   { id: 'senha'        as Section, icon: KeyRound,           label: 'Alterar Senha',          description: 'Atualize sua senha de acesso',                                  module: null as AppModule | null },
   { id: 'mensagens'    as Section, icon: MessageSquare,      label: 'Mensagens WhatsApp',     description: 'Templates de mensagens automáticas',                            module: 'mensagens_whatsapp' as AppModule },
   { id: 'feriados'     as Section, icon: CalendarDays,       label: 'Feriados',               description: 'Dias de folga que fecham a agenda e marcam o financeiro',       module: 'feriados' as AppModule },
-  { id: 'importar'     as Section, icon: Upload,             label: 'Importar',               description: 'Importe pacientes ou agendamentos via Excel',                   module: null as AppModule | null, adminOnly: true },
+  { id: 'papel_timbrado' as Section, icon: FileText,         label: 'Papel Timbrado',         description: 'Abrir folha timbrada em branco para escrever e imprimir',       module: null as AppModule | null, action: 'papel_timbrado' },
+  { id: 'importar'     as Section, icon: Upload,            label: 'Importar',               description: 'Importe pacientes ou agendamentos via Excel',                   module: null as AppModule | null, adminOnly: true },
   { id: 'usuarios'     as Section, icon: Users,              label: 'Usuários e Permissões',  description: 'Quem acessa e o que pode fazer',                                module: null as AppModule | null, adminOnly: true },
 ];
+
+const openPapelTimbrado = () => {
+  const win = window.open('', '_blank', 'width=960,height=720');
+  if (win) { win.document.write(generatePapelTimbradoHtml()); win.document.close(); }
+};
 
 export default function Configuracoes() {
   const [section, setSection] = useState<Section>(null);
@@ -1955,7 +1962,11 @@ export default function Configuracoes() {
               {SECTIONS.map(s => {
                 const locked = (s as any).adminOnly ? !isAdmin : (s.module ? !hasAnyPermission(s.module) : false);
                 return (
-                  <button key={String(s.id)} onClick={() => !locked && setSection(s.id)}
+                  <button key={String(s.id)} onClick={() => {
+                    if (locked) return;
+                    if ((s as any).action === 'papel_timbrado') { openPapelTimbrado(); return; }
+                    setSection(s.id);
+                  }}
                     className={cn(
                       'w-full flex items-center gap-4 p-4 rounded-xl border border-border bg-card transition-colors text-left',
                       locked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-secondary/60 cursor-pointer',
