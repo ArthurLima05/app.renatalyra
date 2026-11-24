@@ -31,6 +31,29 @@ const METHOD_LABEL: Record<string, string> = {
   cheque: 'Cheque',
 }
 
+const SESSION_TYPE_LABEL: Record<string, string> = {
+  primeira_consulta: 'Primeira consulta',
+  consulta_avulsa: 'Consulta avulsa',
+  retorno: 'Retorno',
+}
+
+const clean = (s: string | null | undefined) => (s ?? '').trim()
+const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+// "MARIA DA SILVA SANTOS" -> "Maria Santos"
+const shortName = (full: string | null | undefined) => {
+  // ignora apelidos/observações no cadastro: "SEVERINO NEVES - (Sabiá)" -> "SEVERINO NEVES"
+  const base = clean(full).replace(/\(.*?\)/g, ' ').split(' - ')[0]
+  const parts = base.toLowerCase().split(/\s+/).filter((p) => /[a-zà-ú]/i.test(p))
+  if (parts.length === 0) return 'Paciente não identificado'
+  const pick = parts.length > 1 ? [parts[0], parts[parts.length - 1]] : parts
+  return pick.map(capitalize).join(' ')
+}
+const methodText = (method: string | null, installments: number | null) => {
+  if (!method) return 'Forma não informada'
+  const label = METHOD_LABEL[method] ?? method
+  return method === 'cartao_credito' && installments && installments > 1 ? `${label} (${installments}x)` : label
+}
+
 const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
 
 // Brasília = UTC-3 (sem horário de verão desde 2019).
@@ -73,8 +96,15 @@ Deno.serve(async (req) => {
     )
 
     const [dayTx, monthTx, apptToday, apptTomorrow, overdue, upcoming, setting] = await Promise.all([
-      supabase.from('transactions').select('type, amount, payment_method')
-        .gte('date', t0).lt('date', t1),
+      // A forma de pagamento costuma estar na sessão (não é copiada para a transação),
+      // por isso buscamos a sessão junto e usamos a dela como reserva.
+      supabase.from('transactions').select(`
+          type, amount, date, description, category, payment_method, installment_count,
+          patients ( full_name ),
+          professionals ( name ),
+          sessions ( type, session_type, payment_method, installment_count, professionals ( name ) )
+        `)
+        .gte('date', t0).lt('date', t1).order('date'),
       supabase.from('transactions').select('amount')
         .eq('type', 'entrada').gte('date', tMonth).lt('date', t1),
       supabase.from('appointments').select('status')
@@ -97,21 +127,53 @@ Deno.serve(async (req) => {
     const sum = (rows: { amount: number | string }[] | null) =>
       (rows ?? []).reduce((a, r) => a + Number(r.amount), 0)
 
-    // Financeiro do dia
-    const entradas = (dayTx.data ?? []).filter((t) => t.type === 'entrada')
-    const saidas = (dayTx.data ?? []).filter((t) => t.type === 'saida')
+    // Financeiro do dia — cada lançamento já com forma de pagamento, origem e profissional resolvidos
+    // deno-lint-ignore no-explicit-any
+    const rows = (dayTx.data ?? []).map((t: any) => {
+      const s = t.sessions ?? null
+      const method: string | null = t.payment_method ?? s?.payment_method ?? null
+      const installments: number | null = t.installment_count ?? s?.installment_count ?? null
+      const procedure =
+        clean(s?.type) ||
+        clean(clean(t.description).replace(/^Pagamento\s*-\s*/i, '')) ||
+        SESSION_TYPE_LABEL[s?.session_type] ||
+        clean(t.category) ||
+        'Sem descrição'
+      return {
+        type: t.type as string,
+        amount: Number(t.amount),
+        method,
+        installments,
+        procedure: capitalize(procedure),
+        patient: t.patients?.full_name ? shortName(t.patients.full_name) : null,
+        professional: clean(t.professionals?.name ?? s?.professionals?.name) || null,
+        description: clean(t.description) || clean(t.category) || 'Sem descrição',
+      }
+    })
+    const entradas = rows.filter((t) => t.type === 'entrada')
+    const saidas = rows.filter((t) => t.type === 'saida')
     const totalEntradas = sum(entradas)
     const totalSaidas = sum(saidas)
     const saldo = totalEntradas - totalSaidas
 
-    const byMethod = new Map<string, number>()
+    // Resumo por forma de pagamento (com quantidade de lançamentos)
+    const byMethod = new Map<string, { total: number; n: number }>()
     for (const t of entradas) {
-      const key = t.payment_method ?? 'outros'
-      byMethod.set(key, (byMethod.get(key) ?? 0) + Number(t.amount))
+      const key = t.method ?? '__none__'
+      const cur = byMethod.get(key) ?? { total: 0, n: 0 }
+      byMethod.set(key, { total: cur.total + t.amount, n: cur.n + 1 })
     }
     const methodLines = [...byMethod.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([m, v]) => `   – ${METHOD_LABEL[m] ?? 'Outros'}: ${BRL(v)}`)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([m, v]) => `• ${m === '__none__' ? 'Forma não informada' : (METHOD_LABEL[m] ?? m)}: ${BRL(v.total)} (${v.n})`)
+
+    // Só mostra o profissional quando houver mais de um no dia
+    const showProfessional = new Set(entradas.map((t) => t.professional).filter(Boolean)).size > 1
+    const entryLines = entradas.flatMap((t, i) => [
+      `${i + 1}. *${t.patient ?? t.procedure}*${t.patient ? ` — ${t.procedure}` : ''}`,
+      `    ${methodText(t.method, t.installments)} · ${BRL(t.amount)}${showProfessional && t.professional ? ` · ${t.professional}` : ''}`,
+    ])
+    const exitLines = saidas.map((t) => `• ${t.description}: ${BRL(t.amount)}${t.method ? ` (${methodText(t.method, t.installments)})` : ''}`)
 
     // Agenda do dia
     const count = (s: string) => (apptToday.data ?? []).filter((a) => a.status === s).length
@@ -136,10 +198,20 @@ Deno.serve(async (req) => {
       '',
       '💰 *Financeiro*',
       `• Entradas: ${BRL(totalEntradas)}`,
-      ...methodLines,
       `• Saídas: ${BRL(totalSaidas)}`,
       `• *Saldo do dia: ${BRL(saldo)}*`,
       '',
+      ...(entradas.length > 0
+        ? [
+            '💳 *Por forma de pagamento*',
+            ...methodLines,
+            '',
+            `🧾 *Entradas do dia (${entradas.length})*`,
+            ...entryLines,
+            '',
+          ]
+        : ['🧾 Nenhuma entrada registrada hoje.', '']),
+      ...(saidas.length > 0 ? [`📤 *Saídas do dia (${saidas.length})*`, ...exitLines, ''] : []),
       '📅 *Agenda*',
       `• Atendimentos realizados: ${realizados}`,
       `• Faltas: ${faltas}`,
